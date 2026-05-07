@@ -1,9 +1,11 @@
-# jira-go
+# go-jira
 
 A mini Jira clone built as a learning and portfolio project.
 
 **Backend:** Go + Echo v4 · GORM · SQLite (local) / PostgreSQL (prod) · JWT auth  
 **Frontend:** Nuxt 4 (SPA) · Pinia · Tailwind CSS v4 · DaisyUI
+
+> Design spec, ADRs, and task plans live in the docs repo: [sharique/jira-go](https://github.com/sharique/jira-go)
 
 ## Prerequisites
 
@@ -16,14 +18,14 @@ A mini Jira clone built as a learning and portfolio project.
 ### 1. Environment
 
 ```sh
-cp code/backend/.env.example code/backend/.env
-# Edit code/backend/.env if needed — defaults work out of the box
+cp backend/.env.example backend/.env
+# Edit backend/.env if needed — defaults work out of the box
 ```
 
 ### 2. Backend
 
 ```sh
-cd code/backend
+cd backend
 go run ./cmd/server
 # Listening on http://localhost:8080
 # Health check: GET http://localhost:8080/health
@@ -32,7 +34,7 @@ go run ./cmd/server
 ### 3. Frontend
 
 ```sh
-cd code/frontend
+cd frontend
 npm install
 npm run dev
 # Listening on http://localhost:3000
@@ -41,18 +43,15 @@ npm run dev
 ## Project structure
 
 ```
-code/
-  backend/          # Go API
-    cmd/server/     # Entry point
-    pkg/config/     # Env config (Viper)
-    pkg/database/   # GORM connection
-    pkg/logger/     # Zap logger
-  frontend/         # Nuxt 4 SPA
-    app/            # Source root (pages, components, stores, ...)
-docs/
-  decisions/        # Architecture Decision Records
-  plan/             # MVP task plans
-infrastructure/     # Terraform (MVP 5)
+backend/              # Go API
+  cmd/server/         # Entry point
+  internal/domain/    # Domain entities and repository interfaces
+  internal/repository/# GORM repository implementations
+  pkg/config/         # Env config (Viper)
+  pkg/database/       # GORM connection + migrations
+  pkg/logger/         # Zap logger
+frontend/             # Nuxt 4 SPA
+  app/                # Source root (pages, components, stores, ...)
 ```
 
 ## Architecture
