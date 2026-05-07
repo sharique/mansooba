@@ -47,12 +47,17 @@ func main() {
 
 	// Repositories
 	userRepo := repository.NewUserRepository(db)
+	projectRepo := repository.NewProjectRepository(db)
+	projectMemberRepo := repository.NewProjectMemberRepository(db)
+	issueRepo := repository.NewIssueRepository(db)
 
 	// Services
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
+	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authSvc)
+	projectHandler := handler.NewProjectHandler(projectSvc)
 
 	// Echo
 	e := echo.New()
@@ -76,8 +81,17 @@ func main() {
 	auth.POST("/login", authHandler.Login)
 	auth.POST("/refresh", authHandler.Refresh)
 
-	// Protected routes (future tasks add their handlers here)
-	_ = e.Group("/api/v1", apimw.JWTAuth(cfg.JWTSecret))
+	// Protected routes
+	api := e.Group("/api/v1", apimw.JWTAuth(cfg.JWTSecret))
+	projects := api.Group("/projects")
+	projects.GET("", projectHandler.List)
+	projects.POST("", projectHandler.Create)
+	projects.GET("/:key", projectHandler.Get)
+	projects.PUT("/:key", projectHandler.Update)
+	projects.DELETE("/:key", projectHandler.Delete)
+	projects.GET("/:key/members", projectHandler.ListMembers)
+	projects.POST("/:key/members", projectHandler.AddMember)
+	projects.DELETE("/:key/members/:userId", projectHandler.RemoveMember)
 
 	addr := ":" + cfg.ServerPort
 	log.Info("starting server", zap.String("address", addr))

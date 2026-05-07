@@ -22,6 +22,19 @@ func (r *projectRepo) Create(ctx context.Context, project *domain.Project) error
 	return r.db.WithContext(ctx).Create(project).Error
 }
 
+// FindByID retrieves a project by primary key.
+// Returns domain.ErrNotFound when no row matches.
+func (r *projectRepo) FindByID(ctx context.Context, id uint) (*domain.Project, error) {
+	var project domain.Project
+	if err := r.db.WithContext(ctx).First(&project, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, err
+	}
+	return &project, nil
+}
+
 // FindByKey retrieves a project by its unique key (e.g. "PROJ").
 // Returns domain.ErrNotFound when no row matches.
 func (r *projectRepo) FindByKey(ctx context.Context, key string) (*domain.Project, error) {

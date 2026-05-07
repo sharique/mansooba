@@ -1,6 +1,8 @@
 # go-jira
 
-A mini Jira clone built as a learning and portfolio project.
+A project management application (simialr to Jira) build in Go and Nuxt.js as a learning and portfolio project.
+
+It implemented using spec driven approach, where I worked as architect/manager and AI/Claude worked as enginneer.
 
 **Backend:** Go + Echo v4 · GORM · SQLite (local) / PostgreSQL (prod) · JWT auth  
 **Frontend:** Nuxt 4 (SPA) · Pinia · Tailwind CSS v4 · DaisyUI

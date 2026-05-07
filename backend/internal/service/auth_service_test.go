@@ -24,8 +24,10 @@ func (s *stubUserRepo) Create(_ context.Context, u *domain.User) error {
 	if _, exists := s.users[u.Email]; exists {
 		return domain.ErrConflict
 	}
-	u.ID = s.nextID
-	s.nextID++
+	if u.ID == 0 {
+		u.ID = s.nextID
+		s.nextID++
+	}
 	s.users[u.Email] = u
 	return nil
 }
