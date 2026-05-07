@@ -1,0 +1,24 @@
+{
+  "name": "frontend",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@nuxt/eslint": "^1.15.2",
+    "@nuxt/icon": "^2.2.2",
+    "@pinia/nuxt": "^0.11.3",
+    "@tailwindcss/vite": "^4.2.4",
+    "daisyui": "^5.5.19",
+    "eslint": "^10.3.0",
+    "nuxt": "^4.4.4",
+    "tailwindcss": "^4.2.4",
+    "vue": "^3.5.33",
+    "vue-router": "^5.0.6"
+  }
+}
