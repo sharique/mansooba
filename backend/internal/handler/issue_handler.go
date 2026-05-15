@@ -21,6 +21,22 @@ func NewIssueHandler(svc service.IssueService) *IssueHandler {
 	return &IssueHandler{svc: svc}
 }
 
+// List godoc
+// @Summary      List issues in a project
+// @Tags         issues
+// @Produce      json
+// @Security     BearerAuth
+// @Param        key         path  string false "Project key"
+// @Param        type        query string false "Filter by type (task|story|bug|epic)"
+// @Param        status      query string false "Filter by status (backlog|todo|in_progress|in_review|done)"
+// @Param        assignee_id query int    false "Filter by assignee user ID"
+// @Param        page        query int    false "Page number"
+// @Param        limit       query int    false "Page size"
+// @Success      200 {array}  dto.IssueResponse
+// @Failure      401 {object} apierror.APIError "Unauthorized"
+// @Failure      403 {object} apierror.APIError "Forbidden"
+// @Failure      404 {object} apierror.APIError "Not found"
+// @Router       /projects/{key}/issues [get]
 func (h *IssueHandler) List(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	var q dto.IssueListQuery
@@ -34,6 +50,20 @@ func (h *IssueHandler) List(c echo.Context) error {
 	return c.JSON(http.StatusOK, issues)
 }
 
+// Create godoc
+// @Summary      Create an issue in a project
+// @Tags         issues
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        key  path string                  true "Project key"
+// @Param        body body dto.CreateIssueRequest  true "Issue payload"
+// @Success      201 {object} dto.IssueResponse
+// @Failure      400 {object} apierror.APIError "Bad request"
+// @Failure      401 {object} apierror.APIError "Unauthorized"
+// @Failure      403 {object} apierror.APIError "Forbidden"
+// @Failure      404 {object} apierror.APIError "Project not found"
+// @Router       /projects/{key}/issues [post]
 func (h *IssueHandler) Create(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	var req dto.CreateIssueRequest
@@ -47,6 +77,19 @@ func (h *IssueHandler) Create(c echo.Context) error {
 	return c.JSON(http.StatusCreated, issue)
 }
 
+// Get godoc
+// @Summary      Get an issue by ID
+// @Tags         issues
+// @Produce      json
+// @Security     BearerAuth
+// @Param        key path string true "Project key"
+// @Param        id  path int    true "Issue ID"
+// @Success      200 {object} dto.IssueResponse
+// @Failure      400 {object} apierror.APIError "Bad request"
+// @Failure      401 {object} apierror.APIError "Unauthorized"
+// @Failure      403 {object} apierror.APIError "Forbidden"
+// @Failure      404 {object} apierror.APIError "Not found"
+// @Router       /projects/{key}/issues/{id} [get]
 func (h *IssueHandler) Get(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseIssueID(c)
@@ -60,6 +103,21 @@ func (h *IssueHandler) Get(c echo.Context) error {
 	return c.JSON(http.StatusOK, issue)
 }
 
+// Update godoc
+// @Summary      Update an issue
+// @Tags         issues
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        key  path string                 true "Project key"
+// @Param        id   path int                    true "Issue ID"
+// @Param        body body dto.UpdateIssueRequest true "Update payload"
+// @Success      200 {object} dto.IssueResponse
+// @Failure      400 {object} apierror.APIError "Bad request"
+// @Failure      401 {object} apierror.APIError "Unauthorized"
+// @Failure      403 {object} apierror.APIError "Forbidden"
+// @Failure      404 {object} apierror.APIError "Not found"
+// @Router       /projects/{key}/issues/{id} [put]
 func (h *IssueHandler) Update(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseIssueID(c)
@@ -77,6 +135,18 @@ func (h *IssueHandler) Update(c echo.Context) error {
 	return c.JSON(http.StatusOK, issue)
 }
 
+// Delete godoc
+// @Summary      Delete an issue
+// @Tags         issues
+// @Security     BearerAuth
+// @Param        key path string true "Project key"
+// @Param        id  path int    true "Issue ID"
+// @Success      204
+// @Failure      400 {object} apierror.APIError "Bad request"
+// @Failure      401 {object} apierror.APIError "Unauthorized"
+// @Failure      403 {object} apierror.APIError "Forbidden"
+// @Failure      404 {object} apierror.APIError "Not found"
+// @Router       /projects/{key}/issues/{id} [delete]
 func (h *IssueHandler) Delete(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseIssueID(c)
