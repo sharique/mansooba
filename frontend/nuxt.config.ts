@@ -6,14 +6,14 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   srcDir: 'app',
   ssr: false,
-  modules: ['@nuxt/eslint', '@nuxt/icon', '@pinia/nuxt'],
+  modules: ['@nuxt/eslint', '@nuxt/icon', '@pinia/nuxt', 'pinia-plugin-persistedstate/nuxt'],
   css: ['~/assets/css/main.css'],
   vite: {
     plugins: [tailwindcss()],
   },
   runtimeConfig: {
     public: {
-      apiBaseUrl: 'http://localhost:8080',
+      apiBaseUrl: 'http://localhost:8080/api/v1',
     },
   },
 })
