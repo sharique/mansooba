@@ -55,11 +55,13 @@ func main() {
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo)
 	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo)
+	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authSvc)
 	projectHandler := handler.NewProjectHandler(projectSvc)
 	issueHandler := handler.NewIssueHandler(issueSvc)
+	boardHandler := handler.NewBoardHandler(boardSvc)
 
 	// Echo
 	e := echo.New()
@@ -101,6 +103,8 @@ func main() {
 	issues.GET("/:id", issueHandler.Get)
 	issues.PUT("/:id", issueHandler.Update)
 	issues.DELETE("/:id", issueHandler.Delete)
+
+	api.GET("/projects/:key/board", boardHandler.GetBoard)
 
 	addr := ":" + cfg.ServerPort
 	log.Info("starting server", zap.String("address", addr))
