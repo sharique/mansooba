@@ -7,7 +7,9 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "nuxt prepare"
   },
   "dependencies": {
     "@nuxt/eslint": "^1.15.2",
