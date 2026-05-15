@@ -1,3 +1,10 @@
+// @title           jira-go API
+// @version         1.0
+// @description     Mini Jira clone REST API
+// @BasePath        /api/v1
+// @securityDefinitions.apikey BearerAuth
+// @in              header
+// @name            Authorization
 package main
 
 import (
@@ -6,6 +13,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
+	_ "github.com/sharique/jira-go/docs"
 	"github.com/sharique/jira-go/internal/handler"
 	apimw "github.com/sharique/jira-go/internal/middleware"
 	"github.com/sharique/jira-go/internal/repository"
@@ -14,6 +22,7 @@ import (
 	"github.com/sharique/jira-go/pkg/config"
 	"github.com/sharique/jira-go/pkg/database"
 	"github.com/sharique/jira-go/pkg/logger"
+	echoSwagger "github.com/swaggo/echo-swagger"
 	"go.uber.org/zap"
 )
 
@@ -105,6 +114,8 @@ func main() {
 	issues.DELETE("/:id", issueHandler.Delete)
 
 	api.GET("/projects/:key/board", boardHandler.GetBoard)
+
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
 	addr := ":" + cfg.ServerPort
 	log.Info("starting server", zap.String("address", addr))

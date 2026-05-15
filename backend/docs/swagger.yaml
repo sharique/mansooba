@@ -1,0 +1,809 @@
+basePath: /api/v1
+definitions:
+  apierror.APIError:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    type: object
+  dto.AddMemberRequest:
+    properties:
+      email:
+        type: string
+      role:
+        enum:
+        - admin
+        - member
+        - viewer
+        type: string
+    required:
+    - email
+    - role
+    type: object
+  dto.AuthResponse:
+    properties:
+      access_token:
+        type: string
+      user:
+        $ref: '#/definitions/dto.UserDTO'
+    type: object
+  dto.BoardColumn:
+    properties:
+      issues:
+        items:
+          $ref: '#/definitions/dto.IssueResponse'
+        type: array
+      status:
+        type: string
+    type: object
+  dto.BoardResponse:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/dto.BoardColumn'
+        type: array
+    type: object
+  dto.CreateIssueRequest:
+    properties:
+      assignee_id:
+        type: integer
+      description:
+        type: string
+      priority:
+        enum:
+        - low
+        - medium
+        - high
+        - critical
+        type: string
+      title:
+        type: string
+      type:
+        enum:
+        - task
+        - story
+        - bug
+        - epic
+        type: string
+    required:
+    - priority
+    - title
+    - type
+    type: object
+  dto.CreateProjectRequest:
+    properties:
+      description:
+        type: string
+      key:
+        type: string
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  dto.IssueResponse:
+    properties:
+      assignee_id:
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      key:
+        type: string
+      priority:
+        type: string
+      project_id:
+        type: integer
+      reporter_id:
+        type: integer
+      status:
+        type: string
+      title:
+        type: string
+      type:
+        type: string
+    type: object
+  dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.MemberResponse:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      role:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  dto.ProjectResponse:
+    properties:
+      description:
+        type: string
+      id:
+        type: integer
+      key:
+        type: string
+      name:
+        type: string
+      owner_id:
+        type: integer
+    type: object
+  dto.RegisterRequest:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      password:
+        minLength: 8
+        type: string
+    required:
+    - email
+    - full_name
+    - password
+    type: object
+  dto.UpdateIssueRequest:
+    properties:
+      assignee_id:
+        type: integer
+      description:
+        type: string
+      priority:
+        enum:
+        - low
+        - medium
+        - high
+        - critical
+        type: string
+      status:
+        enum:
+        - backlog
+        - todo
+        - in_progress
+        - in_review
+        - done
+        type: string
+      title:
+        type: string
+      type:
+        enum:
+        - task
+        - story
+        - bug
+        - epic
+        type: string
+    type: object
+  dto.UpdateProjectRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+    type: object
+  dto.UserDTO:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Mini Jira clone REST API
+  title: jira-go API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Login payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      summary: Authenticate a user
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      summary: Refresh access token using refresh_token cookie
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Registration payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "409":
+          description: Email already registered
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      summary: Register a new user
+      tags:
+      - auth
+  /projects:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.ProjectResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: List projects for the current user
+      tags:
+      - projects
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ProjectResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "409":
+          description: Key already exists
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Create a new project
+      tags:
+      - projects
+  /projects/{key}:
+    delete:
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Delete a project
+      tags:
+      - projects
+    get:
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ProjectResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get a project by key
+      tags:
+      - projects
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Update payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ProjectResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Update a project
+      tags:
+      - projects
+  /projects/{key}/board:
+    get:
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.BoardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get the kanban board for a project
+      tags:
+      - board
+  /projects/{key}/issues:
+    get:
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        type: string
+      - description: Filter by type (task|story|bug|epic)
+        in: query
+        name: type
+        type: string
+      - description: Filter by status (backlog|todo|in_progress|in_review|done)
+        in: query
+        name: status
+        type: string
+      - description: Filter by assignee user ID
+        in: query
+        name: assignee_id
+        type: integer
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.IssueResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: List issues in a project
+      tags:
+      - issues
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Issue payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateIssueRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.IssueResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Project not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Create an issue in a project
+      tags:
+      - issues
+  /projects/{key}/issues/{id}:
+    delete:
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Delete an issue
+      tags:
+      - issues
+    get:
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.IssueResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get an issue by ID
+      tags:
+      - issues
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateIssueRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.IssueResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Update an issue
+      tags:
+      - issues
+  /projects/{key}/members:
+    get:
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.MemberResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: List members of a project
+      tags:
+      - projects
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Member payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AddMemberRequest'
+      responses:
+        "201":
+          description: Created
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Add a member to a project
+      tags:
+      - projects
+  /projects/{key}/members/{userId}:
+    delete:
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: User ID
+        in: path
+        name: userId
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Remove a member from a project
+      tags:
+      - projects
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

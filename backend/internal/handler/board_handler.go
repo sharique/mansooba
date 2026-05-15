@@ -19,6 +19,17 @@ func NewBoardHandler(svc service.BoardService) *BoardHandler {
 	return &BoardHandler{svc: svc}
 }
 
+// GetBoard godoc
+// @Summary      Get the kanban board for a project
+// @Tags         board
+// @Produce      json
+// @Security     BearerAuth
+// @Param        key path string true "Project key"
+// @Success      200 {object} dto.BoardResponse
+// @Failure      401 {object} apierror.APIError "Unauthorized"
+// @Failure      403 {object} apierror.APIError "Forbidden"
+// @Failure      404 {object} apierror.APIError "Not found"
+// @Router       /projects/{key}/board [get]
 func (h *BoardHandler) GetBoard(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	resp, err := h.svc.GetBoard(c.Request().Context(), c.Param("key"), callerID)

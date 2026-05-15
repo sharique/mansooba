@@ -21,6 +21,16 @@ func NewAuthHandler(svc service.AuthService) *AuthHandler {
 	return &AuthHandler{svc: svc}
 }
 
+// Register godoc
+// @Summary      Register a new user
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body body dto.RegisterRequest true "Registration payload"
+// @Success      201 {object} dto.AuthResponse
+// @Failure      400 {object} apierror.APIError "Bad request"
+// @Failure      409 {object} apierror.APIError "Email already registered"
+// @Router       /auth/register [post]
 func (h *AuthHandler) Register(c echo.Context) error {
 	var req dto.RegisterRequest
 	if err := c.Bind(&req); err != nil {
@@ -39,6 +49,16 @@ func (h *AuthHandler) Register(c echo.Context) error {
 	return c.JSON(http.StatusCreated, resp)
 }
 
+// Login godoc
+// @Summary      Authenticate a user
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body body dto.LoginRequest true "Login payload"
+// @Success      200 {object} dto.AuthResponse
+// @Failure      400 {object} apierror.APIError "Bad request"
+// @Failure      401 {object} apierror.APIError "Invalid credentials"
+// @Router       /auth/login [post]
 func (h *AuthHandler) Login(c echo.Context) error {
 	var req dto.LoginRequest
 	if err := c.Bind(&req); err != nil {
@@ -54,6 +74,13 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+// Refresh godoc
+// @Summary      Refresh access token using refresh_token cookie
+// @Tags         auth
+// @Produce      json
+// @Success      200 {object} map[string]string
+// @Failure      401 {object} apierror.APIError "Unauthorized"
+// @Router       /auth/refresh [post]
 func (h *AuthHandler) Refresh(c echo.Context) error {
 	cookie, err := c.Cookie("refresh_token")
 	if err != nil {
