@@ -37,7 +37,7 @@ func Load() *Config {
 	viper.SetDefault("JWT_ACCESS_TTL", "15m")
 	viper.SetDefault("JWT_REFRESH_TTL", "168h")
 	viper.SetDefault("LOG_LEVEL", "debug")
-	viper.SetDefault("CORS_ORIGINS", "http://localhost:3000")
+	viper.SetDefault("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
 
 	if err := viper.ReadInConfig(); err != nil {
 		// If .env is missing, rely on env vars + defaults — that's fine.
