@@ -53,3 +53,8 @@ func (r *issueRepo) Update(ctx context.Context, issue *domain.Issue) error {
 func (r *issueRepo) Delete(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Delete(&domain.Issue{}, id).Error
 }
+
+// DeleteByProjectID removes all issues belonging to a project.
+func (r *issueRepo) DeleteByProjectID(ctx context.Context, projectID uint) error {
+	return r.db.WithContext(ctx).Where("project_id = ?", projectID).Delete(&domain.Issue{}).Error
+}

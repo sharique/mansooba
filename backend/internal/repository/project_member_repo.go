@@ -47,7 +47,21 @@ func (r *projectMemberRepo) FindByProjectAndUser(ctx context.Context, projectID,
 	return &member, nil
 }
 
+// FindByUserID returns all membership records for a given user across all projects.
+func (r *projectMemberRepo) FindByUserID(ctx context.Context, userID uint) ([]*domain.ProjectMember, error) {
+	var members []*domain.ProjectMember
+	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&members).Error; err != nil {
+		return nil, err
+	}
+	return members, nil
+}
+
 // Delete removes a membership record by primary key.
 func (r *projectMemberRepo) Delete(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Delete(&domain.ProjectMember{}, id).Error
+}
+
+// DeleteByProjectID removes all membership records belonging to a project.
+func (r *projectMemberRepo) DeleteByProjectID(ctx context.Context, projectID uint) error {
+	return r.db.WithContext(ctx).Where("project_id = ?", projectID).Delete(&domain.ProjectMember{}).Error
 }

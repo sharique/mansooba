@@ -35,4 +35,6 @@ type IssueRepository interface {
 	Update(ctx context.Context, issue *Issue) error
 	// Delete removes an issue by primary key.
 	Delete(ctx context.Context, id uint) error
+	// DeleteByProjectID removes all issues belonging to a project (used during project deletion).
+	DeleteByProjectID(ctx context.Context, projectID uint) error
 }

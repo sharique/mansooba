@@ -31,6 +31,8 @@ type ProjectMember struct {
 type ProjectRepository interface {
 	// Create persists a new project and sets its ID on success.
 	Create(ctx context.Context, project *Project) error
+	// FindByID returns a project by primary key, or ErrNotFound if absent.
+	FindByID(ctx context.Context, id uint) (*Project, error)
 	// FindByKey returns a project by its unique key, or ErrNotFound if absent.
 	FindByKey(ctx context.Context, key string) (*Project, error)
 	// FindByUserID returns all projects owned by the given user.
@@ -47,9 +49,13 @@ type ProjectMemberRepository interface {
 	Create(ctx context.Context, member *ProjectMember) error
 	// FindByProjectID returns all members of a project.
 	FindByProjectID(ctx context.Context, projectID uint) ([]*ProjectMember, error)
+	// FindByUserID returns all membership records for a given user (across all projects).
+	FindByUserID(ctx context.Context, userID uint) ([]*ProjectMember, error)
 	// FindByProjectAndUser returns the membership record for a specific user in a project,
 	// or ErrNotFound if the user is not a member.
 	FindByProjectAndUser(ctx context.Context, projectID, userID uint) (*ProjectMember, error)
 	// Delete removes a membership record by primary key.
 	Delete(ctx context.Context, id uint) error
+	// DeleteByProjectID removes all membership records for a project (used during project deletion).
+	DeleteByProjectID(ctx context.Context, projectID uint) error
 }
