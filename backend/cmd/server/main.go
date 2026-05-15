@@ -9,6 +9,7 @@ package main
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -81,7 +82,7 @@ func main() {
 
 	e.Use(echomw.Recover())
 	e.Use(echomw.CORSWithConfig(echomw.CORSConfig{
-		AllowOrigins: []string{cfg.CORSOrigins},
+		AllowOrigins: strings.Split(cfg.CORSOrigins, ","),
 	}))
 
 	// Public routes

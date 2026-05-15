@@ -1,4 +1,4 @@
-import type { Project, ProjectMember } from '~/types/domain.types'
+import type { Project, MemberResponse } from '~/types/domain.types'
 
 export interface CreateProjectRequest {
   name: string
@@ -32,9 +32,9 @@ export const projectsService = {
     return $api<Project>(`/projects/${key}`, { method: 'PUT', body: data })
   },
 
-  listMembers(key: string): Promise<ProjectMember[]> {
+  listMembers(key: string): Promise<MemberResponse[]> {
     const { $api } = useNuxtApp()
-    return $api<ProjectMember[]>(`/projects/${key}/members`)
+    return $api<MemberResponse[]>(`/projects/${key}/members`)
   },
 
   addMember(key: string, email: string, role: string): Promise<void> {

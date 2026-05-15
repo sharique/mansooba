@@ -16,7 +16,7 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="m in members" :key="m.userId">
+        <tr v-for="m in members" :key="m.user_id">
           <td>{{ m.name }}</td>
           <td>{{ m.email }}</td>
           <td><span class="badge badge-ghost capitalize">{{ m.role }}</span></td>
@@ -24,8 +24,8 @@
             <button
               v-if="isOwner"
               class="btn btn-ghost btn-xs text-error"
-              :disabled="removing === m.userId"
-              @click="remove(m.userId)"
+              :disabled="removing === m.user_id"
+              @click="remove(m.user_id)"
             >
               Remove
             </button>
@@ -61,8 +61,9 @@
 <script setup lang="ts">
 import { projectsService } from '~/services/projects.service'
 import { useAuthStore } from '~/stores/auth.store'
+import type { MemberResponse } from '~/types/domain.types'
 
-interface MemberRow { userId: number; name: string; email: string; role: string }
+type MemberRow = MemberResponse
 
 const props = defineProps<{ projectKey: string; ownerId: number }>()
 const { showSuccess, showError } = useToast()
@@ -81,13 +82,7 @@ const inviteError = ref('')
 async function fetchMembers() {
   loading.value = true
   try {
-    const raw = await projectsService.listMembers(props.projectKey)
-    members.value = raw.map(m => ({
-      userId: m.userId,
-      name: m.user?.name ?? '—',
-      email: m.user?.email ?? '—',
-      role: m.role,
-    }))
+    members.value = await projectsService.listMembers(props.projectKey)
   }
   finally {
     loading.value = false
@@ -98,7 +93,7 @@ async function remove(userId: number) {
   removing.value = userId
   try {
     await projectsService.removeMember(props.projectKey, userId)
-    members.value = members.value.filter(m => m.userId !== userId)
+    members.value = members.value.filter(m => m.user_id !== userId)
     showSuccess('Member removed')
   }
   catch {

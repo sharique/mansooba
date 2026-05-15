@@ -20,6 +20,14 @@ export interface ProjectMember {
   user?: User
 }
 
+// Shape returned by GET /projects/:key/members
+export interface MemberResponse {
+  user_id: number
+  name: string
+  email: string
+  role: string
+}
+
 export interface Issue {
   id: number
   key: string
