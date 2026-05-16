@@ -300,9 +300,77 @@ func (s *sprintService) Complete(ctx context.Context, projectKey string, id uint
 }
 
 func (s *sprintService) Backlog(ctx context.Context, projectKey string, callerID uint) ([]*domain.Issue, error) {
-	panic("Backlog implemented in Task 16")
+	p, err := s.resolveProject(ctx, projectKey)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.requireMember(ctx, p.ID, callerID); err != nil {
+		return nil, err
+	}
+	return s.issueRepo.FindBacklog(ctx, p.ID)
 }
 
 func (s *sprintService) Burndown(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.BurndownResponse, error) {
-	panic("Burndown implemented in Task 16")
+	p, err := s.resolveProject(ctx, projectKey)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.requireMember(ctx, p.ID, callerID); err != nil {
+		return nil, err
+	}
+
+	// Single fetch — avoids a redundant second round-trip.
+	sprint, err := s.sprintRepo.FindWithIssues(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if sprint.ProjectID != p.ID {
+		return nil, domain.ErrNotFound
+	}
+	if sprint.StartDate == nil {
+		return nil, domain.ErrSprintNotStarted
+	}
+
+	totalPoints := 0
+	for _, issue := range sprint.Issues {
+		if issue.StoryPoints != nil {
+			totalPoints += *issue.StoryPoints
+		}
+	}
+
+	startDate := sprint.StartDate.Truncate(24 * time.Hour)
+	endDate := time.Now().Truncate(24 * time.Hour)
+	if sprint.EndDate != nil && sprint.EndDate.Before(endDate) {
+		endDate = sprint.EndDate.Truncate(24 * time.Hour)
+	}
+
+	var data []dto.BurndownPoint
+	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
+		dayEnd := d.AddDate(0, 0, 1)
+		remaining := 0
+		for _, issue := range sprint.Issues {
+			doneByEndOfDay := issue.Status == "done" && issue.UpdatedAt.Before(dayEnd)
+			if !doneByEndOfDay && issue.StoryPoints != nil {
+				remaining += *issue.StoryPoints
+			}
+		}
+		data = append(data, dto.BurndownPoint{
+			Date:            d.Format("2006-01-02"),
+			RemainingPoints: remaining,
+		})
+	}
+
+	endStr := endDate.Format("2006-01-02")
+	if sprint.EndDate != nil {
+		endStr = sprint.EndDate.Format("2006-01-02")
+	}
+
+	return &dto.BurndownResponse{
+		SprintID:    sprint.ID,
+		SprintName:  sprint.Name,
+		StartDate:   startDate.Format("2006-01-02"),
+		EndDate:     endStr,
+		TotalPoints: totalPoints,
+		Data:        data,
+	}, nil
 }
