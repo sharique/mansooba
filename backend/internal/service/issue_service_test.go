@@ -78,6 +78,14 @@ func (r *stubIssueRepo) DeleteByProjectID(_ context.Context, projectID uint) err
 	return nil
 }
 
+func (r *stubIssueRepo) FindBacklog(_ context.Context, projectID uint) ([]*domain.Issue, error) {
+	return nil, nil
+}
+
+func (r *stubIssueRepo) FindBySprint(_ context.Context, sprintID uint) ([]*domain.Issue, error) {
+	return nil, nil
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 func newIssueService() (service.IssueService, *stubProjectRepo, *stubProjectMemberRepo, *stubIssueRepo) {

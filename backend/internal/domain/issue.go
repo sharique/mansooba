@@ -15,10 +15,14 @@ type Issue struct {
 	Title       string    `gorm:"not null"`
 	Description string
 	Type        string    `gorm:"not null"` // task | story | bug | epic
-	Status      string    `gorm:"not null"` // todo | in_progress | done
+	Status      string    `gorm:"not null"` // backlog | todo | in_progress | in_review | done
 	Priority    string    `gorm:"not null"` // low | medium | high | critical
 	AssigneeID  *uint
 	ReporterID  uint      `gorm:"not null"`
+	// SprintID is the sprint this issue belongs to. nil means the issue is in the backlog.
+	SprintID    *uint `gorm:"index"`
+	// StoryPoints is the effort estimate for burndown calculations. nil if not estimated.
+	StoryPoints *int
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -37,4 +41,9 @@ type IssueRepository interface {
 	Delete(ctx context.Context, id uint) error
 	// DeleteByProjectID removes all issues belonging to a project (used during project deletion).
 	DeleteByProjectID(ctx context.Context, projectID uint) error
+	// FindBacklog returns issues with sprint_id IS NULL for a project,
+	// ordered by priority (critical first) then created_at ASC.
+	FindBacklog(ctx context.Context, projectID uint) ([]*Issue, error)
+	// FindBySprint returns all issues assigned to the given sprint.
+	FindBySprint(ctx context.Context, sprintID uint) ([]*Issue, error)
 }
