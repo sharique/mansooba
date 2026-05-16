@@ -44,6 +44,35 @@ definitions:
           $ref: '#/definitions/dto.BoardColumn'
         type: array
     type: object
+  dto.BurndownPoint:
+    properties:
+      date:
+        type: string
+      remaining_points:
+        type: integer
+    type: object
+  dto.BurndownResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/dto.BurndownPoint'
+        type: array
+      end_date:
+        type: string
+      sprint_id:
+        type: integer
+      sprint_name:
+        type: string
+      start_date:
+        type: string
+      total_points:
+        type: integer
+    type: object
+  dto.CompleteSprintRequest:
+    properties:
+      next_sprint_id:
+        type: integer
+    type: object
   dto.CreateIssueRequest:
     properties:
       assignee_id:
@@ -57,6 +86,8 @@ definitions:
         - high
         - critical
         type: string
+      story_points:
+        type: integer
       title:
         type: string
       type:
@@ -82,6 +113,21 @@ definitions:
     required:
     - name
     type: object
+  dto.CreateSprintRequest:
+    properties:
+      end_date:
+        type: string
+      goal:
+        type: string
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      start_date:
+        type: string
+    required:
+    - name
+    type: object
   dto.IssueResponse:
     properties:
       assignee_id:
@@ -98,8 +144,12 @@ definitions:
         type: integer
       reporter_id:
         type: integer
+      sprint_id:
+        type: integer
       status:
         type: string
+      story_points:
+        type: integer
       title:
         type: string
       type:
@@ -153,6 +203,27 @@ definitions:
     - full_name
     - password
     type: object
+  dto.SprintResponse:
+    properties:
+      created_at:
+        type: string
+      end_date:
+        type: string
+      goal:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      project_id:
+        type: integer
+      start_date:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
   dto.UpdateIssueRequest:
     properties:
       assignee_id:
@@ -174,6 +245,8 @@ definitions:
         - in_review
         - done
         type: string
+      story_points:
+        type: integer
       title:
         type: string
       type:
@@ -189,6 +262,19 @@ definitions:
       description:
         type: string
       name:
+        type: string
+    type: object
+  dto.UpdateSprintRequest:
+    properties:
+      end_date:
+        type: string
+      goal:
+        type: string
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      start_date:
         type: string
     type: object
   dto.UserDTO:
@@ -438,6 +524,38 @@ paths:
       summary: Update a project
       tags:
       - projects
+  /projects/{key}/backlog:
+    get:
+      description: Returns issues with no sprint assigned, sorted by priority (Critical
+        first) then created_at.
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.IssueResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Project not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get project backlog
+      tags:
+      - sprints
   /projects/{key}/board:
     get:
       parameters:
@@ -801,6 +919,312 @@ paths:
       summary: Remove a member from a project
       tags:
       - projects
+  /projects/{key}/sprints:
+    get:
+      description: Returns all sprints for a project ordered by created_at ASC.
+      parameters:
+      - description: Project key (e.g. PROJ)
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.SprintResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Project not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: List sprints
+      tags:
+      - sprints
+    post:
+      consumes:
+      - application/json
+      description: Creates a new sprint in Planning state. Requires admin or owner
+        role.
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Sprint details
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateSprintRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.SprintResponse'
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Insufficient role
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Project not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Create a sprint
+      tags:
+      - sprints
+  /projects/{key}/sprints/{id}:
+    delete:
+      description: Removes a sprint. Only allowed when status is Planning. Requires
+        admin or owner role.
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Sprint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "403":
+          description: Insufficient role
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Sprint or project not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "409":
+          description: Sprint is not in Planning state
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Delete a sprint
+      tags:
+      - sprints
+    get:
+      description: Returns a single sprint by ID.
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Sprint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SprintResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Sprint or project not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get a sprint
+      tags:
+      - sprints
+    put:
+      consumes:
+      - application/json
+      description: Updates name, goal, or dates. Blocked for Completed sprints. Requires
+        admin or owner role.
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Sprint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Fields to update (all optional)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateSprintRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SprintResponse'
+        "403":
+          description: Insufficient role
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Sprint or project not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "409":
+          description: Sprint is Completed (not editable)
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Update a sprint
+      tags:
+      - sprints
+  /projects/{key}/sprints/{id}/burndown:
+    get:
+      description: Returns story points remaining per day from sprint start to today
+        (or end date). Computed on-the-fly from issue data.
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Sprint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.BurndownResponse'
+        "400":
+          description: Sprint has not been started
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Sprint or project not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Sprint burndown data
+      tags:
+      - sprints
+  /projects/{key}/sprints/{id}/complete:
+    post:
+      consumes:
+      - application/json
+      description: Transitions an Active sprint to Completed. Unfinished issues move
+        to next_sprint_id or the backlog if omitted. Requires admin or owner role.
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Sprint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 'Optional: next sprint for unfinished issues'
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/dto.CompleteSprintRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SprintResponse'
+        "403":
+          description: Insufficient role
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: next_sprint_id not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "409":
+          description: Sprint is not Active
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Complete a sprint
+      tags:
+      - sprints
+  /projects/{key}/sprints/{id}/start:
+    post:
+      description: Transitions a sprint from Planning to Active. Only one Active sprint
+        is allowed per project. Requires admin or owner role.
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Sprint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SprintResponse'
+        "403":
+          description: Insufficient role
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Sprint or project not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "409":
+          description: Sprint already active or invalid state
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Start a sprint
+      tags:
+      - sprints
 securityDefinitions:
   BearerAuth:
     in: header

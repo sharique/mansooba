@@ -20,6 +20,17 @@ func NewSprintHandler(svc service.SprintService) *SprintHandler {
 	return &SprintHandler{svc: svc}
 }
 
+// List godoc
+// @Summary      List sprints
+// @Description  Returns all sprints for a project ordered by created_at ASC.
+// @Tags         sprints
+// @Produce      json
+// @Param        key path string true "Project key (e.g. PROJ)"
+// @Success      200 {array}  dto.SprintResponse
+// @Failure      404 {object} apierror.APIError "Project not found"
+// @Failure      401 {object} apierror.APIError "Unauthorized"
+// @Router       /projects/{key}/sprints [get]
+// @Security     BearerAuth
 func (h *SprintHandler) List(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	sprints, err := h.svc.List(c.Request().Context(), c.Param("key"), callerID)
@@ -29,6 +40,20 @@ func (h *SprintHandler) List(c echo.Context) error {
 	return c.JSON(http.StatusOK, sprints)
 }
 
+// Create godoc
+// @Summary      Create a sprint
+// @Description  Creates a new sprint in Planning state. Requires admin or owner role.
+// @Tags         sprints
+// @Accept       json
+// @Produce      json
+// @Param        key  path string                  true "Project key"
+// @Param        body body dto.CreateSprintRequest true "Sprint details"
+// @Success      201 {object} dto.SprintResponse
+// @Failure      400 {object} apierror.APIError "Validation error"
+// @Failure      403 {object} apierror.APIError "Insufficient role"
+// @Failure      404 {object} apierror.APIError "Project not found"
+// @Router       /projects/{key}/sprints [post]
+// @Security     BearerAuth
 func (h *SprintHandler) Create(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	var req dto.CreateSprintRequest
@@ -42,6 +67,18 @@ func (h *SprintHandler) Create(c echo.Context) error {
 	return c.JSON(http.StatusCreated, sprint)
 }
 
+// Get godoc
+// @Summary      Get a sprint
+// @Description  Returns a single sprint by ID.
+// @Tags         sprints
+// @Produce      json
+// @Param        key path string true "Project key"
+// @Param        id  path int    true "Sprint ID"
+// @Success      200 {object} dto.SprintResponse
+// @Failure      404 {object} apierror.APIError "Sprint or project not found"
+// @Failure      401 {object} apierror.APIError "Unauthorized"
+// @Router       /projects/{key}/sprints/{id} [get]
+// @Security     BearerAuth
 func (h *SprintHandler) Get(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseSprintID(c)
@@ -55,6 +92,21 @@ func (h *SprintHandler) Get(c echo.Context) error {
 	return c.JSON(http.StatusOK, sprint)
 }
 
+// Update godoc
+// @Summary      Update a sprint
+// @Description  Updates name, goal, or dates. Blocked for Completed sprints. Requires admin or owner role.
+// @Tags         sprints
+// @Accept       json
+// @Produce      json
+// @Param        key  path string                  true  "Project key"
+// @Param        id   path int                     true  "Sprint ID"
+// @Param        body body dto.UpdateSprintRequest true  "Fields to update (all optional)"
+// @Success      200 {object} dto.SprintResponse
+// @Failure      409 {object} apierror.APIError "Sprint is Completed (not editable)"
+// @Failure      403 {object} apierror.APIError "Insufficient role"
+// @Failure      404 {object} apierror.APIError "Sprint or project not found"
+// @Router       /projects/{key}/sprints/{id} [put]
+// @Security     BearerAuth
 func (h *SprintHandler) Update(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseSprintID(c)
@@ -72,6 +124,18 @@ func (h *SprintHandler) Update(c echo.Context) error {
 	return c.JSON(http.StatusOK, sprint)
 }
 
+// Delete godoc
+// @Summary      Delete a sprint
+// @Description  Removes a sprint. Only allowed when status is Planning. Requires admin or owner role.
+// @Tags         sprints
+// @Param        key path string true "Project key"
+// @Param        id  path int    true "Sprint ID"
+// @Success      204
+// @Failure      409 {object} apierror.APIError "Sprint is not in Planning state"
+// @Failure      403 {object} apierror.APIError "Insufficient role"
+// @Failure      404 {object} apierror.APIError "Sprint or project not found"
+// @Router       /projects/{key}/sprints/{id} [delete]
+// @Security     BearerAuth
 func (h *SprintHandler) Delete(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseSprintID(c)
@@ -84,6 +148,19 @@ func (h *SprintHandler) Delete(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+// Start godoc
+// @Summary      Start a sprint
+// @Description  Transitions a sprint from Planning to Active. Only one Active sprint is allowed per project. Requires admin or owner role.
+// @Tags         sprints
+// @Produce      json
+// @Param        key path string true "Project key"
+// @Param        id  path int    true "Sprint ID"
+// @Success      200 {object} dto.SprintResponse
+// @Failure      409 {object} apierror.APIError "Sprint already active or invalid state"
+// @Failure      403 {object} apierror.APIError "Insufficient role"
+// @Failure      404 {object} apierror.APIError "Sprint or project not found"
+// @Router       /projects/{key}/sprints/{id}/start [post]
+// @Security     BearerAuth
 func (h *SprintHandler) Start(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseSprintID(c)
@@ -97,6 +174,21 @@ func (h *SprintHandler) Start(c echo.Context) error {
 	return c.JSON(http.StatusOK, sprint)
 }
 
+// Complete godoc
+// @Summary      Complete a sprint
+// @Description  Transitions an Active sprint to Completed. Unfinished issues move to next_sprint_id or the backlog if omitted. Requires admin or owner role.
+// @Tags         sprints
+// @Accept       json
+// @Produce      json
+// @Param        key  path string                    true  "Project key"
+// @Param        id   path int                       true  "Sprint ID"
+// @Param        body body dto.CompleteSprintRequest false "Optional: next sprint for unfinished issues"
+// @Success      200 {object} dto.SprintResponse
+// @Failure      409 {object} apierror.APIError "Sprint is not Active"
+// @Failure      404 {object} apierror.APIError "next_sprint_id not found"
+// @Failure      403 {object} apierror.APIError "Insufficient role"
+// @Router       /projects/{key}/sprints/{id}/complete [post]
+// @Security     BearerAuth
 func (h *SprintHandler) Complete(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseSprintID(c)
@@ -114,6 +206,17 @@ func (h *SprintHandler) Complete(c echo.Context) error {
 	return c.JSON(http.StatusOK, sprint)
 }
 
+// Backlog godoc
+// @Summary      Get project backlog
+// @Description  Returns issues with no sprint assigned, sorted by priority (Critical first) then created_at.
+// @Tags         sprints
+// @Produce      json
+// @Param        key path string true "Project key"
+// @Success      200 {array}  dto.IssueResponse
+// @Failure      404 {object} apierror.APIError "Project not found"
+// @Failure      401 {object} apierror.APIError "Unauthorized"
+// @Router       /projects/{key}/backlog [get]
+// @Security     BearerAuth
 func (h *SprintHandler) Backlog(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	issues, err := h.svc.Backlog(c.Request().Context(), c.Param("key"), callerID)
@@ -140,6 +243,18 @@ func (h *SprintHandler) Backlog(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+// Burndown godoc
+// @Summary      Sprint burndown data
+// @Description  Returns story points remaining per day from sprint start to today (or end date). Computed on-the-fly from issue data.
+// @Tags         sprints
+// @Produce      json
+// @Param        key path string true "Project key"
+// @Param        id  path int    true "Sprint ID"
+// @Success      200 {object} dto.BurndownResponse
+// @Failure      400 {object} apierror.APIError "Sprint has not been started"
+// @Failure      404 {object} apierror.APIError "Sprint or project not found"
+// @Router       /projects/{key}/sprints/{id}/burndown [get]
+// @Security     BearerAuth
 func (h *SprintHandler) Burndown(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseSprintID(c)
