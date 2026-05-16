@@ -79,14 +79,14 @@ func (r *stubSprintRepo) FindActiveByProject(_ context.Context, projectID uint) 
 	return nil, nil
 }
 
-func (r *stubSprintRepo) FindWithIssues(_ context.Context, id uint) (*domain.Sprint, error) {
-	return r.FindByID(context.Background(), id)
+func (r *stubSprintRepo) FindWithIssues(ctx context.Context, id uint) (*domain.Sprint, error) {
+	return r.FindByID(ctx, id)
 }
 
-func (r *stubSprintRepo) CompleteWithMigration(_ context.Context, sprint *domain.Sprint, unfinishedIDs []uint, nextSprintID *uint) error {
+func (r *stubSprintRepo) CompleteWithMigration(ctx context.Context, sprint *domain.Sprint, unfinishedIDs []uint, nextSprintID *uint) error {
 	r.lastMigratedIDs = unfinishedIDs
 	r.lastNextSprintID = nextSprintID
-	return r.Update(context.Background(), sprint)
+	return r.Update(ctx, sprint)
 }
 
 // ── test helpers ──────────────────────────────────────────────────────────────
@@ -241,5 +241,174 @@ func TestSprintService_Delete_HappyPath(t *testing.T) {
 	}
 	if len(sprintRepo.sprints) != 0 {
 		t.Errorf("expected 0 sprints after delete, got %d", len(sprintRepo.sprints))
+	}
+}
+
+// ── Lifecycle tests ───────────────────────────────────────────────────────────
+
+func TestSprintService_Start_HappyPath(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	sprint := &domain.Sprint{ProjectID: p.ID, Status: domain.SprintStatusPlanning, Name: "Sprint 1"}
+	_ = sprintRepo.Create(ctx, sprint)
+
+	resp, err := svc.Start(ctx, "TEST", sprint.ID, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Status != domain.SprintStatusActive {
+		t.Errorf("expected active, got %s", resp.Status)
+	}
+	if resp.StartDate == nil {
+		t.Error("expected StartDate to be set")
+	}
+}
+
+func TestSprintService_Start_InvalidTransition_AlreadyActive(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	active := &domain.Sprint{ProjectID: p.ID, Status: domain.SprintStatusActive, Name: "Sprint 1"}
+	_ = sprintRepo.Create(ctx, active)
+
+	_, err := svc.Start(ctx, "TEST", active.ID, 1)
+	if !errors.Is(err, domain.ErrSprintInvalidTransition) {
+		t.Errorf("expected ErrSprintInvalidTransition, got %v", err)
+	}
+}
+
+func TestSprintService_Start_AnotherSprintAlreadyActive(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	active := &domain.Sprint{ProjectID: p.ID, Status: domain.SprintStatusActive, Name: "Sprint 1"}
+	planning := &domain.Sprint{ProjectID: p.ID, Status: domain.SprintStatusPlanning, Name: "Sprint 2"}
+	_ = sprintRepo.Create(ctx, active)
+	_ = sprintRepo.Create(ctx, planning)
+
+	_, err := svc.Start(ctx, "TEST", planning.ID, 1)
+	if !errors.Is(err, domain.ErrSprintAlreadyActive) {
+		t.Errorf("expected ErrSprintAlreadyActive, got %v", err)
+	}
+}
+
+func TestSprintService_Complete_MovesToBacklog(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	sprint := &domain.Sprint{
+		ProjectID: p.ID,
+		Status:    domain.SprintStatusActive,
+		Name:      "Sprint 1",
+		Issues: []domain.Issue{
+			{ID: 1, Status: "todo"},
+			{ID: 2, Status: "done"},
+		},
+	}
+	_ = sprintRepo.Create(ctx, sprint)
+
+	resp, err := svc.Complete(ctx, "TEST", sprint.ID, 1, dto.CompleteSprintRequest{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Status != domain.SprintStatusCompleted {
+		t.Errorf("expected completed, got %s", resp.Status)
+	}
+	if len(sprintRepo.lastMigratedIDs) != 1 || sprintRepo.lastMigratedIDs[0] != 1 {
+		t.Errorf("expected [1] to be migrated, got %v", sprintRepo.lastMigratedIDs)
+	}
+	if sprintRepo.lastNextSprintID != nil {
+		t.Errorf("expected nil nextSprintID, got %v", sprintRepo.lastNextSprintID)
+	}
+}
+
+func TestSprintService_Complete_MovesToNextSprint(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	nextSprint := &domain.Sprint{ProjectID: p.ID, Status: domain.SprintStatusPlanning, Name: "Sprint 2"}
+	_ = sprintRepo.Create(ctx, nextSprint)
+
+	active := &domain.Sprint{
+		ProjectID: p.ID,
+		Status:    domain.SprintStatusActive,
+		Name:      "Sprint 1",
+		Issues:    []domain.Issue{{ID: 10, Status: "in_progress"}},
+	}
+	_ = sprintRepo.Create(ctx, active)
+
+	resp, err := svc.Complete(ctx, "TEST", active.ID, 1, dto.CompleteSprintRequest{NextSprintID: &nextSprint.ID})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Status != domain.SprintStatusCompleted {
+		t.Errorf("expected completed, got %s", resp.Status)
+	}
+	if sprintRepo.lastNextSprintID == nil || *sprintRepo.lastNextSprintID != nextSprint.ID {
+		t.Errorf("expected nextSprintID=%d, got %v", nextSprint.ID, sprintRepo.lastNextSprintID)
+	}
+}
+
+func TestSprintService_Complete_SkipsDoneIssues(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	active := &domain.Sprint{
+		ProjectID: p.ID,
+		Status:    domain.SprintStatusActive,
+		Name:      "Sprint 1",
+		Issues:    []domain.Issue{{ID: 5, Status: "done"}},
+	}
+	_ = sprintRepo.Create(ctx, active)
+
+	_, err := svc.Complete(ctx, "TEST", active.ID, 1, dto.CompleteSprintRequest{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(sprintRepo.lastMigratedIDs) != 0 {
+		t.Errorf("expected empty migrated IDs, got %v", sprintRepo.lastMigratedIDs)
+	}
+}
+
+func TestSprintService_Complete_InvalidTransition_NotActive(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	planning := &domain.Sprint{ProjectID: p.ID, Status: domain.SprintStatusPlanning, Name: "Sprint 1"}
+	_ = sprintRepo.Create(ctx, planning)
+
+	_, err := svc.Complete(ctx, "TEST", planning.ID, 1, dto.CompleteSprintRequest{})
+	if !errors.Is(err, domain.ErrSprintInvalidTransition) {
+		t.Errorf("expected ErrSprintInvalidTransition, got %v", err)
+	}
+}
+
+func TestSprintService_Complete_NextSprintMustBePlanning(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	completedNext := &domain.Sprint{ProjectID: p.ID, Status: domain.SprintStatusCompleted, Name: "Old Sprint"}
+	_ = sprintRepo.Create(ctx, completedNext)
+
+	active := &domain.Sprint{
+		ProjectID: p.ID,
+		Status:    domain.SprintStatusActive,
+		Name:      "Sprint 1",
+		Issues:    []domain.Issue{{ID: 3, Status: "todo"}},
+	}
+	_ = sprintRepo.Create(ctx, active)
+
+	_, err := svc.Complete(ctx, "TEST", active.ID, 1, dto.CompleteSprintRequest{NextSprintID: &completedNext.ID})
+	if !errors.Is(err, domain.ErrSprintInvalidTransition) {
+		t.Errorf("expected ErrSprintInvalidTransition, got %v", err)
 	}
 }

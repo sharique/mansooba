@@ -205,14 +205,98 @@ func (s *sprintService) Delete(ctx context.Context, projectKey string, id uint, 
 	return s.sprintRepo.Delete(ctx, id)
 }
 
-// ── Lifecycle stubs (implemented in Tasks 15 and 16) ─────────────────────────
+// ── Lifecycle ─────────────────────────────────────────────────────────────────
 
+// Start transitions a sprint from Planning to Active.
+// Enforces that only one sprint per project can be Active at a time.
+// Sets StartDate to now if not already provided.
 func (s *sprintService) Start(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.SprintResponse, error) {
-	panic("Start implemented in Task 15")
+	p, err := s.resolveProject(ctx, projectKey)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.requireAdminOrOwner(ctx, p, callerID); err != nil {
+		return nil, err
+	}
+	sprint, err := s.resolveSprint(ctx, id, p.ID)
+	if err != nil {
+		return nil, err
+	}
+	if sprint.Status != domain.SprintStatusPlanning {
+		return nil, domain.ErrSprintInvalidTransition
+	}
+	active, err := s.sprintRepo.FindActiveByProject(ctx, p.ID)
+	if err != nil {
+		return nil, err
+	}
+	if active != nil {
+		return nil, domain.ErrSprintAlreadyActive
+	}
+	now := time.Now()
+	sprint.Status = domain.SprintStatusActive
+	if sprint.StartDate == nil {
+		sprint.StartDate = &now
+	}
+	if err := s.sprintRepo.Update(ctx, sprint); err != nil {
+		return nil, err
+	}
+	return toSprintResponse(sprint), nil
 }
 
+// Complete transitions an Active sprint to Completed.
+// Issues with status != "done" are unfinished and get moved to req.NextSprintID,
+// or to the backlog (sprint_id = NULL) if NextSprintID is nil.
+// The sprint update and issue migration execute in a single DB transaction.
 func (s *sprintService) Complete(ctx context.Context, projectKey string, id uint, callerID uint, req dto.CompleteSprintRequest) (*dto.SprintResponse, error) {
-	panic("Complete implemented in Task 15")
+	p, err := s.resolveProject(ctx, projectKey)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.requireAdminOrOwner(ctx, p, callerID); err != nil {
+		return nil, err
+	}
+
+	// Single fetch — owns the sprint and loads its issues atomically.
+	sprint, err := s.sprintRepo.FindWithIssues(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if sprint.ProjectID != p.ID {
+		return nil, domain.ErrNotFound
+	}
+	if sprint.Status != domain.SprintStatusActive {
+		return nil, domain.ErrSprintInvalidTransition
+	}
+
+	// If a next sprint is provided, verify it belongs to the same project and is still in planning.
+	if req.NextSprintID != nil {
+		next, err := s.sprintRepo.FindByID(ctx, *req.NextSprintID)
+		if err != nil || next.ProjectID != p.ID {
+			return nil, domain.ErrNotFound
+		}
+		if next.Status != domain.SprintStatusPlanning {
+			return nil, domain.ErrSprintInvalidTransition
+		}
+	}
+
+	// Collect IDs of issues that are not done.
+	var unfinishedIDs []uint
+	for _, issue := range sprint.Issues {
+		if issue.Status != "done" {
+			unfinishedIDs = append(unfinishedIDs, issue.ID)
+		}
+	}
+
+	now := time.Now()
+	sprint.Status = domain.SprintStatusCompleted
+	if sprint.EndDate == nil {
+		sprint.EndDate = &now
+	}
+
+	if err := s.sprintRepo.CompleteWithMigration(ctx, sprint, unfinishedIDs, req.NextSprintID); err != nil {
+		return nil, err
+	}
+	return toSprintResponse(sprint), nil
 }
 
 func (s *sprintService) Backlog(ctx context.Context, projectKey string, callerID uint) ([]*domain.Issue, error) {
@@ -222,6 +306,3 @@ func (s *sprintService) Backlog(ctx context.Context, projectKey string, callerID
 func (s *sprintService) Burndown(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.BurndownResponse, error) {
 	panic("Burndown implemented in Task 16")
 }
-
-// Suppress unused import until Task 15 fills in Start/Complete.
-var _ = time.Now
