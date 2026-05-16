@@ -255,31 +255,33 @@ func (s *sprintService) Complete(ctx context.Context, projectKey string, id uint
 	if err := s.requireAdminOrOwner(ctx, p, callerID); err != nil {
 		return nil, err
 	}
-	sprint, err := s.resolveSprint(ctx, id, p.ID)
+
+	// Single fetch — owns the sprint and loads its issues atomically.
+	sprint, err := s.sprintRepo.FindWithIssues(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if sprint.ProjectID != p.ID {
+		return nil, domain.ErrNotFound
 	}
 	if sprint.Status != domain.SprintStatusActive {
 		return nil, domain.ErrSprintInvalidTransition
 	}
 
-	// If a next sprint is provided, verify it belongs to the same project.
+	// If a next sprint is provided, verify it belongs to the same project and is still in planning.
 	if req.NextSprintID != nil {
 		next, err := s.sprintRepo.FindByID(ctx, *req.NextSprintID)
 		if err != nil || next.ProjectID != p.ID {
 			return nil, domain.ErrNotFound
 		}
-	}
-
-	// Load sprint with issues preloaded.
-	sprintWithIssues, err := s.sprintRepo.FindWithIssues(ctx, id)
-	if err != nil {
-		return nil, err
+		if next.Status != domain.SprintStatusPlanning {
+			return nil, domain.ErrSprintInvalidTransition
+		}
 	}
 
 	// Collect IDs of issues that are not done.
 	var unfinishedIDs []uint
-	for _, issue := range sprintWithIssues.Issues {
+	for _, issue := range sprint.Issues {
 		if issue.Status != "done" {
 			unfinishedIDs = append(unfinishedIDs, issue.ID)
 		}

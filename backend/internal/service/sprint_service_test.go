@@ -79,14 +79,14 @@ func (r *stubSprintRepo) FindActiveByProject(_ context.Context, projectID uint) 
 	return nil, nil
 }
 
-func (r *stubSprintRepo) FindWithIssues(_ context.Context, id uint) (*domain.Sprint, error) {
-	return r.FindByID(context.Background(), id)
+func (r *stubSprintRepo) FindWithIssues(ctx context.Context, id uint) (*domain.Sprint, error) {
+	return r.FindByID(ctx, id)
 }
 
-func (r *stubSprintRepo) CompleteWithMigration(_ context.Context, sprint *domain.Sprint, unfinishedIDs []uint, nextSprintID *uint) error {
+func (r *stubSprintRepo) CompleteWithMigration(ctx context.Context, sprint *domain.Sprint, unfinishedIDs []uint, nextSprintID *uint) error {
 	r.lastMigratedIDs = unfinishedIDs
 	r.lastNextSprintID = nextSprintID
-	return r.Update(context.Background(), sprint)
+	return r.Update(ctx, sprint)
 }
 
 // ── test helpers ──────────────────────────────────────────────────────────────
@@ -386,6 +386,28 @@ func TestSprintService_Complete_InvalidTransition_NotActive(t *testing.T) {
 	_ = sprintRepo.Create(ctx, planning)
 
 	_, err := svc.Complete(ctx, "TEST", planning.ID, 1, dto.CompleteSprintRequest{})
+	if !errors.Is(err, domain.ErrSprintInvalidTransition) {
+		t.Errorf("expected ErrSprintInvalidTransition, got %v", err)
+	}
+}
+
+func TestSprintService_Complete_NextSprintMustBePlanning(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	completedNext := &domain.Sprint{ProjectID: p.ID, Status: domain.SprintStatusCompleted, Name: "Old Sprint"}
+	_ = sprintRepo.Create(ctx, completedNext)
+
+	active := &domain.Sprint{
+		ProjectID: p.ID,
+		Status:    domain.SprintStatusActive,
+		Name:      "Sprint 1",
+		Issues:    []domain.Issue{{ID: 3, Status: "todo"}},
+	}
+	_ = sprintRepo.Create(ctx, active)
+
+	_, err := svc.Complete(ctx, "TEST", active.ID, 1, dto.CompleteSprintRequest{NextSprintID: &completedNext.ID})
 	if !errors.Is(err, domain.ErrSprintInvalidTransition) {
 		t.Errorf("expected ErrSprintInvalidTransition, got %v", err)
 	}
