@@ -6,6 +6,7 @@ type CreateIssueRequest struct {
 	Type        string `json:"type"        validate:"required,oneof=task story bug epic"`
 	Priority    string `json:"priority"    validate:"required,oneof=low medium high critical"`
 	AssigneeID  *uint  `json:"assignee_id"`
+	StoryPoints *int   `json:"story_points"`
 }
 
 type UpdateIssueRequest struct {
@@ -15,6 +16,7 @@ type UpdateIssueRequest struct {
 	Status      *string `json:"status"   validate:"omitempty,oneof=backlog todo in_progress in_review done"`
 	Priority    *string `json:"priority" validate:"omitempty,oneof=low medium high critical"`
 	AssigneeID  *uint   `json:"assignee_id"`
+	StoryPoints *int    `json:"story_points"`
 }
 
 type IssueListQuery struct {
@@ -36,4 +38,6 @@ type IssueResponse struct {
 	Priority    string `json:"priority"`
 	AssigneeID  *uint  `json:"assignee_id,omitempty"`
 	ReporterID  uint   `json:"reporter_id"`
+	SprintID    *uint  `json:"sprint_id,omitempty"`
+	StoryPoints *int   `json:"story_points,omitempty"`
 }
