@@ -70,6 +70,7 @@ func (s *issueService) Create(ctx context.Context, projectKey string, callerID u
 		Priority:    req.Priority,
 		AssigneeID:  req.AssigneeID,
 		ReporterID:  callerID,
+		StoryPoints: req.StoryPoints,
 	}
 
 	if err := s.issueRepo.Create(ctx, issue); err != nil {
@@ -194,6 +195,9 @@ func (s *issueService) Update(ctx context.Context, projectKey string, id uint, c
 	if req.AssigneeID != nil {
 		issue.AssigneeID = req.AssigneeID
 	}
+	if req.StoryPoints != nil {
+		issue.StoryPoints = req.StoryPoints
+	}
 
 	if err := s.issueRepo.Update(ctx, issue); err != nil {
 		return nil, err
@@ -253,5 +257,7 @@ func toIssueResponse(i *domain.Issue) *dto.IssueResponse {
 		Priority:    i.Priority,
 		AssigneeID:  i.AssigneeID,
 		ReporterID:  i.ReporterID,
+		SprintID:    i.SprintID,
+		StoryPoints: i.StoryPoints,
 	}
 }

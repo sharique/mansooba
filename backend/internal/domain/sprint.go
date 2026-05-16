@@ -23,6 +23,13 @@ type Sprint struct {
 	Issues []Issue `gorm:"foreignKey:SprintID"`
 }
 
+// Sprint status constants.
+const (
+	SprintStatusPlanning  = "planning"
+	SprintStatusActive    = "active"
+	SprintStatusCompleted = "completed"
+)
+
 // SprintRepository defines all persistence operations for sprints.
 // Implementations live in internal/repository/sprint_repo.go.
 type SprintRepository interface {
