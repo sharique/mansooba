@@ -16,7 +16,7 @@ func newTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}
-	if err := db.AutoMigrate(&domain.User{}, &domain.Project{}, &domain.ProjectMember{}, &domain.Issue{}); err != nil {
+	if err := db.AutoMigrate(&domain.User{}, &domain.Project{}, &domain.ProjectMember{}, &domain.Issue{}, &domain.Sprint{}); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
 	return db

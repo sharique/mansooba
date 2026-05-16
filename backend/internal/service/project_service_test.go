@@ -154,6 +154,12 @@ func (s *stubIssueRepoForProject) FindByProjectID(_ context.Context, _ uint) ([]
 func (s *stubIssueRepoForProject) Update(_ context.Context, _ *domain.Issue) error        { return nil }
 func (s *stubIssueRepoForProject) Delete(_ context.Context, _ uint) error                 { return nil }
 func (s *stubIssueRepoForProject) DeleteByProjectID(_ context.Context, _ uint) error      { return nil }
+func (s *stubIssueRepoForProject) FindBacklog(_ context.Context, _ uint) ([]*domain.Issue, error) {
+	return nil, nil
+}
+func (s *stubIssueRepoForProject) FindBySprint(_ context.Context, _ uint) ([]*domain.Issue, error) {
+	return nil, nil
+}
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 

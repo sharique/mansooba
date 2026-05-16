@@ -14,5 +14,6 @@ func Migrate(db *gorm.DB) error {
 		&domain.Project{},
 		&domain.ProjectMember{},
 		&domain.Issue{},
+		&domain.Sprint{},
 	)
 }

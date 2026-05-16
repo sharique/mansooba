@@ -58,3 +58,29 @@ func (r *issueRepo) Delete(ctx context.Context, id uint) error {
 func (r *issueRepo) DeleteByProjectID(ctx context.Context, projectID uint) error {
 	return r.db.WithContext(ctx).Where("project_id = ?", projectID).Delete(&domain.Issue{}).Error
 }
+
+// FindBacklog returns issues with sprint_id IS NULL, sorted by priority then created_at.
+// Priority order in SQL: critical(1) > high(2) > medium(3) > low(4).
+func (r *issueRepo) FindBacklog(ctx context.Context, projectID uint) ([]*domain.Issue, error) {
+	var issues []*domain.Issue
+	err := r.db.WithContext(ctx).
+		Where("project_id = ? AND sprint_id IS NULL", projectID).
+		Order(`CASE priority
+			WHEN 'critical' THEN 1
+			WHEN 'high'     THEN 2
+			WHEN 'medium'   THEN 3
+			WHEN 'low'      THEN 4
+			ELSE 5
+		END ASC, created_at ASC`).
+		Find(&issues).Error
+	return issues, err
+}
+
+// FindBySprint returns all issues assigned to a given sprint.
+func (r *issueRepo) FindBySprint(ctx context.Context, sprintID uint) ([]*domain.Issue, error) {
+	var issues []*domain.Issue
+	if err := r.db.WithContext(ctx).Where("sprint_id = ?", sprintID).Find(&issues).Error; err != nil {
+		return nil, err
+	}
+	return issues, nil
+}
