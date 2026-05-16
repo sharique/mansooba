@@ -40,3 +40,35 @@ export interface Issue {
   assigneeId?: number
   reporterId: number
 }
+
+// ── Sprint ────────────────────────────────────────────────────────────────────
+
+export type SprintStatus = 'Planning' | 'Active' | 'Completed'
+
+export interface Sprint {
+  id: string
+  project_id: string
+  name: string
+  goal: string
+  status: SprintStatus
+  start_date: string | null
+  end_date: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ── Burndown ─────────────────────────────────────────────────────────────────
+
+export interface BurndownPoint {
+  date: string
+  remaining_points: number
+}
+
+export interface BurndownData {
+  sprint_id: string
+  sprint_name: string
+  start_date: string
+  end_date: string
+  total_points: number
+  data: BurndownPoint[]
+}
