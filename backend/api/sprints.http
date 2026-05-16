@@ -1,0 +1,63 @@
+@baseUrl = http://localhost:8080/api/v1
+@token = <paste_token_here>
+@key = TEST
+
+### List sprints
+GET {{baseUrl}}/projects/{{key}}/sprints
+Authorization: Bearer {{token}}
+
+### Create sprint
+POST {{baseUrl}}/projects/{{key}}/sprints
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Sprint 1",
+  "goal": "Ship user auth"
+}
+
+### Get sprint by ID
+GET {{baseUrl}}/projects/{{key}}/sprints/1
+Authorization: Bearer {{token}}
+
+### Update sprint
+PUT {{baseUrl}}/projects/{{key}}/sprints/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Sprint 1 — Updated",
+  "goal": "Ship user auth and profile"
+}
+
+### Start sprint (planning → active)
+POST {{baseUrl}}/projects/{{key}}/sprints/1/start
+Authorization: Bearer {{token}}
+
+### Complete sprint — move unfinished to backlog
+POST {{baseUrl}}/projects/{{key}}/sprints/1/complete
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{}
+
+### Complete sprint — move unfinished to next sprint
+POST {{baseUrl}}/projects/{{key}}/sprints/1/complete
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "next_sprint_id": 2
+}
+
+### Get burndown
+GET {{baseUrl}}/projects/{{key}}/sprints/1/burndown
+Authorization: Bearer {{token}}
+
+### Get backlog
+GET {{baseUrl}}/projects/{{key}}/backlog
+Authorization: Bearer {{token}}
+
+### Delete sprint (planning only)
+DELETE {{baseUrl}}/projects/{{key}}/sprints/2
+Authorization: Bearer {{token}}

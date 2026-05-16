@@ -60,18 +60,21 @@ func main() {
 	projectRepo := repository.NewProjectRepository(db)
 	projectMemberRepo := repository.NewProjectMemberRepository(db)
 	issueRepo := repository.NewIssueRepository(db)
+	sprintRepo := repository.NewSprintRepository(db)
 
 	// Services
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo)
 	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo)
 	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo)
+	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authSvc)
 	projectHandler := handler.NewProjectHandler(projectSvc)
 	issueHandler := handler.NewIssueHandler(issueSvc)
 	boardHandler := handler.NewBoardHandler(boardSvc)
+	sprintHandler := handler.NewSprintHandler(sprintSvc)
 
 	// Echo
 	e := echo.New()
@@ -115,6 +118,18 @@ func main() {
 	issues.DELETE("/:id", issueHandler.Delete)
 
 	api.GET("/projects/:key/board", boardHandler.GetBoard)
+
+	sprints := api.Group("/projects/:key/sprints")
+	sprints.GET("", sprintHandler.List)
+	sprints.POST("", sprintHandler.Create)
+	sprints.GET("/:id", sprintHandler.Get)
+	sprints.PUT("/:id", sprintHandler.Update)
+	sprints.DELETE("/:id", sprintHandler.Delete)
+	sprints.POST("/:id/start", sprintHandler.Start)
+	sprints.POST("/:id/complete", sprintHandler.Complete)
+	sprints.GET("/:id/burndown", sprintHandler.Burndown)
+
+	api.GET("/projects/:key/backlog", sprintHandler.Backlog)
 
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
