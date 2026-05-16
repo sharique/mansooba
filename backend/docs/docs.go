@@ -381,6 +381,55 @@ const docTemplate = `{
                 }
             }
         },
+        "/projects/{key}/backlog": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns issues with no sprint assigned, sorted by priority (Critical first) then created_at.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sprints"
+                ],
+                "summary": "Get project backlog",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.IssueResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Project not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            }
+        },
         "/projects/{key}/board": {
             "get": {
                 "security": [
@@ -948,6 +997,472 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/projects/{key}/sprints": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all sprints for a project ordered by created_at ASC.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sprints"
+                ],
+                "summary": "List sprints",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project key (e.g. PROJ)",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.SprintResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Project not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Creates a new sprint in Planning state. Requires admin or owner role.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sprints"
+                ],
+                "summary": "Create a sprint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Sprint details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateSprintRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SprintResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Project not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/{key}/sprints/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a single sprint by ID.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sprints"
+                ],
+                "summary": "Get a sprint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Sprint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SprintResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Sprint or project not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates name, goal, or dates. Blocked for Completed sprints. Requires admin or owner role.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sprints"
+                ],
+                "summary": "Update a sprint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Sprint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to update (all optional)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateSprintRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SprintResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Sprint or project not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "409": {
+                        "description": "Sprint is Completed (not editable)",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes a sprint. Only allowed when status is Planning. Requires admin or owner role.",
+                "tags": [
+                    "sprints"
+                ],
+                "summary": "Delete a sprint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Sprint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "403": {
+                        "description": "Insufficient role",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Sprint or project not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "409": {
+                        "description": "Sprint is not in Planning state",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/{key}/sprints/{id}/burndown": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns story points remaining per day from sprint start to today (or end date). Computed on-the-fly from issue data.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sprints"
+                ],
+                "summary": "Sprint burndown data",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Sprint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.BurndownResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Sprint has not been started",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Sprint or project not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/{key}/sprints/{id}/complete": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Transitions an Active sprint to Completed. Unfinished issues move to next_sprint_id or the backlog if omitted. Requires admin or owner role.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sprints"
+                ],
+                "summary": "Complete a sprint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Sprint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Optional: next sprint for unfinished issues",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/dto.CompleteSprintRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SprintResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "next_sprint_id not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "409": {
+                        "description": "Sprint is not Active",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/{key}/sprints/{id}/start": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Transitions a sprint from Planning to Active. Only one Active sprint is allowed per project. Requires admin or owner role.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sprints"
+                ],
+                "summary": "Start a sprint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Sprint ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.SprintResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Insufficient role",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Sprint or project not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "409": {
+                        "description": "Sprint already active or invalid state",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1018,6 +1533,51 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.BurndownPoint": {
+            "type": "object",
+            "properties": {
+                "date": {
+                    "type": "string"
+                },
+                "remaining_points": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.BurndownResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.BurndownPoint"
+                    }
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "sprint_id": {
+                    "type": "integer"
+                },
+                "sprint_name": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "total_points": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.CompleteSprintRequest": {
+            "type": "object",
+            "properties": {
+                "next_sprint_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "dto.CreateIssueRequest": {
             "type": "object",
             "required": [
@@ -1040,6 +1600,9 @@ const docTemplate = `{
                         "high",
                         "critical"
                     ]
+                },
+                "story_points": {
+                    "type": "integer"
                 },
                 "title": {
                     "type": "string"
@@ -1072,6 +1635,28 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.CreateSprintRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "end_date": {
+                    "type": "string"
+                },
+                "goal": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "start_date": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.IssueResponse": {
             "type": "object",
             "properties": {
@@ -1096,8 +1681,14 @@ const docTemplate = `{
                 "reporter_id": {
                     "type": "integer"
                 },
+                "sprint_id": {
+                    "type": "integer"
+                },
                 "status": {
                     "type": "string"
+                },
+                "story_points": {
+                    "type": "integer"
                 },
                 "title": {
                     "type": "string"
@@ -1179,6 +1770,38 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.SprintResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "goal": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.UpdateIssueRequest": {
             "type": "object",
             "properties": {
@@ -1207,6 +1830,9 @@ const docTemplate = `{
                         "done"
                     ]
                 },
+                "story_points": {
+                    "type": "integer"
+                },
                 "title": {
                     "type": "string"
                 },
@@ -1228,6 +1854,25 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UpdateSprintRequest": {
+            "type": "object",
+            "properties": {
+                "end_date": {
+                    "type": "string"
+                },
+                "goal": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "start_date": {
                     "type": "string"
                 }
             }
