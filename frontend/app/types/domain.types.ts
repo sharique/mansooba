@@ -39,6 +39,7 @@ export interface Issue {
   priority: 'low' | 'medium' | 'high' | 'critical'
   assigneeId?: number
   reporterId: number
+  storyPoints?: number
 }
 
 // ── Sprint ────────────────────────────────────────────────────────────────────
