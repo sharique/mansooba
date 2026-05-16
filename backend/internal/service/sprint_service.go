@@ -318,21 +318,21 @@ func (s *sprintService) Burndown(ctx context.Context, projectKey string, id uint
 	if err := s.requireMember(ctx, p.ID, callerID); err != nil {
 		return nil, err
 	}
-	sprint, err := s.resolveSprint(ctx, id, p.ID)
+
+	// Single fetch — avoids a redundant second round-trip.
+	sprint, err := s.sprintRepo.FindWithIssues(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if sprint.ProjectID != p.ID {
+		return nil, domain.ErrNotFound
 	}
 	if sprint.StartDate == nil {
 		return nil, domain.ErrSprintNotStarted
 	}
 
-	sprintWithIssues, err := s.sprintRepo.FindWithIssues(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
 	totalPoints := 0
-	for _, issue := range sprintWithIssues.Issues {
+	for _, issue := range sprint.Issues {
 		if issue.StoryPoints != nil {
 			totalPoints += *issue.StoryPoints
 		}
@@ -348,7 +348,7 @@ func (s *sprintService) Burndown(ctx context.Context, projectKey string, id uint
 	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
 		dayEnd := d.AddDate(0, 0, 1)
 		remaining := 0
-		for _, issue := range sprintWithIssues.Issues {
+		for _, issue := range sprint.Issues {
 			doneByEndOfDay := issue.Status == "done" && issue.UpdatedAt.Before(dayEnd)
 			if !doneByEndOfDay && issue.StoryPoints != nil {
 				remaining += *issue.StoryPoints
