@@ -10,8 +10,8 @@ export interface CreateSprintPayload {
 export interface UpdateSprintPayload {
   name?: string
   goal?: string
-  start_date?: string
-  end_date?: string
+  start_date?: string | null
+  end_date?: string | null
 }
 
 export interface CompleteSprintPayload {

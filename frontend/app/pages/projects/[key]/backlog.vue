@@ -13,6 +13,11 @@
       <span>Failed to load backlog: {{ error }}</span>
     </div>
 
+    <!-- Sprint management section -->
+    <section class="mb-8">
+      <SprintList :project-key="key" :can-manage="canManage" />
+    </section>
+
     <!-- Backlog issue list -->
     <section>
       <div class="flex items-center gap-2 mb-3">
@@ -26,24 +31,47 @@
 
 <script setup lang="ts">
 import { backlogService } from '~/services/backlog.service'
-import type { Issue } from '~/types/domain.types'
+import { projectsService } from '~/services/projects.service'
+import type { Issue, MemberResponse } from '~/types/domain.types'
 
 const route = useRoute()
 const key = route.params.key as string
 const { showError } = useToast()
 
+const authStore = useAuthStore()
+const projectsStore = useProjectsStore()
+const sprintsStore = useSprintsStore()
+
 const issues = ref<Issue[]>([])
+const members = ref<MemberResponse[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
+const myRole = computed(() =>
+  members.value.find(m => m.user_id === authStore.user?.id)?.role
+)
+
+const canManage = computed(() =>
+  projectsStore.current?.ownerId === authStore.user?.id
+  || myRole.value === 'admin'
+)
+
 onMounted(async () => {
   try {
-    issues.value = await backlogService.getBacklog(key)
-  }
-  catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : 'Unknown error'
-    error.value = msg
-    showError('Failed to load backlog')
+    await Promise.all([
+      backlogService.getBacklog(key).then(v => (issues.value = v)).catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : 'Unknown error'
+        error.value = msg
+        showError('Failed to load backlog')
+      }),
+      projectsStore.fetchOne(key).catch((e: unknown) => {
+        const msg = e instanceof Error ? e.message : 'Unknown error'
+        error.value = error.value ?? msg
+        showError('Failed to load project')
+      }),
+      projectsService.listMembers(key).then(v => (members.value = v)).catch(() => {}),
+      sprintsStore.fetchSprints(key),
+    ])
   }
   finally {
     loading.value = false
