@@ -1,5 +1,7 @@
 package dto
 
+// Note: oneof validator tags intentionally duplicate domain.IssueType*/IssuePriority*/IssueStatus*
+// constants — Go struct tags are compile-time string literals and cannot reference variables.
 type CreateIssueRequest struct {
 	Title       string `json:"title"       validate:"required"`
 	Description string `json:"description"`

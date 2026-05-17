@@ -17,7 +17,7 @@ const activeSprint: Sprint = {
   project_id: 'p-1',
   name: 'Sprint 1',
   goal: '',
-  status: 'Active',
+  status: 'active',
   start_date: '2026-05-01',
   end_date: '2026-05-14',
   created_at: '2026-05-01T00:00:00Z',
@@ -41,7 +41,7 @@ describe('CompleteSprintModal', () => {
   })
 
   test('calls completeSprint with empty payload when backlog option selected', async () => {
-    mockCompleteSprint.mockResolvedValue({ ...activeSprint, status: 'Completed' })
+    mockCompleteSprint.mockResolvedValue({ ...activeSprint, status: 'completed' })
     const wrapper = mount(CompleteSprintModal, {
       props: { projectKey: 'TEST', sprint: activeSprint, otherSprints: [] },
     })
@@ -54,9 +54,9 @@ describe('CompleteSprintModal', () => {
       ...activeSprint,
       id: 'sprint-next',
       name: 'Sprint 2',
-      status: 'Planning',
+      status: 'planning',
     }
-    mockCompleteSprint.mockResolvedValue({ ...activeSprint, status: 'Completed' })
+    mockCompleteSprint.mockResolvedValue({ ...activeSprint, status: 'completed' })
     const wrapper = mount(CompleteSprintModal, {
       props: { projectKey: 'TEST', sprint: activeSprint, otherSprints: [planningSprint] },
     })
@@ -66,7 +66,7 @@ describe('CompleteSprintModal', () => {
   })
 
   test('emits completed and shows success toast on success', async () => {
-    const completed: Sprint = { ...activeSprint, status: 'Completed' }
+    const completed: Sprint = { ...activeSprint, status: 'completed' }
     mockCompleteSprint.mockResolvedValue(completed)
     const wrapper = mount(CompleteSprintModal, {
       props: { projectKey: 'TEST', sprint: activeSprint, otherSprints: [] },

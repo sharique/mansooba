@@ -27,6 +27,31 @@ type Issue struct {
 	UpdatedAt   time.Time
 }
 
+// Issue type constants.
+const (
+	IssueTypeTask  = "task"
+	IssueTypeStory = "story"
+	IssueTypeBug   = "bug"
+	IssueTypeEpic  = "epic"
+)
+
+// Issue priority constants.
+const (
+	IssuePriorityLow      = "low"
+	IssuePriorityMedium   = "medium"
+	IssuePriorityHigh     = "high"
+	IssuePriorityCritical = "critical"
+)
+
+// Issue status constants.
+const (
+	IssueStatusBacklog    = "backlog"
+	IssueStatusTodo       = "todo"
+	IssueStatusInProgress = "in_progress"
+	IssueStatusInReview   = "in_review"
+	IssueStatusDone       = "done"
+)
+
 // IssueRepository defines the persistence contract for Issue.
 type IssueRepository interface {
 	// Create persists a new issue and sets its ID on success.

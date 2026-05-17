@@ -38,11 +38,11 @@ func NewIssueService(
 }
 
 var validStatuses = map[string]bool{
-	"backlog":     true,
-	"todo":        true,
-	"in_progress": true,
-	"in_review":   true,
-	"done":        true,
+	domain.IssueStatusBacklog:    true,
+	domain.IssueStatusTodo:       true,
+	domain.IssueStatusInProgress: true,
+	domain.IssueStatusInReview:   true,
+	domain.IssueStatusDone:       true,
 }
 
 func (s *issueService) Create(ctx context.Context, projectKey string, callerID uint, req dto.CreateIssueRequest) (*dto.IssueResponse, error) {
@@ -66,7 +66,7 @@ func (s *issueService) Create(ctx context.Context, projectKey string, callerID u
 		Title:       req.Title,
 		Description: req.Description,
 		Type:        req.Type,
-		Status:      "todo",
+		Status:      domain.IssueStatusTodo,
 		Priority:    req.Priority,
 		AssigneeID:  req.AssigneeID,
 		ReporterID:  callerID,

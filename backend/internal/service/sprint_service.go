@@ -282,7 +282,7 @@ func (s *sprintService) Complete(ctx context.Context, projectKey string, id uint
 	// Collect IDs of issues that are not done.
 	var unfinishedIDs []uint
 	for _, issue := range sprint.Issues {
-		if issue.Status != "done" {
+		if issue.Status != domain.IssueStatusDone {
 			unfinishedIDs = append(unfinishedIDs, issue.ID)
 		}
 	}
@@ -349,7 +349,7 @@ func (s *sprintService) Burndown(ctx context.Context, projectKey string, id uint
 		dayEnd := d.AddDate(0, 0, 1)
 		remaining := 0
 		for _, issue := range sprint.Issues {
-			doneByEndOfDay := issue.Status == "done" && issue.UpdatedAt.Before(dayEnd)
+			doneByEndOfDay := issue.Status == domain.IssueStatusDone && issue.UpdatedAt.Before(dayEnd)
 			if !doneByEndOfDay && issue.StoryPoints != nil {
 				remaining += *issue.StoryPoints
 			}

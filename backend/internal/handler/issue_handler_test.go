@@ -129,7 +129,7 @@ func TestIssueHandler_Get_Returns404_ForMissing(t *testing.T) {
 func TestIssueHandler_Update_Returns200(t *testing.T) {
 	svc := &stubIssueService{
 		updateFn: func(_ context.Context, _ string, id uint, _ uint, _ dto.UpdateIssueRequest) (*dto.IssueResponse, error) {
-			return &dto.IssueResponse{ID: id, Key: "PROJ-1", Status: "in_progress"}, nil
+			return &dto.IssueResponse{ID: id, Key: "PROJ-1", Status: domain.IssueStatusInProgress}, nil
 		},
 	}
 	e := newIssueEcho(handler.NewIssueHandler(svc))

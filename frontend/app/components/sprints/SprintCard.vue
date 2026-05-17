@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { SprintStatus } from "~/types/domain.types";
 import type { Sprint } from "~/types/domain.types";
 
 const props = defineProps<{
@@ -21,9 +22,9 @@ function formatDate(iso: string | null | undefined): string {
 }
 
 const statusBadge: Record<string, string> = {
-    planning: "badge-neutral",
-    active: "badge-success",
-    completed: "badge-ghost",
+    [SprintStatus.Planning]:  "badge-neutral",
+    [SprintStatus.Active]:    "badge-success",
+    [SprintStatus.Completed]: "badge-ghost",
 };
 </script>
 
@@ -55,7 +56,7 @@ const statusBadge: Record<string, string> = {
 
                 <div v-if="canManage" class="flex gap-1 shrink-0">
                     <button
-                        v-if="sprint.status === 'planning' && !hasActiveSprint"
+                        v-if="sprint.status === SprintStatus.Planning && !hasActiveSprint"
                         class="btn btn-xs btn-success"
                         @click="emit('start', sprint)"
                     >
@@ -63,7 +64,7 @@ const statusBadge: Record<string, string> = {
                     </button>
 
                     <button
-                        v-if="sprint.status === 'active'"
+                        v-if="sprint.status === SprintStatus.Active"
                         class="btn btn-xs btn-warning"
                         @click="emit('complete', sprint)"
                     >
@@ -71,7 +72,7 @@ const statusBadge: Record<string, string> = {
                     </button>
 
                     <button
-                        v-if="sprint.status !== 'completed'"
+                        v-if="sprint.status !== SprintStatus.Completed"
                         class="btn btn-xs btn-ghost"
                         @click="emit('edit', sprint)"
                     >
@@ -79,7 +80,7 @@ const statusBadge: Record<string, string> = {
                     </button>
 
                     <button
-                        v-if="sprint.status === 'planning'"
+                        v-if="sprint.status === SprintStatus.Planning"
                         class="btn btn-xs btn-error btn-outline"
                         @click="emit('delete', sprint)"
                     >

@@ -34,7 +34,12 @@ func NewBoardService(
 
 // boardColumnOrder defines the fixed display order for the kanban board.
 // "backlog" is intentionally absent — backlog issues live in the backlog view (MVP 2).
-var boardColumnOrder = []string{"todo", "in_progress", "in_review", "done"}
+var boardColumnOrder = []string{
+	domain.IssueStatusTodo,
+	domain.IssueStatusInProgress,
+	domain.IssueStatusInReview,
+	domain.IssueStatusDone,
+}
 
 func (s *boardService) GetBoard(ctx context.Context, projectKey string, callerID uint) (*dto.BoardResponse, error) {
 	project, err := s.projectRepo.FindByKey(ctx, projectKey)

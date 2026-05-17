@@ -38,10 +38,10 @@ func TestBoardHandler_GetBoard_Returns200(t *testing.T) {
 		getBoardFn: func(_ context.Context, _ string, _ uint) (*dto.BoardResponse, error) {
 			return &dto.BoardResponse{
 				Columns: []dto.BoardColumn{
-					{Status: "todo", Issues: []dto.IssueResponse{{ID: 1, Key: "PROJ-1"}}},
-					{Status: "in_progress", Issues: []dto.IssueResponse{}},
-					{Status: "in_review", Issues: []dto.IssueResponse{}},
-					{Status: "done", Issues: []dto.IssueResponse{}},
+					{Status: domain.IssueStatusTodo, Issues: []dto.IssueResponse{{ID: 1, Key: "PROJ-1"}}},
+					{Status: domain.IssueStatusInProgress, Issues: []dto.IssueResponse{}},
+					{Status: domain.IssueStatusInReview, Issues: []dto.IssueResponse{}},
+					{Status: domain.IssueStatusDone, Issues: []dto.IssueResponse{}},
 				},
 			}, nil
 		},
@@ -63,7 +63,7 @@ func TestBoardHandler_GetBoard_Returns200(t *testing.T) {
 	if len(resp.Columns) != 4 {
 		t.Errorf("expected 4 columns, got %d", len(resp.Columns))
 	}
-	if resp.Columns[0].Status != "todo" {
+	if resp.Columns[0].Status != domain.IssueStatusTodo {
 		t.Errorf("first column should be todo, got %s", resp.Columns[0].Status)
 	}
 }

@@ -43,6 +43,38 @@ export interface Issue {
   sprint_id?: number
 }
 
+// ── Domain constant objects ───────────────────────────────────────────────────
+// Named-value maps for use in scripts and templates.
+// The union types above remain the canonical source for TypeScript narrowing.
+
+export const IssueType = {
+  Task:  'task',
+  Story: 'story',
+  Bug:   'bug',
+  Epic:  'epic',
+} as const
+
+export const IssuePriority = {
+  Low:      'low',
+  Medium:   'medium',
+  High:     'high',
+  Critical: 'critical',
+} as const
+
+export const IssueStatus = {
+  Backlog:    'backlog',
+  Todo:       'todo',
+  InProgress: 'in_progress',
+  InReview:   'in_review',
+  Done:       'done',
+} as const
+
+export const SprintStatus = {
+  Planning:  'planning',
+  Active:    'active',
+  Completed: 'completed',
+} as const
+
 // ── Sprint ────────────────────────────────────────────────────────────────────
 
 export type SprintStatus = 'planning' | 'active' | 'completed'
