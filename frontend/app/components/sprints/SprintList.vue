@@ -58,7 +58,7 @@ async function handleDelete(sprint: Sprint) {
       v-if="sprintsStore.sprints.length > 0"
       class="flex flex-col gap-2 mb-4"
     >
-      <SprintCard
+      <SprintsSprintCard
         v-for="sprint in sprintsStore.sprints"
         :key="sprint.id"
         :sprint="sprint"
@@ -73,20 +73,20 @@ async function handleDelete(sprint: Sprint) {
     </div>
     <p v-else class="text-sm text-base-content/50 mb-4">No sprints yet.</p>
 
-    <SprintForm
+    <SprintsSprintForm
       v-if="showCreateForm"
       :project-key="projectKey"
       @saved="showCreateForm = false"
       @cancel="showCreateForm = false"
     />
-    <SprintForm
+    <SprintsSprintForm
       v-if="editingSprint"
       :project-key="projectKey"
       :sprint="editingSprint"
       @saved="editingSprint = null"
       @cancel="editingSprint = null"
     />
-    <CompleteSprintModal
+    <SprintsCompleteSprintModal
       v-if="completingSprint"
       :project-key="projectKey"
       :sprint="completingSprint"

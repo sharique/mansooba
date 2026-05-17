@@ -15,7 +15,7 @@
 
     <!-- Sprint management section -->
     <section class="mb-8">
-      <SprintList :project-key="key" :can-manage="canManage" />
+      <SprintsSprintList :project-key="key" :can-manage="canManage" />
     </section>
 
     <!-- Backlog issue list -->

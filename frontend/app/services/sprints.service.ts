@@ -19,27 +19,43 @@ export interface CompleteSprintPayload {
 }
 
 export const sprintsService = {
-  list: (projectKey: string): Promise<Sprint[]> =>
-    $fetch(`/projects/${projectKey}/sprints`),
+  list(projectKey: string): Promise<Sprint[]> {
+    const { $api } = useNuxtApp()
+    return $api<Sprint[]>(`/projects/${projectKey}/sprints`)
+  },
 
-  create: (projectKey: string, payload: CreateSprintPayload): Promise<Sprint> =>
-    $fetch(`/projects/${projectKey}/sprints`, { method: 'POST', body: payload }),
+  create(projectKey: string, payload: CreateSprintPayload): Promise<Sprint> {
+    const { $api } = useNuxtApp()
+    return $api<Sprint>(`/projects/${projectKey}/sprints`, { method: 'POST', body: payload })
+  },
 
-  get: (projectKey: string, id: string): Promise<Sprint> =>
-    $fetch(`/projects/${projectKey}/sprints/${id}`),
+  get(projectKey: string, id: string): Promise<Sprint> {
+    const { $api } = useNuxtApp()
+    return $api<Sprint>(`/projects/${projectKey}/sprints/${id}`)
+  },
 
-  update: (projectKey: string, id: string, payload: UpdateSprintPayload): Promise<Sprint> =>
-    $fetch(`/projects/${projectKey}/sprints/${id}`, { method: 'PUT', body: payload }),
+  update(projectKey: string, id: string, payload: UpdateSprintPayload): Promise<Sprint> {
+    const { $api } = useNuxtApp()
+    return $api<Sprint>(`/projects/${projectKey}/sprints/${id}`, { method: 'PUT', body: payload })
+  },
 
-  delete: (projectKey: string, id: string): Promise<void> =>
-    $fetch(`/projects/${projectKey}/sprints/${id}`, { method: 'DELETE' }),
+  delete(projectKey: string, id: string): Promise<void> {
+    const { $api } = useNuxtApp()
+    return $api(`/projects/${projectKey}/sprints/${id}`, { method: 'DELETE' })
+  },
 
-  start: (projectKey: string, id: string): Promise<Sprint> =>
-    $fetch(`/projects/${projectKey}/sprints/${id}/start`, { method: 'POST' }),
+  start(projectKey: string, id: string): Promise<Sprint> {
+    const { $api } = useNuxtApp()
+    return $api<Sprint>(`/projects/${projectKey}/sprints/${id}/start`, { method: 'POST' })
+  },
 
-  complete: (projectKey: string, id: string, payload: CompleteSprintPayload): Promise<Sprint> =>
-    $fetch(`/projects/${projectKey}/sprints/${id}/complete`, { method: 'POST', body: payload }),
+  complete(projectKey: string, id: string, payload: CompleteSprintPayload): Promise<Sprint> {
+    const { $api } = useNuxtApp()
+    return $api<Sprint>(`/projects/${projectKey}/sprints/${id}/complete`, { method: 'POST', body: payload })
+  },
 
-  burndown: (projectKey: string, id: string): Promise<BurndownData> =>
-    $fetch(`/projects/${projectKey}/sprints/${id}/burndown`),
+  burndown(projectKey: string, id: string): Promise<BurndownData> {
+    const { $api } = useNuxtApp()
+    return $api<BurndownData>(`/projects/${projectKey}/sprints/${id}/burndown`)
+  },
 }
