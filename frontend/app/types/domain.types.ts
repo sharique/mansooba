@@ -45,7 +45,7 @@ export interface Issue {
 
 // ── Sprint ────────────────────────────────────────────────────────────────────
 
-export type SprintStatus = 'Planning' | 'Active' | 'Completed'
+export type SprintStatus = 'planning' | 'active' | 'completed'
 
 export interface Sprint {
   id: string

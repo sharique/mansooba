@@ -14,11 +14,11 @@ export const useSprintsStore = defineStore('sprints', () => {
   const error = ref<string | null>(null)
 
   const activeSprint = computed(() =>
-    sprints.value.find(s => s.status === 'Active') ?? null
+    sprints.value.find(s => s.status === 'active') ?? null
   )
 
   const openSprints = computed(() =>
-    sprints.value.filter(s => s.status !== 'Completed')
+    sprints.value.filter(s => s.status !== 'completed')
   )
 
   function replaceInList(updated: Sprint): Sprint {

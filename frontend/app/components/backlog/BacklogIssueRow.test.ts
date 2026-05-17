@@ -19,7 +19,7 @@ const makeIssue = (overrides: Partial<Issue> = {}): Issue => ({
   ...overrides,
 })
 
-const makeSprint = (id: number, name: string, status: Sprint['status'] = 'Planning'): Sprint => ({
+const makeSprint = (id: number, name: string, status: Sprint['status'] = 'planning'): Sprint => ({
   id: String(id),
   project_id: '1',
   name,

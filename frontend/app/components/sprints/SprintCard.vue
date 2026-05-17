@@ -36,7 +36,7 @@ const statusBadge: Record<string, string> = {
                         <span
                             :class="[
                                 'badge badge-sm',
-                                statusBadge[sprint.status.toLowerCase()],
+                                statusBadge[sprint.status],
                             ]"
                         >
                             {{ sprint.status }}
@@ -55,7 +55,7 @@ const statusBadge: Record<string, string> = {
 
                 <div v-if="canManage" class="flex gap-1 shrink-0">
                     <button
-                        v-if="sprint.status.toLowerCase() === 'planning' && !hasActiveSprint"
+                        v-if="sprint.status === 'planning' && !hasActiveSprint"
                         class="btn btn-xs btn-success"
                         @click="emit('start', sprint)"
                     >
@@ -63,7 +63,7 @@ const statusBadge: Record<string, string> = {
                     </button>
 
                     <button
-                        v-if="sprint.status.toLowerCase() === 'active'"
+                        v-if="sprint.status === 'active'"
                         class="btn btn-xs btn-warning"
                         @click="emit('complete', sprint)"
                     >
@@ -71,7 +71,7 @@ const statusBadge: Record<string, string> = {
                     </button>
 
                     <button
-                        v-if="sprint.status.toLowerCase() !== 'completed'"
+                        v-if="sprint.status !== 'completed'"
                         class="btn btn-xs btn-ghost"
                         @click="emit('edit', sprint)"
                     >
@@ -79,7 +79,7 @@ const statusBadge: Record<string, string> = {
                     </button>
 
                     <button
-                        v-if="sprint.status.toLowerCase() === 'planning'"
+                        v-if="sprint.status === 'planning'"
                         class="btn btn-xs btn-error btn-outline"
                         @click="emit('delete', sprint)"
                     >
