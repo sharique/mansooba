@@ -47,6 +47,19 @@
       </div>
     </div>
 
+    <!-- Story Points -->
+    <div class="form-control mb-3">
+      <label class="label"><span class="label-text">Story Points</span></label>
+      <input
+        v-model.number="form.storyPoints"
+        type="number"
+        min="0"
+        max="100"
+        class="input input-bordered"
+        placeholder="Leave blank if unestimated"
+      />
+    </div>
+
     <!-- Assignee -->
     <div class="form-control mb-4">
       <label class="label"><span class="label-text">Assignee</span></label>
@@ -92,6 +105,7 @@ const form = reactive<CreateIssueRequest>({
   priority: props.issue?.priority ?? 'medium',
   status: props.issue?.status ?? props.defaultStatus ?? 'todo',
   assigneeId: props.issue?.assigneeId,
+  storyPoints: props.issue?.storyPoints,
 })
 
 const titleError = ref(false)

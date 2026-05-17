@@ -7,6 +7,7 @@ export interface CreateIssueRequest {
   priority: 'low' | 'medium' | 'high' | 'critical'
   status?: string
   assigneeId?: number
+  storyPoints?: number
 }
 
 export interface UpdateIssuePayload extends Partial<CreateIssueRequest> {
