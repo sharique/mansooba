@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { SprintStatus } from "~/types/domain.types";
 import type { Issue, Sprint } from "~/types/domain.types";
 
 const props = defineProps<{
@@ -27,7 +28,7 @@ const typeIcon: Record<string, string> = {
 };
 
 const openSprints = computed(() =>
-    (props.sprints ?? []).filter((s) => s.status !== "completed"),
+    (props.sprints ?? []).filter((s) => s.status !== SprintStatus.Completed),
 );
 
 function onSprintChange(e: Event) {

@@ -28,7 +28,7 @@ func TestBoardService_GetBoard_AllColumnsPresent(t *testing.T) {
 	// Only one issue, in "todo" — other columns must still appear
 	_ = issueRepo.Create(ctx, &domain.Issue{
 		Key: "PROJ-1", ProjectID: project.ID, Title: "Fix bug",
-		Type: "bug", Status: "todo", Priority: "high", ReporterID: 1,
+		Type: domain.IssueTypeBug, Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityHigh, ReporterID: 1,
 	})
 
 	resp, err := svc.GetBoard(ctx, "PROJ", 1)
@@ -39,7 +39,7 @@ func TestBoardService_GetBoard_AllColumnsPresent(t *testing.T) {
 		t.Fatalf("expected 4 columns, got %d", len(resp.Columns))
 	}
 
-	wantOrder := []string{"todo", "in_progress", "in_review", "done"}
+	wantOrder := []string{domain.IssueStatusTodo, domain.IssueStatusInProgress, domain.IssueStatusInReview, domain.IssueStatusDone}
 	for i, col := range resp.Columns {
 		if col.Status != wantOrder[i] {
 			t.Errorf("column %d: expected status %q, got %q", i, wantOrder[i], col.Status)
@@ -57,7 +57,7 @@ func TestBoardService_GetBoard_BacklogExcluded(t *testing.T) {
 
 	_ = issueRepo.Create(ctx, &domain.Issue{
 		Key: "PROJ-1", ProjectID: project.ID, Title: "Backlog item",
-		Type: "task", Status: "backlog", Priority: "low", ReporterID: 1,
+		Type: domain.IssueTypeTask, Status: domain.IssueStatusBacklog, Priority: domain.IssuePriorityLow, ReporterID: 1,
 	})
 
 	resp, err := svc.GetBoard(ctx, "PROJ", 1)
@@ -84,11 +84,11 @@ func TestBoardService_GetBoard_CorrectGrouping(t *testing.T) {
 	_ = projectRepo.Create(ctx, project)
 	_ = memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: project.ID, UserID: 1, Role: "admin"})
 
-	_ = issueRepo.Create(ctx, &domain.Issue{Key: "PROJ-1", ProjectID: project.ID, Title: "T1", Type: "bug", Status: "todo", Priority: "high", ReporterID: 1})
-	_ = issueRepo.Create(ctx, &domain.Issue{Key: "PROJ-2", ProjectID: project.ID, Title: "T2", Type: "task", Status: "in_progress", Priority: "low", ReporterID: 1})
-	_ = issueRepo.Create(ctx, &domain.Issue{Key: "PROJ-3", ProjectID: project.ID, Title: "T3", Type: "story", Status: "in_progress", Priority: "medium", ReporterID: 1})
-	_ = issueRepo.Create(ctx, &domain.Issue{Key: "PROJ-4", ProjectID: project.ID, Title: "T4", Type: "task", Status: "done", Priority: "low", ReporterID: 1})
-	_ = issueRepo.Create(ctx, &domain.Issue{Key: "PROJ-5", ProjectID: project.ID, Title: "T5", Type: "bug", Status: "backlog", Priority: "low", ReporterID: 1})
+	_ = issueRepo.Create(ctx, &domain.Issue{Key: "PROJ-1", ProjectID: project.ID, Title: "T1", Type: domain.IssueTypeBug, Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityHigh, ReporterID: 1})
+	_ = issueRepo.Create(ctx, &domain.Issue{Key: "PROJ-2", ProjectID: project.ID, Title: "T2", Type: domain.IssueTypeTask, Status: domain.IssueStatusInProgress, Priority: domain.IssuePriorityLow, ReporterID: 1})
+	_ = issueRepo.Create(ctx, &domain.Issue{Key: "PROJ-3", ProjectID: project.ID, Title: "T3", Type: domain.IssueTypeStory, Status: domain.IssueStatusInProgress, Priority: domain.IssuePriorityMedium, ReporterID: 1})
+	_ = issueRepo.Create(ctx, &domain.Issue{Key: "PROJ-4", ProjectID: project.ID, Title: "T4", Type: domain.IssueTypeTask, Status: domain.IssueStatusDone, Priority: domain.IssuePriorityLow, ReporterID: 1})
+	_ = issueRepo.Create(ctx, &domain.Issue{Key: "PROJ-5", ProjectID: project.ID, Title: "T5", Type: domain.IssueTypeBug, Status: domain.IssueStatusBacklog, Priority: domain.IssuePriorityLow, ReporterID: 1})
 
 	resp, err := svc.GetBoard(ctx, "PROJ", 1)
 	if err != nil {
@@ -100,21 +100,21 @@ func TestBoardService_GetBoard_CorrectGrouping(t *testing.T) {
 		counts[col.Status] = len(col.Issues)
 	}
 
-	if counts["todo"] != 1 {
-		t.Errorf("todo: expected 1, got %d", counts["todo"])
+	if counts[domain.IssueStatusTodo] != 1 {
+		t.Errorf("todo: expected 1, got %d", counts[domain.IssueStatusTodo])
 	}
-	if counts["in_progress"] != 2 {
-		t.Errorf("in_progress: expected 2, got %d", counts["in_progress"])
+	if counts[domain.IssueStatusInProgress] != 2 {
+		t.Errorf("in_progress: expected 2, got %d", counts[domain.IssueStatusInProgress])
 	}
-	if counts["in_review"] != 0 {
-		t.Errorf("in_review: expected 0, got %d", counts["in_review"])
+	if counts[domain.IssueStatusInReview] != 0 {
+		t.Errorf("in_review: expected 0, got %d", counts[domain.IssueStatusInReview])
 	}
-	if counts["done"] != 1 {
-		t.Errorf("done: expected 1, got %d", counts["done"])
+	if counts[domain.IssueStatusDone] != 1 {
+		t.Errorf("done: expected 1, got %d", counts[domain.IssueStatusDone])
 	}
 
 	// Backlog issue must not appear in any column
-	total := counts["todo"] + counts["in_progress"] + counts["in_review"] + counts["done"]
+	total := counts[domain.IssueStatusTodo] + counts[domain.IssueStatusInProgress] + counts[domain.IssueStatusInReview] + counts[domain.IssueStatusDone]
 	if total != 4 {
 		t.Errorf("total board issues: expected 4 (backlog excluded), got %d", total)
 	}

@@ -82,7 +82,7 @@ func newSprintEcho(h *handler.SprintHandler) *echo.Echo {
 func TestSprintHandler_List_Returns200(t *testing.T) {
 	svc := &stubSprintService{
 		listFn: func(_ context.Context, _ string, _ uint) ([]*dto.SprintResponse, error) {
-			return []*dto.SprintResponse{{ID: 1, Name: "Sprint 1", Status: "planning"}}, nil
+			return []*dto.SprintResponse{{ID: 1, Name: "Sprint 1", Status: domain.SprintStatusPlanning}}, nil
 		},
 	}
 	e := newSprintEcho(handler.NewSprintHandler(svc))
@@ -99,7 +99,7 @@ func TestSprintHandler_List_Returns200(t *testing.T) {
 func TestSprintHandler_Create_Returns201(t *testing.T) {
 	svc := &stubSprintService{
 		createFn: func(_ context.Context, _ string, _ uint, req dto.CreateSprintRequest) (*dto.SprintResponse, error) {
-			return &dto.SprintResponse{ID: 1, Name: req.Name, Status: "planning"}, nil
+			return &dto.SprintResponse{ID: 1, Name: req.Name, Status: domain.SprintStatusPlanning}, nil
 		},
 	}
 	e := newSprintEcho(handler.NewSprintHandler(svc))
@@ -161,7 +161,7 @@ func TestSprintHandler_Backlog_Returns200(t *testing.T) {
 		backlogFn: func(_ context.Context, _ string, _ uint) ([]*domain.Issue, error) {
 			pts := 3
 			return []*domain.Issue{
-				{ID: 1, Title: "Backlog task", Priority: "high", Status: "todo", StoryPoints: &pts},
+				{ID: 1, Title: "Backlog task", Priority: domain.IssuePriorityHigh, Status: domain.IssueStatusTodo, StoryPoints: &pts},
 			}, nil
 		},
 	}

@@ -5,6 +5,7 @@ import {
   type UpdateSprintPayload,
   type CompleteSprintPayload,
 } from '~/services/sprints.service'
+import { SprintStatus } from '~/types/domain.types'
 import type { Sprint, BurndownData } from '~/types/domain.types'
 
 export const useSprintsStore = defineStore('sprints', () => {
@@ -14,11 +15,11 @@ export const useSprintsStore = defineStore('sprints', () => {
   const error = ref<string | null>(null)
 
   const activeSprint = computed(() =>
-    sprints.value.find(s => s.status === 'active') ?? null
+    sprints.value.find(s => s.status === SprintStatus.Active) ?? null
   )
 
   const openSprints = computed(() =>
-    sprints.value.filter(s => s.status !== 'completed')
+    sprints.value.filter(s => s.status !== SprintStatus.Completed)
   )
 
   function replaceInList(updated: Sprint): Sprint {

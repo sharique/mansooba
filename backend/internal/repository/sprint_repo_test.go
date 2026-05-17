@@ -21,7 +21,7 @@ func seedSprint(t *testing.T, repo domain.SprintRepository, projectID uint, name
 
 func TestSprintRepository_Create_SetsID(t *testing.T) {
 	repo := repository.NewSprintRepository(newTestDB(t))
-	s := &domain.Sprint{ProjectID: 1, Name: "Sprint 1", Status: "planning"}
+	s := &domain.Sprint{ProjectID: 1, Name: "Sprint 1", Status: domain.SprintStatusPlanning}
 	if err := repo.Create(context.Background(), s); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -40,8 +40,8 @@ func TestSprintRepository_FindByID_NotFound(t *testing.T) {
 
 func TestSprintRepository_FindByProject_ReturnsOrdered(t *testing.T) {
 	repo := repository.NewSprintRepository(newTestDB(t))
-	seedSprint(t, repo, 1, "Sprint 1", "planning")
-	seedSprint(t, repo, 1, "Sprint 2", "planning")
+	seedSprint(t, repo, 1, "Sprint 1", domain.SprintStatusPlanning)
+	seedSprint(t, repo, 1, "Sprint 2", domain.SprintStatusPlanning)
 
 	sprints, err := repo.FindByProject(context.Background(), 1)
 	if err != nil {
@@ -68,7 +68,7 @@ func TestSprintRepository_FindActiveByProject_NilWhenNone(t *testing.T) {
 
 func TestSprintRepository_FindActiveByProject_ReturnsActive(t *testing.T) {
 	repo := repository.NewSprintRepository(newTestDB(t))
-	s := seedSprint(t, repo, 1, "Sprint 1", "active")
+	s := seedSprint(t, repo, 1, "Sprint 1", domain.SprintStatusActive)
 
 	active, err := repo.FindActiveByProject(context.Background(), 1)
 	if err != nil {
@@ -81,7 +81,7 @@ func TestSprintRepository_FindActiveByProject_ReturnsActive(t *testing.T) {
 
 func TestSprintRepository_Delete_RemovesRow(t *testing.T) {
 	repo := repository.NewSprintRepository(newTestDB(t))
-	s := seedSprint(t, repo, 1, "Sprint 1", "planning")
+	s := seedSprint(t, repo, 1, "Sprint 1", domain.SprintStatusPlanning)
 
 	if err := repo.Delete(context.Background(), s.ID); err != nil {
 		t.Fatalf("Delete: %v", err)
@@ -98,7 +98,7 @@ func TestSprintRepository_CompleteWithMigration_MovesToBacklog(t *testing.T) {
 	issueRepo := repository.NewIssueRepository(db)
 	ctx := context.Background()
 
-	sprint := &domain.Sprint{ProjectID: 1, Name: "S1", Status: "active"}
+	sprint := &domain.Sprint{ProjectID: 1, Name: "S1", Status: domain.SprintStatusActive}
 	if err := sprintRepo.Create(ctx, sprint); err != nil {
 		t.Fatalf("create sprint: %v", err)
 	}
@@ -108,9 +108,9 @@ func TestSprintRepository_CompleteWithMigration_MovesToBacklog(t *testing.T) {
 		ProjectID:  1,
 		SprintID:   &sprint.ID,
 		Title:      "Open issue",
-		Type:       "task",
-		Status:     "todo",
-		Priority:   "medium",
+		Type:       domain.IssueTypeTask,
+		Status:     domain.IssueStatusTodo,
+		Priority:   domain.IssuePriorityMedium,
 		ReporterID: 1,
 	}
 	if err := issueRepo.Create(ctx, issue); err != nil {
@@ -118,7 +118,7 @@ func TestSprintRepository_CompleteWithMigration_MovesToBacklog(t *testing.T) {
 	}
 
 	now := time.Now()
-	sprint.Status = "completed"
+	sprint.Status = domain.SprintStatusCompleted
 	sprint.EndDate = &now
 
 	if err := sprintRepo.CompleteWithMigration(ctx, sprint, []uint{issue.ID}, nil); err != nil {
@@ -139,10 +139,10 @@ func TestIssueRepository_FindBacklog_SortsByPriority(t *testing.T) {
 	ctx := context.Background()
 
 	// Create issues in reverse priority order.
-	for _, priority := range []string{"low", "critical", "medium", "high"} {
+	for _, priority := range []string{domain.IssuePriorityLow, domain.IssuePriorityCritical, domain.IssuePriorityMedium, domain.IssuePriorityHigh} {
 		_ = repo.Create(ctx, &domain.Issue{
 			Key: "P-" + priority, ProjectID: 1, Title: priority,
-			Type: "task", Status: "todo", Priority: priority, ReporterID: 1,
+			Type: domain.IssueTypeTask, Status: domain.IssueStatusTodo, Priority: priority, ReporterID: 1,
 		})
 	}
 
@@ -153,7 +153,7 @@ func TestIssueRepository_FindBacklog_SortsByPriority(t *testing.T) {
 	if len(issues) != 4 {
 		t.Fatalf("want 4 issues, got %d", len(issues))
 	}
-	want := []string{"critical", "high", "medium", "low"}
+	want := []string{domain.IssuePriorityCritical, domain.IssuePriorityHigh, domain.IssuePriorityMedium, domain.IssuePriorityLow}
 	for i, w := range want {
 		if issues[i].Priority != w {
 			t.Errorf("position %d: want %s, got %s", i, w, issues[i].Priority)

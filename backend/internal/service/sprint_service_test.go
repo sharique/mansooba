@@ -173,7 +173,7 @@ func TestSprintService_Get_WrongProject_ReturnsNotFound(t *testing.T) {
 	ctx := context.Background()
 	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
 
-	otherSprint := &domain.Sprint{ProjectID: p.ID + 99, Status: "planning", Name: "Other"}
+	otherSprint := &domain.Sprint{ProjectID: p.ID + 99, Status: domain.SprintStatusPlanning, Name: "Other"}
 	_ = sprintRepo.Create(ctx, otherSprint)
 
 	_, err := svc.Get(ctx, "TEST", otherSprint.ID, 1)
@@ -306,8 +306,8 @@ func TestSprintService_Complete_MovesToBacklog(t *testing.T) {
 		Status:    domain.SprintStatusActive,
 		Name:      "Sprint 1",
 		Issues: []domain.Issue{
-			{ID: 1, Status: "todo"},
-			{ID: 2, Status: "done"},
+			{ID: 1, Status: domain.IssueStatusTodo},
+			{ID: 2, Status: domain.IssueStatusDone},
 		},
 	}
 	_ = sprintRepo.Create(ctx, sprint)
@@ -339,7 +339,7 @@ func TestSprintService_Complete_MovesToNextSprint(t *testing.T) {
 		ProjectID: p.ID,
 		Status:    domain.SprintStatusActive,
 		Name:      "Sprint 1",
-		Issues:    []domain.Issue{{ID: 10, Status: "in_progress"}},
+		Issues:    []domain.Issue{{ID: 10, Status: domain.IssueStatusInProgress}},
 	}
 	_ = sprintRepo.Create(ctx, active)
 
@@ -364,7 +364,7 @@ func TestSprintService_Complete_SkipsDoneIssues(t *testing.T) {
 		ProjectID: p.ID,
 		Status:    domain.SprintStatusActive,
 		Name:      "Sprint 1",
-		Issues:    []domain.Issue{{ID: 5, Status: "done"}},
+		Issues:    []domain.Issue{{ID: 5, Status: domain.IssueStatusDone}},
 	}
 	_ = sprintRepo.Create(ctx, active)
 
@@ -403,7 +403,7 @@ func TestSprintService_Complete_NextSprintMustBePlanning(t *testing.T) {
 		ProjectID: p.ID,
 		Status:    domain.SprintStatusActive,
 		Name:      "Sprint 1",
-		Issues:    []domain.Issue{{ID: 3, Status: "todo"}},
+		Issues:    []domain.Issue{{ID: 3, Status: domain.IssueStatusTodo}},
 	}
 	_ = sprintRepo.Create(ctx, active)
 

@@ -111,7 +111,7 @@ func TestIssueService_Create_GeneratesSequentialKey(t *testing.T) {
 	ctx := context.Background()
 	seedProject(ctx, projectRepo, memberRepo)
 
-	r1, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: "task", Priority: "low"})
+	r1, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -119,12 +119,12 @@ func TestIssueService_Create_GeneratesSequentialKey(t *testing.T) {
 		t.Errorf("expected PROJ-1, got %s", r1.Key)
 	}
 
-	r2, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 2", Type: "story", Priority: "medium"})
+	r2, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 2", Type: domain.IssueTypeStory, Priority: domain.IssuePriorityMedium})
 	if r2.Key != "PROJ-2" {
 		t.Errorf("expected PROJ-2, got %s", r2.Key)
 	}
 
-	r3, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 3", Type: "bug", Priority: "high"})
+	r3, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 3", Type: domain.IssueTypeBug, Priority: domain.IssuePriorityHigh})
 	if r3.Key != "PROJ-3" {
 		t.Errorf("expected PROJ-3, got %s", r3.Key)
 	}
@@ -135,7 +135,7 @@ func TestIssueService_Update_RejectsInvalidStatus(t *testing.T) {
 	ctx := context.Background()
 	seedProject(ctx, projectRepo, memberRepo)
 
-	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: "task", Priority: "low"})
+	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
 
 	invalid := "flying"
 	_, err := svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{Status: &invalid})
@@ -149,7 +149,7 @@ func TestIssueService_Update_AssignsIssueToSprint(t *testing.T) {
 	ctx := context.Background()
 	seedProject(ctx, projectRepo, memberRepo)
 
-	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: "task", Priority: "low"})
+	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
 
 	sprintID := uint(5)
 	updated, err := svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{SprintID: &sprintID})
@@ -171,7 +171,7 @@ func TestIssueService_Update_ClearsSprintID(t *testing.T) {
 	ctx := context.Background()
 	seedProject(ctx, projectRepo, memberRepo)
 
-	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: "task", Priority: "low"})
+	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
 
 	// First assign to a sprint
 	sprintID := uint(3)
@@ -199,7 +199,7 @@ func TestIssueService_Delete_ForbiddenForNonReporter(t *testing.T) {
 	// User 2 is a member but not a reporter or admin
 	_ = memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: project.ID, UserID: 2, Role: "member"})
 
-	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: "task", Priority: "low"})
+	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
 
 	err := svc.Delete(ctx, "PROJ", resp.ID, 2)
 	if !errors.Is(err, domain.ErrForbidden) {
@@ -212,11 +212,11 @@ func TestIssueService_ListByProject_FiltersApplied(t *testing.T) {
 	ctx := context.Background()
 	seedProject(ctx, projectRepo, memberRepo)
 
-	_, _ = svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Task 1", Type: "task", Priority: "low"})
-	_, _ = svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Bug 1", Type: "bug", Priority: "high"})
-	_, _ = svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Task 2", Type: "task", Priority: "medium"})
+	_, _ = svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Task 1", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
+	_, _ = svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Bug 1", Type: domain.IssueTypeBug, Priority: domain.IssuePriorityHigh})
+	_, _ = svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Task 2", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityMedium})
 
-	results, err := svc.ListByProject(ctx, "PROJ", 1, dto.IssueListQuery{Type: "task"})
+	results, err := svc.ListByProject(ctx, "PROJ", 1, dto.IssueListQuery{Type: domain.IssueTypeTask})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -224,7 +224,7 @@ func TestIssueService_ListByProject_FiltersApplied(t *testing.T) {
 		t.Errorf("expected 2 task issues, got %d", len(results))
 	}
 	for _, r := range results {
-		if r.Type != "task" {
+		if r.Type != domain.IssueTypeTask {
 			t.Errorf("expected type task, got %s", r.Type)
 		}
 	}
