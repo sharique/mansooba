@@ -17,6 +17,8 @@ type UpdateIssueRequest struct {
 	Priority    *string `json:"priority" validate:"omitempty,oneof=low medium high critical"`
 	AssigneeID  *uint   `json:"assignee_id"`
 	StoryPoints *int    `json:"story_points"`
+	// SprintID assigns the issue to a sprint. Send 0 to move the issue back to the backlog.
+	SprintID    *uint   `json:"sprint_id"`
 }
 
 type IssueListQuery struct {

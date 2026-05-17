@@ -30,14 +30,14 @@ const sprint: Sprint = {
   project_id: 'proj-1',
   name: 'Sprint 1',
   goal: '',
-  status: 'Planning',
+  status: 'planning',
   start_date: null,
   end_date: null,
   created_at: '2026-05-20T00:00:00Z',
   updated_at: '2026-05-20T00:00:00Z',
 }
 
-const activeSprint: Sprint = { ...sprint, id: 'sprint-active', status: 'Active' }
+const activeSprint: Sprint = { ...sprint, id: 'sprint-active', status: 'active' }
 
 const burndown: BurndownData = {
   sprint_id: 'sprint-active',
@@ -77,27 +77,27 @@ describe('useSprintsStore', () => {
     expect(store.loading).toBe(false)
   })
 
-  test('activeSprint returns null when no sprint is Active', async () => {
+  test('activeSprint returns null when no sprint is active', async () => {
     mockList.mockResolvedValueOnce([sprint])
     const store = useSprintsStore()
     await store.fetchSprints('TEST')
     expect(store.activeSprint).toBeNull()
   })
 
-  test('activeSprint returns the Active sprint', async () => {
+  test('activeSprint returns the active sprint', async () => {
     mockList.mockResolvedValueOnce([sprint, activeSprint])
     const store = useSprintsStore()
     await store.fetchSprints('TEST')
     expect(store.activeSprint?.id).toBe('sprint-active')
   })
 
-  test('openSprints excludes Completed sprints', async () => {
-    const completed: Sprint = { ...sprint, id: 'sprint-done', status: 'Completed' }
+  test('openSprints excludes completed sprints', async () => {
+    const completed: Sprint = { ...sprint, id: 'sprint-done', status: 'completed' }
     mockList.mockResolvedValueOnce([sprint, activeSprint, completed])
     const store = useSprintsStore()
     await store.fetchSprints('TEST')
     expect(store.openSprints).toHaveLength(2)
-    expect(store.openSprints.every(s => s.status !== 'Completed')).toBe(true)
+    expect(store.openSprints.every(s => s.status !== 'completed')).toBe(true)
   })
 
   test('getSprint updates the sprint in the list', async () => {
@@ -133,22 +133,22 @@ describe('useSprintsStore', () => {
   })
 
   test('startSprint updates the sprint status in the list', async () => {
-    const started: Sprint = { ...sprint, status: 'Active' }
+    const started: Sprint = { ...sprint, status: 'active' }
     mockStart.mockResolvedValueOnce(started)
     const store = useSprintsStore()
     store.sprints = [sprint]
     await store.startSprint('TEST', sprint.id)
-    expect(store.sprints[0].status).toBe('Active')
+    expect(store.sprints[0].status).toBe('active')
   })
 
   test('completeSprint calls service with next_sprint_id and updates list', async () => {
-    const completed: Sprint = { ...activeSprint, status: 'Completed' }
+    const completed: Sprint = { ...activeSprint, status: 'completed' }
     mockComplete.mockResolvedValueOnce(completed)
     const store = useSprintsStore()
     store.sprints = [activeSprint]
     await store.completeSprint('TEST', activeSprint.id, { next_sprint_id: 'sprint-next' })
     expect(mockComplete).toHaveBeenCalledWith('TEST', activeSprint.id, { next_sprint_id: 'sprint-next' })
-    expect(store.sprints[0].status).toBe('Completed')
+    expect(store.sprints[0].status).toBe('completed')
   })
 
   test('deleteSprint removes the sprint from the list', async () => {

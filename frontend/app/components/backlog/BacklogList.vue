@@ -1,10 +1,16 @@
 <script setup lang="ts">
-import type { Issue } from '~/types/domain.types'
+import type { Issue, Sprint } from '~/types/domain.types'
 
 const props = defineProps<{
   issues: Issue[]
   projectKey: string
   loading?: boolean
+  canManage?: boolean
+  sprints?: Sprint[]
+}>()
+
+const emit = defineEmits<{
+  'sprint-assign': [{ issueId: number; sprintId: number }]
 }>()
 </script>
 
@@ -35,6 +41,9 @@ const props = defineProps<{
         :key="issue.id"
         :issue="issue"
         :project-key="projectKey"
+        :can-manage="canManage"
+        :sprints="sprints"
+        @sprint-assign="emit('sprint-assign', $event)"
       />
     </div>
   </div>

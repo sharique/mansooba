@@ -198,6 +198,13 @@ func (s *issueService) Update(ctx context.Context, projectKey string, id uint, c
 	if req.StoryPoints != nil {
 		issue.StoryPoints = req.StoryPoints
 	}
+	if req.SprintID != nil {
+		if *req.SprintID == 0 {
+			issue.SprintID = nil
+		} else {
+			issue.SprintID = req.SprintID
+		}
+	}
 
 	if err := s.issueRepo.Update(ctx, issue); err != nil {
 		return nil, err
