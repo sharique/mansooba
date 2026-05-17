@@ -40,6 +40,7 @@ export interface Issue {
   assigneeId?: number
   reporterId: number
   storyPoints?: number
+  sprint_id?: number
 }
 
 // ── Sprint ────────────────────────────────────────────────────────────────────

@@ -144,6 +144,54 @@ func TestIssueService_Update_RejectsInvalidStatus(t *testing.T) {
 	}
 }
 
+func TestIssueService_Update_AssignsIssueToSprint(t *testing.T) {
+	svc, projectRepo, memberRepo, issueRepo := newIssueService()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+
+	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: "task", Priority: "low"})
+
+	sprintID := uint(5)
+	updated, err := svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{SprintID: &sprintID})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if updated.SprintID == nil || *updated.SprintID != 5 {
+		t.Errorf("expected SprintID=5, got %v", updated.SprintID)
+	}
+	// Verify persisted value matches
+	stored, _ := issueRepo.FindByID(ctx, resp.ID)
+	if stored.SprintID == nil || *stored.SprintID != 5 {
+		t.Errorf("stored SprintID expected 5, got %v", stored.SprintID)
+	}
+}
+
+func TestIssueService_Update_ClearsSprintID(t *testing.T) {
+	svc, projectRepo, memberRepo, issueRepo := newIssueService()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+
+	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: "task", Priority: "low"})
+
+	// First assign to a sprint
+	sprintID := uint(3)
+	_, _ = svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{SprintID: &sprintID})
+
+	// Sentinel value 0 means "move to backlog"
+	zero := uint(0)
+	updated, err := svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{SprintID: &zero})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if updated.SprintID != nil {
+		t.Errorf("expected SprintID=nil after clearing, got %v", updated.SprintID)
+	}
+	stored, _ := issueRepo.FindByID(ctx, resp.ID)
+	if stored.SprintID != nil {
+		t.Errorf("stored SprintID expected nil, got %v", stored.SprintID)
+	}
+}
+
 func TestIssueService_Delete_ForbiddenForNonReporter(t *testing.T) {
 	svc, projectRepo, memberRepo, _ := newIssueService()
 	ctx := context.Background()

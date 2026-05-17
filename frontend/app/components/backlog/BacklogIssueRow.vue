@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import type { Issue } from '~/types/domain.types'
+import type { Issue, Sprint } from '~/types/domain.types'
 
 const props = defineProps<{
   issue: Issue
   projectKey: string
+  canManage?: boolean
+  sprints?: Sprint[]
+}>()
+
+const emit = defineEmits<{
+  'sprint-assign': [{ issueId: number; sprintId: number }]
 }>()
 
 const priorityBadge: Record<string, string> = {
@@ -19,20 +25,33 @@ const typeIcon: Record<string, string> = {
   task:  '✓',
   bug:   '🐛',
 }
+
+const openSprints = computed(() =>
+  (props.sprints ?? []).filter(s => s.status !== 'Completed'),
+)
+
+function onSprintChange(e: Event) {
+  const sprintId = Number((e.target as HTMLSelectElement).value)
+  if (sprintId) emit('sprint-assign', { issueId: props.issue.id, sprintId })
+}
 </script>
 
 <template>
-  <div
-    class="flex items-center gap-3 px-4 py-3 hover:bg-base-200 rounded-lg transition-colors cursor-pointer"
-    @click="navigateTo(`/projects/${projectKey}/issues/${issue.id}`)"
-  >
+  <div class="flex items-center gap-3 px-4 py-3 hover:bg-base-200 rounded-lg transition-colors">
     <!-- Issue type icon -->
-    <span class="text-base w-5 text-center shrink-0" :title="issue.type">
+    <span
+      class="text-base w-5 text-center shrink-0 cursor-pointer"
+      :title="issue.type"
+      @click="navigateTo(`/projects/${projectKey}/issues/${issue.id}`)"
+    >
       {{ typeIcon[issue.type] ?? '·' }}
     </span>
 
     <!-- Title -->
-    <span class="flex-1 text-sm truncate">{{ issue.title }}</span>
+    <span
+      class="flex-1 text-sm truncate cursor-pointer"
+      @click="navigateTo(`/projects/${projectKey}/issues/${issue.id}`)"
+    >{{ issue.title }}</span>
 
     <!-- Story points -->
     <span
@@ -58,5 +77,17 @@ const typeIcon: Record<string, string> = {
         <span class="text-xs">{{ String(issue.assigneeId).slice(0, 2) }}</span>
       </div>
     </div>
+
+    <!-- Add to sprint -->
+    <select
+      v-if="canManage && openSprints.length > 0"
+      class="select select-bordered select-xs shrink-0 w-36"
+      title="Add to sprint"
+      @change="onSprintChange"
+      @click.stop
+    >
+      <option value="">Add to sprint</option>
+      <option v-for="s in openSprints" :key="s.id" :value="s.id">{{ s.name }}</option>
+    </select>
   </div>
 </template>

@@ -24,7 +24,14 @@
         <h2 class="text-lg font-semibold">Backlog</h2>
         <span class="badge badge-neutral">{{ issues.length }}</span>
       </div>
-      <BacklogList :issues="issues" :project-key="key" :loading="loading" />
+      <BacklogList
+        :issues="issues"
+        :project-key="key"
+        :loading="loading"
+        :can-manage="canManage"
+        :sprints="sprintsStore.sprints"
+        @sprint-assign="onSprintAssign"
+      />
     </section>
   </div>
 </template>
@@ -32,11 +39,12 @@
 <script setup lang="ts">
 import { backlogService } from '~/services/backlog.service'
 import { projectsService } from '~/services/projects.service'
+import { issuesService } from '~/services/issues.service'
 import type { Issue, MemberResponse } from '~/types/domain.types'
 
 const route = useRoute()
 const key = route.params.key as string
-const { showError } = useToast()
+const { showSuccess, showError } = useToast()
 
 const authStore = useAuthStore()
 const projectsStore = useProjectsStore()
@@ -77,4 +85,16 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+async function onSprintAssign({ issueId, sprintId }: { issueId: number; sprintId: number }) {
+  const sprint = sprintsStore.sprints.find(s => Number(s.id) === sprintId)
+  try {
+    await issuesService.update(key, issueId, { sprint_id: sprintId })
+    issues.value = issues.value.filter(i => i.id !== issueId)
+    showSuccess(`Added to ${sprint?.name ?? 'sprint'}`)
+  }
+  catch {
+    showError('Failed to add issue to sprint')
+  }
+}
 </script>

@@ -9,6 +9,10 @@ export interface CreateIssueRequest {
   assigneeId?: number
 }
 
+export interface UpdateIssuePayload extends Partial<CreateIssueRequest> {
+  sprint_id?: number
+}
+
 export interface IssueListQuery {
   status?: string
   type?: string
@@ -32,7 +36,7 @@ export const issuesService = {
     return $api<Issue>(`/projects/${key}/issues`, { method: 'POST', body: data })
   },
 
-  update(key: string, id: number, data: Partial<CreateIssueRequest>): Promise<Issue> {
+  update(key: string, id: number, data: UpdateIssuePayload): Promise<Issue> {
     const { $api } = useNuxtApp()
     return $api<Issue>(`/projects/${key}/issues/${id}`, { method: 'PUT', body: data })
   },
