@@ -8,10 +8,9 @@ export default defineNuxtPlugin(() => {
     baseURL: config.public.apiBaseUrl as string,
     onRequest({ options }) {
       if (authStore.accessToken) {
-        options.headers = {
-          ...options.headers,
-          Authorization: `Bearer ${authStore.accessToken}`,
-        }
+        const headers = new Headers(options.headers as HeadersInit)
+        headers.set('Authorization', `Bearer ${authStore.accessToken}`)
+        options.headers = headers
       }
     },
     async onResponseError({ response }) {
