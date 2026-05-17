@@ -66,7 +66,9 @@ describe('useSprintsStore', () => {
     const store = useSprintsStore()
     await store.fetchSprints('TEST')
     expect(store.sprints).toHaveLength(1)
-    expect(store.sprints[0].name).toBe('Sprint 1')
+    const sprint0 = store.sprints[0]
+    expect(sprint0).toBeDefined()
+    expect(sprint0!.name).toBe('Sprint 1')
   })
 
   test('fetchSprints sets error on failure', async () => {
@@ -107,7 +109,9 @@ describe('useSprintsStore', () => {
     store.sprints = [sprint]
     const result = await store.getSprint('TEST', sprint.id)
     expect(result.name).toBe('Sprint 1 Updated')
-    expect(store.sprints[0].name).toBe('Sprint 1 Updated')
+    const sprint0 = store.sprints[0]
+    expect(sprint0).toBeDefined()
+    expect(sprint0!.name).toBe('Sprint 1 Updated')
   })
 
   test('getSprint sets error on failure', async () => {
@@ -138,7 +142,9 @@ describe('useSprintsStore', () => {
     const store = useSprintsStore()
     store.sprints = [sprint]
     await store.startSprint('TEST', sprint.id)
-    expect(store.sprints[0].status).toBe('active')
+    const sprint0 = store.sprints[0]
+    expect(sprint0).toBeDefined()
+    expect(sprint0!.status).toBe('active')
   })
 
   test('completeSprint calls service with next_sprint_id and updates list', async () => {
@@ -148,7 +154,9 @@ describe('useSprintsStore', () => {
     store.sprints = [activeSprint]
     await store.completeSprint('TEST', activeSprint.id, { next_sprint_id: 'sprint-next' })
     expect(mockComplete).toHaveBeenCalledWith('TEST', activeSprint.id, { next_sprint_id: 'sprint-next' })
-    expect(store.sprints[0].status).toBe('completed')
+    const sprint0 = store.sprints[0]
+    expect(sprint0).toBeDefined()
+    expect(sprint0!.status).toBe('completed')
   })
 
   test('deleteSprint removes the sprint from the list', async () => {

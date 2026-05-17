@@ -49,7 +49,9 @@ describe('issues store', () => {
     const store = useIssuesStore()
     store.issues = [issue]
     await store.update('PROJ', 1, { title: 'Fixed bug' })
-    expect(store.issues[0].title).toBe('Fixed bug')
+    const issue0 = store.issues[0]
+    expect(issue0).toBeDefined()
+    expect(issue0!.title).toBe('Fixed bug')
   })
 
   test('remove filters deleted issue from list', async () => {

@@ -35,7 +35,9 @@ describe('projects store', () => {
     const store = useProjectsStore()
     await store.fetchAll()
     expect(store.projects).toHaveLength(1)
-    expect(store.projects[0].key).toBe('PROJ')
+    const project0 = store.projects[0]
+    expect(project0).toBeDefined()
+    expect(project0!.key).toBe('PROJ')
   })
 
   test('fetchOne sets current', async () => {
