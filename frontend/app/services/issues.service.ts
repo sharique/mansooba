@@ -6,7 +6,8 @@ export interface CreateIssueRequest {
   type: 'task' | 'story' | 'bug' | 'epic'
   priority: 'low' | 'medium' | 'high' | 'critical'
   status?: string
-  assigneeId?: number
+  assignee_id?: number
+  story_points?: number
 }
 
 export interface UpdateIssuePayload extends Partial<CreateIssueRequest> {
@@ -17,7 +18,7 @@ export interface IssueListQuery {
   status?: string
   type?: string
   priority?: string
-  assigneeId?: number
+  assignee_id?: number
 }
 
 export const issuesService = {

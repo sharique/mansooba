@@ -19,6 +19,7 @@
       <IssuesIssueDetail
         :issue="issuesStore.current"
         :project-key="key"
+        :members="members"
         @deleted="navigateTo(`/projects/${key}`)"
       />
     </div>
@@ -31,6 +32,9 @@
 </template>
 
 <script setup lang="ts">
+import type { MemberResponse } from '~/types/domain.types'
+import { projectsService } from '~/services/projects.service'
+
 const route = useRoute()
 const key = route.params.key as string
 const id = route.params.id as string
@@ -38,10 +42,14 @@ const id = route.params.id as string
 const issuesStore = useIssuesStore()
 const { showError } = useToast()
 const loading = ref(true)
+const members = ref<MemberResponse[]>([])
 
 onMounted(async () => {
   try {
-    await issuesStore.fetchOne(key, Number(id))
+    await Promise.all([
+      issuesStore.fetchOne(key, Number(id)),
+      projectsService.listMembers(key).then(v => members.value = v).catch(() => {}),
+    ])
   }
   catch {
     showError('Failed to load issue')

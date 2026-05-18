@@ -9,13 +9,13 @@ vi.stubGlobal('navigateTo', vi.fn())
 const makeIssue = (overrides: Partial<Issue> = {}): Issue => ({
   id: 1,
   key: 'PROJ-1',
-  projectId: 1,
+  project_id: 1,
   title: 'Issue 1',
   description: '',
   type: 'task',
   status: 'backlog',
   priority: 'medium',
-  reporterId: 1,
+  reporter_id: 1,
   ...overrides,
 })
 

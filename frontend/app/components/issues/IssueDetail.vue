@@ -68,21 +68,52 @@
       </div>
 
       <!-- Priority -->
-      <div>
-        <span class="text-sm font-medium block mb-1">Priority</span>
-        <span :class="priorityClass" class="badge capitalize">{{ issue.priority }}</span>
+      <div class="form-control">
+        <label class="label py-1"><span class="label-text font-medium">Priority</span></label>
+        <select
+          :value="issue.priority"
+          class="select select-bordered select-sm"
+          @change="onFieldChange('priority', ($event.target as HTMLSelectElement).value)"
+        >
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
       </div>
 
       <!-- Assignee -->
-      <div>
-        <span class="text-sm font-medium block mb-1">Assignee</span>
-        <span class="text-sm">{{ issue.assigneeId ? `User #${issue.assigneeId}` : 'Unassigned' }}</span>
+      <div class="form-control">
+        <label class="label py-1"><span class="label-text font-medium">Assignee</span></label>
+        <select
+          :value="issue.assignee_id ?? ''"
+          class="select select-bordered select-sm"
+          @change="onFieldChange('assignee_id', ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)"
+        >
+          <option value="">Unassigned</option>
+          <option v-for="m in members" :key="m.user_id" :value="m.user_id">{{ m.name }}</option>
+        </select>
+      </div>
+
+      <!-- Story Points -->
+      <div class="form-control">
+        <label class="label py-1"><span class="label-text font-medium">Story Points</span></label>
+        <input
+          :value="issue.story_points ?? ''"
+          type="number"
+          min="0"
+          max="100"
+          class="input input-bordered input-sm"
+          placeholder="—"
+          @change="onFieldChange('story_points', Number(($event.target as HTMLInputElement).value) || null)"
+          @blur="onFieldChange('story_points', Number(($event.target as HTMLInputElement).value) || null)"
+        />
       </div>
 
       <!-- Reporter -->
       <div>
         <span class="text-sm font-medium block mb-1">Reporter</span>
-        <span class="text-sm">User #{{ issue.reporterId }}</span>
+        <span class="text-sm">User #{{ issue.reporter_id }}</span>
       </div>
 
       <!-- Delete -->
@@ -110,15 +141,16 @@
 </template>
 
 <script setup lang="ts">
-import type { Issue } from '~/types/domain.types'
+import type { Issue, MemberResponse } from '~/types/domain.types'
 
-const props = defineProps<{ issue: Issue; projectKey: string }>()
+const props = defineProps<{ issue: Issue; projectKey: string; members?: MemberResponse[] }>()
 const emit = defineEmits<{ deleted: [] }>()
 
 const issuesStore = useIssuesStore()
 const authStore = useAuthStore()
+const { showError } = useToast()
 
-const canDelete = computed(() => authStore.user?.id === props.issue.reporterId)
+const canDelete = computed(() => authStore.user?.id === props.issue.reporter_id)
 
 const editing = ref<'title' | 'description' | null>(null)
 const editTitle = ref(props.issue.title)
@@ -129,12 +161,6 @@ const descInput = ref<HTMLTextAreaElement | null>(null)
 const confirmModal = ref<HTMLDialogElement | null>(null)
 const deleting = ref(false)
 
-const priorityClass = computed(() => ({
-  'badge-error': props.issue.priority === 'critical',
-  'badge-warning': props.issue.priority === 'high',
-  'badge-info': props.issue.priority === 'medium',
-  'badge-ghost': props.issue.priority === 'low',
-}))
 
 async function startEdit(field: 'title' | 'description') {
   editTitle.value = props.issue.title
@@ -153,8 +179,13 @@ async function saveField(field: 'title' | 'description', value: string) {
   await issuesStore.update(props.projectKey, props.issue.id, { [field]: trimmed })
 }
 
-async function onFieldChange(field: string, value: string) {
-  await issuesStore.update(props.projectKey, props.issue.id, { [field]: value } as never)
+async function onFieldChange(field: string, value: string | number | null) {
+  try {
+    await issuesStore.update(props.projectKey, props.issue.id, { [field]: value } as never)
+  }
+  catch {
+    showError('Failed to update issue')
+  }
 }
 
 async function deleteIssue() {

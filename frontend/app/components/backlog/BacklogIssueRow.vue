@@ -59,11 +59,11 @@ function onSprintChange(e: Event) {
 
         <!-- Story points -->
         <span
-            v-if="issue.storyPoints != null"
+            v-if="issue.story_points != null"
             class="badge badge-outline badge-sm shrink-0"
             title="Story points"
         >
-            {{ issue.storyPoints }}
+            {{ issue.story_points }}
         </span>
 
         <!-- Priority badge -->
@@ -78,13 +78,13 @@ function onSprintChange(e: Event) {
 
         <!-- Assignee initials -->
         <div
-            v-if="issue.assigneeId"
+            v-if="issue.assignee_id"
             class="avatar placeholder shrink-0"
             title="Assigned"
         >
             <div class="bg-neutral text-neutral-content rounded-full w-6">
                 <span class="text-xs">{{
-                    String(issue.assigneeId).slice(0, 2)
+                    String(issue.assignee_id).slice(0, 2)
                 }}</span>
             </div>
         </div>
