@@ -1,4 +1,4 @@
-import type { Sprint, BurndownData } from '~/types/domain.types'
+import type { Sprint, BurndownData, Issue } from '~/types/domain.types'
 
 export interface CreateSprintPayload {
   name: string
@@ -57,5 +57,10 @@ export const sprintsService = {
   burndown(projectKey: string, id: string): Promise<BurndownData> {
     const { $api } = useNuxtApp()
     return $api<BurndownData>(`/projects/${projectKey}/sprints/${id}/burndown`)
+  },
+
+  listIssues(projectKey: string, id: string): Promise<Issue[]> {
+    const { $api } = useNuxtApp()
+    return $api<Issue[]>(`/projects/${projectKey}/sprints/${id}/issues`)
   },
 }

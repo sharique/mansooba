@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import type { Sprint } from '~/types/domain.types'
+import { issuesService } from '~/services/issues.service'
 
 const props = defineProps<{
   projectKey: string
   canManage: boolean
+}>()
+
+const emit = defineEmits<{
+  'removed-from-sprint': [{ issueId: number; sprintId: string }]
 }>()
 
 const sprintsStore = useSprintsStore()
@@ -39,6 +44,27 @@ async function handleDelete(sprint: Sprint) {
     showError(e.data?.message ?? 'Failed to delete sprint')
   }
 }
+
+async function handleExpand(sprint: Sprint) {
+  try {
+    await sprintsStore.fetchSprintIssues(props.projectKey, sprint.id)
+  }
+  catch (e: any) {
+    showError(e.data?.message ?? 'Failed to load sprint issues')
+  }
+}
+
+async function handleRemoveIssue({ sprint, issueId }: { sprint: Sprint; issueId: number }) {
+  try {
+    await issuesService.update(props.projectKey, issueId, { sprint_id: null })
+    sprintsStore.removeFromSprintIssues(sprint.id, issueId)
+    showSuccess('Issue moved to backlog')
+    emit('removed-from-sprint', { issueId, sprintId: sprint.id })
+  }
+  catch (e: any) {
+    showError(e.data?.message ?? 'Failed to remove issue from sprint')
+  }
+}
 </script>
 
 <template>
@@ -65,10 +91,13 @@ async function handleDelete(sprint: Sprint) {
         :project-key="projectKey"
         :can-manage="canManage"
         :has-active-sprint="!!sprintsStore.activeSprint"
+        :issues="sprintsStore.sprintIssues[sprint.id]"
         @start="handleStart"
         @complete="completingSprint = $event"
         @edit="editingSprint = $event"
         @delete="handleDelete"
+        @expand="handleExpand"
+        @remove-issue="handleRemoveIssue"
       />
     </div>
     <p v-else class="text-sm text-base-content/50 mb-4">No sprints yet.</p>

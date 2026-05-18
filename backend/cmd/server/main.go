@@ -128,6 +128,7 @@ func main() {
 	sprints.POST("/:id/start", sprintHandler.Start)
 	sprints.POST("/:id/complete", sprintHandler.Complete)
 	sprints.GET("/:id/burndown", sprintHandler.Burndown)
+	sprints.GET("/:id/issues", sprintHandler.GetIssues)
 
 	api.GET("/projects/:key/backlog", sprintHandler.Backlog)
 
