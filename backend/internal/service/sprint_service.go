@@ -135,7 +135,13 @@ func (s *sprintService) List(ctx context.Context, projectKey string, callerID ui
 	}
 	resp := make([]*dto.SprintResponse, len(sprints))
 	for i, sp := range sprints {
-		resp[i] = toSprintResponse(sp)
+		r := toSprintResponse(sp)
+		count, points, err := s.issueRepo.CountBySprint(ctx, sp.ID)
+		if err == nil {
+			r.IssueCount = count
+			r.TotalStoryPoints = points
+		}
+		resp[i] = r
 	}
 	return resp, nil
 }
@@ -152,7 +158,13 @@ func (s *sprintService) Get(ctx context.Context, projectKey string, id uint, cal
 	if err != nil {
 		return nil, err
 	}
-	return toSprintResponse(sprint), nil
+	r := toSprintResponse(sprint)
+	count, points, err := s.issueRepo.CountBySprint(ctx, sprint.ID)
+	if err == nil {
+		r.IssueCount = count
+		r.TotalStoryPoints = points
+	}
+	return r, nil
 }
 
 func (s *sprintService) Update(ctx context.Context, projectKey string, id uint, callerID uint, req dto.UpdateSprintRequest) (*dto.SprintResponse, error) {
@@ -241,7 +253,13 @@ func (s *sprintService) Start(ctx context.Context, projectKey string, id uint, c
 	if err := s.sprintRepo.Update(ctx, sprint); err != nil {
 		return nil, err
 	}
-	return toSprintResponse(sprint), nil
+	r := toSprintResponse(sprint)
+	count, points, err := s.issueRepo.CountBySprint(ctx, sprint.ID)
+	if err == nil {
+		r.IssueCount = count
+		r.TotalStoryPoints = points
+	}
+	return r, nil
 }
 
 // Complete transitions an Active sprint to Completed.
@@ -297,7 +315,13 @@ func (s *sprintService) Complete(ctx context.Context, projectKey string, id uint
 	if err := s.sprintRepo.CompleteWithMigration(ctx, sprint, unfinishedIDs, req.NextSprintID); err != nil {
 		return nil, err
 	}
-	return toSprintResponse(sprint), nil
+	r := toSprintResponse(sprint)
+	count, points, err := s.issueRepo.CountBySprint(ctx, sprint.ID)
+	if err == nil {
+		r.IssueCount = count
+		r.TotalStoryPoints = points
+	}
+	return r, nil
 }
 
 func (s *sprintService) Backlog(ctx context.Context, projectKey string, callerID uint) ([]*domain.Issue, error) {

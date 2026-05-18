@@ -160,6 +160,9 @@ func (s *stubIssueRepoForProject) FindBacklog(_ context.Context, _ uint) ([]*dom
 func (s *stubIssueRepoForProject) FindBySprint(_ context.Context, _ uint) ([]*domain.Issue, error) {
 	return nil, nil
 }
+func (s *stubIssueRepoForProject) CountBySprint(_ context.Context, _ uint) (int, int, error) {
+	return 0, 0, nil
+}
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 

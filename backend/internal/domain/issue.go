@@ -74,4 +74,7 @@ type IssueRepository interface {
 	FindBacklog(ctx context.Context, projectID uint) ([]*Issue, error)
 	// FindBySprint returns all issues assigned to the given sprint.
 	FindBySprint(ctx context.Context, sprintID uint) ([]*Issue, error)
+	// CountBySprint returns the total number of issues and the sum of story points
+	// for a given sprint. Issues without story points contribute 0 to the sum.
+	CountBySprint(ctx context.Context, sprintID uint) (int, int, error)
 }

@@ -84,3 +84,18 @@ func (r *issueRepo) FindBySprint(ctx context.Context, sprintID uint) ([]*domain.
 	}
 	return issues, nil
 }
+
+// CountBySprint returns the issue count and total story points for a sprint in one aggregate query.
+func (r *issueRepo) CountBySprint(ctx context.Context, sprintID uint) (int, int, error) {
+	type result struct {
+		Count       int
+		TotalPoints int
+	}
+	var res result
+	err := r.db.WithContext(ctx).
+		Model(&domain.Issue{}).
+		Select("COUNT(*) as count, COALESCE(SUM(story_points), 0) as total_points").
+		Where("sprint_id = ?", sprintID).
+		Scan(&res).Error
+	return res.Count, res.TotalPoints, err
+}
