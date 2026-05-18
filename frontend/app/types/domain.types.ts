@@ -91,6 +91,8 @@ export interface Sprint {
   end_date: string | null
   created_at: string
   updated_at: string
+  issue_count?: number
+  total_story_points?: number
 }
 
 // ── Burndown ─────────────────────────────────────────────────────────────────

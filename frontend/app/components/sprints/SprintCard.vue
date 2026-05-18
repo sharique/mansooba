@@ -108,6 +108,17 @@ const statusBadge: Record<string, string> = {
                 {{ formatDate(sprint.start_date) }} → {{ formatDate(sprint.end_date) }}
             </div>
 
+            <!-- Metrics: issue count + story point total from the API response -->
+            <div
+                v-if="sprint.issue_count !== undefined"
+                class="text-xs text-base-content/50 mt-1"
+            >
+                {{ sprint.issue_count }} issue{{ sprint.issue_count !== 1 ? 's' : '' }}
+                <template v-if="sprint.total_story_points !== undefined">
+                    · {{ sprint.total_story_points }} pts
+                </template>
+            </div>
+
             <!-- Issue list (shown when expanded and issues are loaded) -->
             <div v-if="expanded && issues && issues.length > 0" class="mt-3 divide-y divide-base-200">
                 <div

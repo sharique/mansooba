@@ -86,6 +86,10 @@ func (r *stubIssueRepo) FindBySprint(_ context.Context, sprintID uint) ([]*domai
 	return nil, nil
 }
 
+func (r *stubIssueRepo) CountBySprint(_ context.Context, sprintID uint) (int, int, error) {
+	return 0, 0, nil
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 func newIssueService() (service.IssueService, *stubProjectRepo, *stubProjectMemberRepo, *stubIssueRepo) {

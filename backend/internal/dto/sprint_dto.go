@@ -21,15 +21,17 @@ type CompleteSprintRequest struct {
 }
 
 type SprintResponse struct {
-	ID        uint       `json:"id"`
-	ProjectID uint       `json:"project_id"`
-	Name      string     `json:"name"`
-	Goal      string     `json:"goal"`
-	Status    string     `json:"status"`
-	StartDate *time.Time `json:"start_date,omitempty"`
-	EndDate   *time.Time `json:"end_date,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
-	UpdatedAt time.Time  `json:"updated_at"`
+	ID               uint       `json:"id"`
+	ProjectID        uint       `json:"project_id"`
+	Name             string     `json:"name"`
+	Goal             string     `json:"goal"`
+	Status           string     `json:"status"`
+	StartDate        *time.Time `json:"start_date,omitempty"`
+	EndDate          *time.Time `json:"end_date,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	IssueCount       int        `json:"issue_count"`
+	TotalStoryPoints int        `json:"total_story_points"`
 }
 
 type BurndownPoint struct {
