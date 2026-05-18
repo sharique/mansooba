@@ -24,8 +24,9 @@ type stubSprintService struct {
 	deleteFn   func(ctx context.Context, projectKey string, id uint, callerID uint) error
 	startFn    func(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.SprintResponse, error)
 	completeFn func(ctx context.Context, projectKey string, id uint, callerID uint, req dto.CompleteSprintRequest) (*dto.SprintResponse, error)
-	backlogFn  func(ctx context.Context, projectKey string, callerID uint) ([]*domain.Issue, error)
-	burndownFn func(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.BurndownResponse, error)
+	backlogFn    func(ctx context.Context, projectKey string, callerID uint) ([]*domain.Issue, error)
+	getIssuesFn  func(ctx context.Context, projectKey string, id uint, callerID uint) ([]*domain.Issue, error)
+	burndownFn   func(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.BurndownResponse, error)
 }
 
 func (s *stubSprintService) List(ctx context.Context, projectKey string, callerID uint) ([]*dto.SprintResponse, error) {
@@ -52,6 +53,9 @@ func (s *stubSprintService) Complete(ctx context.Context, projectKey string, id 
 func (s *stubSprintService) Backlog(ctx context.Context, projectKey string, callerID uint) ([]*domain.Issue, error) {
 	return s.backlogFn(ctx, projectKey, callerID)
 }
+func (s *stubSprintService) GetIssues(ctx context.Context, projectKey string, id uint, callerID uint) ([]*domain.Issue, error) {
+	return s.getIssuesFn(ctx, projectKey, id, callerID)
+}
 func (s *stubSprintService) Burndown(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.BurndownResponse, error) {
 	return s.burndownFn(ctx, projectKey, id, callerID)
 }
@@ -75,6 +79,7 @@ func newSprintEcho(h *handler.SprintHandler) *echo.Echo {
 	sprints.POST("/:id/start", h.Start)
 	sprints.POST("/:id/complete", h.Complete)
 	sprints.GET("/:id/burndown", h.Burndown)
+	sprints.GET("/:id/issues", h.GetIssues)
 	api.GET("/projects/:key/backlog", h.Backlog)
 	return e
 }
@@ -168,6 +173,26 @@ func TestSprintHandler_Backlog_Returns200(t *testing.T) {
 	e := newSprintEcho(handler.NewSprintHandler(svc))
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/TEST/backlog", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestSprintHandler_GetIssues_Returns200(t *testing.T) {
+	svc := &stubSprintService{
+		getIssuesFn: func(_ context.Context, _ string, _ uint, _ uint) ([]*domain.Issue, error) {
+			pts := 5
+			return []*domain.Issue{
+				{ID: 1, Title: "Sprint task", Priority: domain.IssuePriorityMedium, Status: domain.IssueStatusTodo, StoryPoints: &pts},
+			}, nil
+		},
+	}
+	e := newSprintEcho(handler.NewSprintHandler(svc))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/TEST/sprints/1/issues", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
