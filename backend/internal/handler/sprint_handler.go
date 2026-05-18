@@ -243,6 +243,48 @@ func (h *SprintHandler) Backlog(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+// GetIssues godoc
+// @Summary      Get sprint issues
+// @Description  Returns all issues assigned to the given sprint.
+// @Tags         sprints
+// @Produce      json
+// @Param        key path string true "Project key"
+// @Param        id  path int    true "Sprint ID"
+// @Success      200 {array}  dto.IssueResponse
+// @Failure      404 {object} apierror.APIError "Sprint or project not found"
+// @Failure      401 {object} apierror.APIError "Unauthorized"
+// @Router       /projects/{key}/sprints/{id}/issues [get]
+// @Security     BearerAuth
+func (h *SprintHandler) GetIssues(c echo.Context) error {
+	callerID := c.Get("userID").(uint)
+	id, err := parseSprintID(c)
+	if err != nil {
+		return echo.ErrBadRequest
+	}
+	issues, err := h.svc.GetIssues(c.Request().Context(), c.Param("key"), id, callerID)
+	if err != nil {
+		return mapSprintError(err)
+	}
+	resp := make([]*dto.IssueResponse, len(issues))
+	for i, issue := range issues {
+		resp[i] = &dto.IssueResponse{
+			ID:          issue.ID,
+			Key:         issue.Key,
+			ProjectID:   issue.ProjectID,
+			Title:       issue.Title,
+			Description: issue.Description,
+			Type:        issue.Type,
+			Status:      issue.Status,
+			Priority:    issue.Priority,
+			AssigneeID:  issue.AssigneeID,
+			ReporterID:  issue.ReporterID,
+			SprintID:    issue.SprintID,
+			StoryPoints: issue.StoryPoints,
+		}
+	}
+	return c.JSON(http.StatusOK, resp)
+}
+
 // Burndown godoc
 // @Summary      Sprint burndown data
 // @Description  Returns story points remaining per day from sprint start to today (or end date). Computed on-the-fly from issue data.

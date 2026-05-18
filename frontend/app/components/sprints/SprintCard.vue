@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { SprintStatus } from "~/types/domain.types";
-import type { Sprint } from "~/types/domain.types";
+import type { Sprint, Issue } from "~/types/domain.types";
 
 const props = defineProps<{
     sprint: Sprint;
     projectKey: string;
     canManage: boolean;
     hasActiveSprint: boolean;
+    issues?: Issue[];
 }>();
 
 const emit = defineEmits<{
@@ -14,7 +15,18 @@ const emit = defineEmits<{
     complete: [sprint: Sprint];
     edit: [sprint: Sprint];
     delete: [sprint: Sprint];
+    expand: [sprint: Sprint];
+    removeIssue: [{ sprint: Sprint; issueId: number }];
 }>();
+
+const expanded = ref(false)
+
+function toggleExpand() {
+    if (!expanded.value) {
+        emit('expand', props.sprint)
+    }
+    expanded.value = !expanded.value
+}
 
 function formatDate(iso: string | null | undefined): string {
     if (!iso) return "?"
@@ -95,6 +107,41 @@ const statusBadge: Record<string, string> = {
             >
                 {{ formatDate(sprint.start_date) }} → {{ formatDate(sprint.end_date) }}
             </div>
+
+            <!-- Issue list (shown when expanded and issues are loaded) -->
+            <div v-if="expanded && issues && issues.length > 0" class="mt-3 divide-y divide-base-200">
+                <div
+                    v-for="issue in issues"
+                    :key="issue.id"
+                    class="flex items-center gap-2 py-2 text-sm"
+                >
+                    <span class="badge badge-xs badge-outline">{{ issue.key }}</span>
+                    <span class="flex-1 truncate">{{ issue.title }}</span>
+                    <span class="text-base-content/50 text-xs shrink-0">{{ issue.story_points ?? '?' }} pts</span>
+                    <button
+                        v-if="canManage"
+                        class="btn btn-xs btn-ghost text-error shrink-0"
+                        title="Remove from sprint"
+                        @click="emit('removeIssue', { sprint, issueId: issue.id })"
+                    >
+                        ✕
+                    </button>
+                </div>
+            </div>
+            <div v-else-if="expanded && issues && issues.length === 0" class="mt-3 text-sm text-base-content/50">
+                No issues in this sprint.
+            </div>
+
+            <!-- Expand toggle -->
+            <button
+                class="btn btn-xs btn-ghost mt-2 w-full"
+                @click="toggleExpand"
+            >
+                <span v-if="!expanded">
+                    Show issues{{ issues ? ` (${issues.length})` : '' }}
+                </span>
+                <span v-else>Hide issues</span>
+            </button>
         </div>
     </div>
 </template>

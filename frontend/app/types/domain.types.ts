@@ -40,7 +40,7 @@ export interface Issue {
   assignee_id?: number
   reporter_id: number
   story_points?: number
-  sprint_id?: number
+  sprint_id?: number | null
   created_at: string
   completed_at?: string | null
 }

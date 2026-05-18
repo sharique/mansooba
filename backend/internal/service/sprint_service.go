@@ -18,6 +18,7 @@ type SprintService interface {
 	Start(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.SprintResponse, error)
 	Complete(ctx context.Context, projectKey string, id uint, callerID uint, req dto.CompleteSprintRequest) (*dto.SprintResponse, error)
 	Backlog(ctx context.Context, projectKey string, callerID uint) ([]*domain.Issue, error)
+	GetIssues(ctx context.Context, projectKey string, id uint, callerID uint) ([]*domain.Issue, error)
 	Burndown(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.BurndownResponse, error)
 }
 
@@ -308,6 +309,21 @@ func (s *sprintService) Backlog(ctx context.Context, projectKey string, callerID
 		return nil, err
 	}
 	return s.issueRepo.FindBacklog(ctx, p.ID)
+}
+
+func (s *sprintService) GetIssues(ctx context.Context, projectKey string, id uint, callerID uint) ([]*domain.Issue, error) {
+	p, err := s.resolveProject(ctx, projectKey)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.requireMember(ctx, p.ID, callerID); err != nil {
+		return nil, err
+	}
+	sprint, err := s.resolveSprint(ctx, id, p.ID)
+	if err != nil {
+		return nil, err
+	}
+	return s.issueRepo.FindBySprint(ctx, sprint.ID)
 }
 
 func (s *sprintService) Burndown(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.BurndownResponse, error) {

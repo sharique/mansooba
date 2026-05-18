@@ -15,7 +15,11 @@
 
     <!-- Sprint management section -->
     <section class="mb-8">
-      <SprintsSprintList :project-key="key" :can-manage="canManage" />
+      <SprintsSprintList
+        :project-key="key"
+        :can-manage="canManage"
+        @removed-from-sprint="onRemovedFromSprint"
+      />
     </section>
 
     <!-- Backlog issue list -->
@@ -85,6 +89,16 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+async function onRemovedFromSprint({ issueId }: { issueId: number; sprintId: string }) {
+  try {
+    const refreshed = await backlogService.getBacklog(key)
+    issues.value = refreshed
+  }
+  catch {
+    showError('Failed to refresh backlog')
+  }
+}
 
 async function onSprintAssign({ issueId, sprintId }: { issueId: number; sprintId: number }) {
   const sprint = sprintsStore.sprints.find(s => Number(s.id) === sprintId)

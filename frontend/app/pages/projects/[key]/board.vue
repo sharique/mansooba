@@ -10,7 +10,12 @@
     </div>
 
     <div class="flex justify-between items-center mb-4">
-      <h1 class="text-2xl font-bold">Board</h1>
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-bold">Board</h1>
+        <NuxtLink :to="`/projects/${key}/backlog`" class="btn btn-sm btn-ghost">
+          Backlog →
+        </NuxtLink>
+      </div>
       <button class="btn btn-primary btn-sm" @click="openCreateModal('')">Create Issue</button>
     </div>
 

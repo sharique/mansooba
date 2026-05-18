@@ -11,7 +11,7 @@ export interface CreateIssueRequest {
 }
 
 export interface UpdateIssuePayload extends Partial<CreateIssueRequest> {
-  sprint_id?: number
+  sprint_id?: number | null
 }
 
 export interface IssueListQuery {

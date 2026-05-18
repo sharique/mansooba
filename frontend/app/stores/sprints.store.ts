@@ -6,11 +6,12 @@ import {
   type CompleteSprintPayload,
 } from '~/services/sprints.service'
 import { SprintStatus } from '~/types/domain.types'
-import type { Sprint, BurndownData } from '~/types/domain.types'
+import type { Sprint, BurndownData, Issue } from '~/types/domain.types'
 
 export const useSprintsStore = defineStore('sprints', () => {
   const sprints = ref<Sprint[]>([])
   const burndownData = ref<BurndownData | null>(null)
+  const sprintIssues = ref<Record<string, Issue[]>>({})
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -90,6 +91,19 @@ export const useSprintsStore = defineStore('sprints', () => {
     } catch (e: any) { return catchError(e) }
   }
 
+  async function fetchSprintIssues(projectKey: string, id: string) {
+    error.value = null
+    try {
+      sprintIssues.value[id] = await sprintsService.listIssues(projectKey, id)
+    } catch (e: any) { return catchError(e) }
+  }
+
+  function removeFromSprintIssues(sprintId: string, issueId: number) {
+    if (sprintIssues.value[sprintId]) {
+      sprintIssues.value[sprintId] = sprintIssues.value[sprintId].filter(i => i.id !== issueId)
+    }
+  }
+
   async function fetchBurndown(projectKey: string, id: string) {
     error.value = null
     try {
@@ -101,6 +115,7 @@ export const useSprintsStore = defineStore('sprints', () => {
   return {
     sprints,
     burndownData,
+    sprintIssues,
     activeSprint,
     openSprints,
     loading,
@@ -113,5 +128,7 @@ export const useSprintsStore = defineStore('sprints', () => {
     startSprint,
     completeSprint,
     fetchBurndown,
+    fetchSprintIssues,
+    removeFromSprintIssues,
   }
 })
