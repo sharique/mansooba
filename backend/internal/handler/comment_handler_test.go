@@ -22,6 +22,7 @@ import (
 type stubCommentService struct {
 	comments []*dto.CommentResponse
 	createFn func(issueID, callerID uint, req dto.CreateCommentRequest) (*dto.CommentResponse, error)
+	deleteFn func(commentID, callerID uint) error
 }
 
 func (s *stubCommentService) Create(ctx context.Context, issueID, callerID uint, req dto.CreateCommentRequest) (*dto.CommentResponse, error) {
@@ -42,6 +43,9 @@ func (s *stubCommentService) Update(ctx context.Context, commentID, callerID uin
 }
 
 func (s *stubCommentService) Delete(ctx context.Context, commentID, callerID uint) error {
+	if s.deleteFn != nil {
+		return s.deleteFn(commentID, callerID)
+	}
 	return nil
 }
 
@@ -111,6 +115,41 @@ func TestCommentHandler_Create_ForbiddenPropagates(t *testing.T) {
 	c, rec := newCommentEchoCtx(http.MethodPost, "/issues/1/comments", `{"body":"x"}`, "1")
 
 	err := h.Create(c)
+	var httpErr *echo.HTTPError
+	require.ErrorAs(t, err, &httpErr)
+	assert.Equal(t, http.StatusForbidden, httpErr.Code)
+	_ = rec
+}
+
+func TestCommentHandler_Create_InvalidIssueIDReturns400(t *testing.T) {
+	svc := &stubCommentService{}
+	h := handler.NewCommentHandler(svc)
+	c, rec := newCommentEchoCtx(http.MethodPost, "/issues/abc/comments", `{"body":"x"}`, "abc")
+
+	err := h.Create(c)
+	var httpErr *echo.HTTPError
+	require.ErrorAs(t, err, &httpErr)
+	assert.Equal(t, http.StatusBadRequest, httpErr.Code)
+	_ = rec
+}
+
+func TestCommentHandler_Delete_ForbiddenPropagates(t *testing.T) {
+	svc := &stubCommentService{
+		deleteFn: func(_, _ uint) error {
+			return domain.ErrForbidden
+		},
+	}
+	h := handler.NewCommentHandler(svc)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodDelete, "/issues/1/comments/2", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set("userID", uint(42))
+	c.SetParamNames("id", "cid")
+	c.SetParamValues("1", "2")
+
+	err := h.Delete(c)
 	var httpErr *echo.HTTPError
 	require.ErrorAs(t, err, &httpErr)
 	assert.Equal(t, http.StatusForbidden, httpErr.Code)

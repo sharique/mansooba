@@ -3,7 +3,6 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"strconv"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sharique/jira-go/internal/domain"
@@ -92,7 +91,7 @@ func (h *IssueHandler) Create(c echo.Context) error {
 // @Router       /projects/{key}/issues/{id} [get]
 func (h *IssueHandler) Get(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
-	id, err := parseIssueID(c)
+	id, err := parseUintParam(c, "id")
 	if err != nil {
 		return echo.ErrBadRequest
 	}
@@ -120,7 +119,7 @@ func (h *IssueHandler) Get(c echo.Context) error {
 // @Router       /projects/{key}/issues/{id} [put]
 func (h *IssueHandler) Update(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
-	id, err := parseIssueID(c)
+	id, err := parseUintParam(c, "id")
 	if err != nil {
 		return echo.ErrBadRequest
 	}
@@ -149,7 +148,7 @@ func (h *IssueHandler) Update(c echo.Context) error {
 // @Router       /projects/{key}/issues/{id} [delete]
 func (h *IssueHandler) Delete(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
-	id, err := parseIssueID(c)
+	id, err := parseUintParam(c, "id")
 	if err != nil {
 		return echo.ErrBadRequest
 	}
@@ -157,14 +156,6 @@ func (h *IssueHandler) Delete(c echo.Context) error {
 		return mapIssueError(err)
 	}
 	return c.NoContent(http.StatusNoContent)
-}
-
-func parseIssueID(c echo.Context) (uint, error) {
-	raw, err := strconv.ParseUint(c.Param("id"), 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return uint(raw), nil
 }
 
 func mapIssueError(err error) error {

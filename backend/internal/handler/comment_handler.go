@@ -3,7 +3,6 @@ package handler
 import (
 	"errors"
 	"net/http"
-	"strconv"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sharique/jira-go/internal/domain"
@@ -96,6 +95,9 @@ func (h *CommentHandler) Update(c echo.Context) error {
 	if err != nil {
 		return echo.ErrBadRequest
 	}
+	// The :id (issue ID) param is not validated here — the service enforces ownership
+	// by looking up the comment directly. A mismatched issue ID returns 200 if the
+	// comment exists and the caller owns it.
 	var req dto.UpdateCommentRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
@@ -128,13 +130,6 @@ func (h *CommentHandler) Delete(c echo.Context) error {
 		return mapCommentError(err)
 	}
 	return c.NoContent(http.StatusNoContent)
-}
-
-// ── helpers ───────────────────────────────────────────────────────────────────
-
-func parseUintParam(c echo.Context, name string) (uint, error) {
-	v, err := strconv.ParseUint(c.Param(name), 10, 64)
-	return uint(v), err
 }
 
 func mapCommentError(err error) error {
