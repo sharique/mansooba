@@ -4,10 +4,10 @@ import { describe, expect, test } from 'vitest'
 import BoardColumn from './BoardColumn.vue'
 
 const makeIssue = (id: number) => ({
-  id, key: `PROJ-${id}`, projectId: 1,
+  id, key: `PROJ-${id}`, project_id: 1,
   title: `Issue ${id}`, description: '',
   type: 'task' as const, status: 'todo' as const,
-  priority: 'low' as const, reporterId: 1,
+  priority: 'low' as const, reporter_id: 1,
 })
 
 describe('BoardColumn', () => {

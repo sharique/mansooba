@@ -19,10 +19,10 @@ vi.mock('~/services/issues.service', () => ({
 }))
 
 const issue = {
-  id: 1, key: 'PROJ-1', projectId: 1,
+  id: 1, key: 'PROJ-1', project_id: 1,
   title: 'Fix bug', description: '', type: 'bug' as const,
   status: 'todo' as const, priority: 'high' as const,
-  reporterId: 1,
+  reporter_id: 1,
 }
 
 describe('issues store', () => {

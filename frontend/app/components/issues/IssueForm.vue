@@ -51,7 +51,7 @@
     <div class="form-control mb-3">
       <label class="label"><span class="label-text">Story Points</span></label>
       <input
-        v-model.number="form.storyPoints"
+        v-model.number="form.story_points"
         type="number"
         min="0"
         max="100"
@@ -63,7 +63,7 @@
     <!-- Assignee -->
     <div class="form-control mb-4">
       <label class="label"><span class="label-text">Assignee</span></label>
-      <select v-model="form.assigneeId" class="select select-bordered">
+      <select v-model="form.assignee_id" class="select select-bordered">
         <option :value="undefined">Unassigned</option>
         <option v-for="m in members" :key="m.user_id" :value="m.user_id">{{ m.name }}</option>
       </select>
@@ -104,8 +104,8 @@ const form = reactive<CreateIssueRequest>({
   type: props.issue?.type ?? 'task',
   priority: props.issue?.priority ?? 'medium',
   status: props.issue?.status ?? props.defaultStatus ?? 'todo',
-  assigneeId: props.issue?.assigneeId,
-  storyPoints: props.issue?.storyPoints,
+  assignee_id: props.issue?.assignee_id,
+  story_points: props.issue?.story_points,
 })
 
 const titleError = ref(false)

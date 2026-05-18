@@ -31,15 +31,15 @@ export interface MemberResponse {
 export interface Issue {
   id: number
   key: string
-  projectId: number
+  project_id: number
   title: string
   description: string
   type: 'task' | 'story' | 'bug' | 'epic'
   status: 'todo' | 'in_progress' | 'in_review' | 'done' | 'backlog'
   priority: 'low' | 'medium' | 'high' | 'critical'
-  assigneeId?: number
-  reporterId: number
-  storyPoints?: number
+  assignee_id?: number
+  reporter_id: number
+  story_points?: number
   sprint_id?: number
 }
 

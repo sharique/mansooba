@@ -6,10 +6,10 @@ import BoardCard from './BoardCard.vue'
 vi.stubGlobal('navigateTo', vi.fn())
 
 const issue = {
-  id: 1, key: 'PROJ-1', projectId: 1,
+  id: 1, key: 'PROJ-1', project_id: 1,
   title: 'Fix the bug', description: '',
   type: 'bug' as const, status: 'todo' as const,
-  priority: 'critical' as const, reporterId: 1,
+  priority: 'critical' as const, reporter_id: 1,
 }
 
 describe('BoardCard', () => {

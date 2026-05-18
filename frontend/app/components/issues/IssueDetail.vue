@@ -86,9 +86,9 @@
       <div class="form-control">
         <label class="label py-1"><span class="label-text font-medium">Assignee</span></label>
         <select
-          :value="issue.assigneeId ?? ''"
+          :value="issue.assignee_id ?? ''"
           class="select select-bordered select-sm"
-          @change="onFieldChange('assigneeId', ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)"
+          @change="onFieldChange('assignee_id', ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)"
         >
           <option value="">Unassigned</option>
           <option v-for="m in members" :key="m.user_id" :value="m.user_id">{{ m.name }}</option>
@@ -99,21 +99,21 @@
       <div class="form-control">
         <label class="label py-1"><span class="label-text font-medium">Story Points</span></label>
         <input
-          :value="issue.storyPoints ?? ''"
+          :value="issue.story_points ?? ''"
           type="number"
           min="0"
           max="100"
           class="input input-bordered input-sm"
           placeholder="—"
-          @change="onFieldChange('storyPoints', Number(($event.target as HTMLInputElement).value) || null)"
-          @blur="onFieldChange('storyPoints', Number(($event.target as HTMLInputElement).value) || null)"
+          @change="onFieldChange('story_points', Number(($event.target as HTMLInputElement).value) || null)"
+          @blur="onFieldChange('story_points', Number(($event.target as HTMLInputElement).value) || null)"
         />
       </div>
 
       <!-- Reporter -->
       <div>
         <span class="text-sm font-medium block mb-1">Reporter</span>
-        <span class="text-sm">User #{{ issue.reporterId }}</span>
+        <span class="text-sm">User #{{ issue.reporter_id }}</span>
       </div>
 
       <!-- Delete -->
@@ -148,8 +148,9 @@ const emit = defineEmits<{ deleted: [] }>()
 
 const issuesStore = useIssuesStore()
 const authStore = useAuthStore()
+const { showError } = useToast()
 
-const canDelete = computed(() => authStore.user?.id === props.issue.reporterId)
+const canDelete = computed(() => authStore.user?.id === props.issue.reporter_id)
 
 const editing = ref<'title' | 'description' | null>(null)
 const editTitle = ref(props.issue.title)
@@ -179,7 +180,12 @@ async function saveField(field: 'title' | 'description', value: string) {
 }
 
 async function onFieldChange(field: string, value: string | number | null) {
-  await issuesStore.update(props.projectKey, props.issue.id, { [field]: value } as never)
+  try {
+    await issuesStore.update(props.projectKey, props.issue.id, { [field]: value } as never)
+  }
+  catch {
+    showError('Failed to update issue')
+  }
 }
 
 async function deleteIssue() {

@@ -7,13 +7,13 @@ import type { Issue } from '~/types/domain.types'
 const makeIssue = (id: number, overrides: Partial<Issue> = {}): Issue => ({
   id,
   key: `PROJ-${id}`,
-  projectId: 1,
+  project_id: 1,
   title: `Issue ${id}`,
   description: '',
   type: 'task',
   status: 'backlog',
   priority: 'medium',
-  reporterId: 1,
+  reporter_id: 1,
   ...overrides,
 })
 
