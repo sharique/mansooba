@@ -61,6 +61,8 @@ func main() {
 	projectMemberRepo := repository.NewProjectMemberRepository(db)
 	issueRepo := repository.NewIssueRepository(db)
 	sprintRepo := repository.NewSprintRepository(db)
+	commentRepo := repository.NewCommentRepository(db)
+	activityRepo := repository.NewActivityRepository(db)
 
 	// Services
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
@@ -68,6 +70,8 @@ func main() {
 	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo)
 	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo)
 	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
+	activitySvc := service.NewActivityService(activityRepo)
+	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authSvc)
@@ -75,6 +79,8 @@ func main() {
 	issueHandler := handler.NewIssueHandler(issueSvc)
 	boardHandler := handler.NewBoardHandler(boardSvc)
 	sprintHandler := handler.NewSprintHandler(sprintSvc)
+	commentHandler := handler.NewCommentHandler(commentSvc)
+	activityHandler := handler.NewActivityHandler(activitySvc)
 
 	// Echo
 	e := echo.New()
@@ -131,6 +137,13 @@ func main() {
 	sprints.GET("/:id/issues", sprintHandler.GetIssues)
 
 	api.GET("/projects/:key/backlog", sprintHandler.Backlog)
+
+	issueItems := api.Group("/issues/:id")
+	issueItems.GET("/comments", commentHandler.List)
+	issueItems.POST("/comments", commentHandler.Create)
+	issueItems.PUT("/comments/:cid", commentHandler.Update)
+	issueItems.DELETE("/comments/:cid", commentHandler.Delete)
+	issueItems.GET("/activity", activityHandler.ListByIssue)
 
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
