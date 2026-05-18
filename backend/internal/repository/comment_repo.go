@@ -45,5 +45,12 @@ func (r *commentRepo) Update(ctx context.Context, c *domain.Comment) error {
 }
 
 func (r *commentRepo) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&domain.Comment{}, id).Error
+	result := r.db.WithContext(ctx).Delete(&domain.Comment{}, id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
 }

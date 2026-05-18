@@ -110,7 +110,13 @@ func (s *commentService) Delete(ctx context.Context, commentID, callerID uint) e
 			return err
 		}
 		membership, err := s.memberRepo.FindByProjectAndUser(ctx, issue.ProjectID, callerID)
-		if err != nil || (membership.Role != "admin" && membership.Role != "owner") {
+		if err != nil {
+			if errors.Is(err, domain.ErrNotFound) {
+				return domain.ErrForbidden
+			}
+			return err
+		}
+		if membership.Role != "admin" && membership.Role != "owner" {
 			return domain.ErrForbidden
 		}
 	}

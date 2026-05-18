@@ -147,6 +147,30 @@ func TestCommentService_Delete_OwnerCanDelete(t *testing.T) {
 	assert.Len(t, commentRepo.comments, 0)
 }
 
+func TestCommentService_Delete_AdminCanDeleteOthersComment(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10})
+
+	memberRepo := newStubProjectMemberRepo()
+	// Author is user 42, admin is user 99
+	memberRepo.members = append(memberRepo.members,
+		&domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"},
+		&domain.ProjectMember{ProjectID: 10, UserID: 99, Role: "admin"},
+	)
+
+	commentRepo := newStubCommentRepo()
+	activitySvc := &stubActivityService{}
+	svc := service.NewCommentService(commentRepo, issueRepo, memberRepo, activitySvc)
+
+	// Author creates a comment
+	_, _ = svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "author comment"})
+
+	// Admin deletes it
+	err := svc.Delete(context.Background(), commentRepo.comments[0].ID, 99)
+	require.NoError(t, err)
+	assert.Len(t, commentRepo.comments, 0)
+}
+
 func TestCommentService_List_ReturnsByIssue(t *testing.T) {
 	svc, _, _ := newCommentTestEnv()
 	_, _ = svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "a"})
