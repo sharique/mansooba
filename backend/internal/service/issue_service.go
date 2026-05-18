@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/sharique/jira-go/internal/domain"
 	"github.com/sharique/jira-go/internal/dto"
@@ -188,6 +189,12 @@ func (s *issueService) Update(ctx context.Context, projectKey string, id uint, c
 	}
 	if req.Status != nil {
 		issue.Status = *req.Status
+		if *req.Status == domain.IssueStatusDone && issue.CompletedAt == nil {
+			now := time.Now().UTC()
+			issue.CompletedAt = &now
+		} else if *req.Status != domain.IssueStatusDone {
+			issue.CompletedAt = nil
+		}
 	}
 	if req.Priority != nil {
 		issue.Priority = *req.Priority
@@ -266,5 +273,7 @@ func toIssueResponse(i *domain.Issue) *dto.IssueResponse {
 		ReporterID:  i.ReporterID,
 		SprintID:    i.SprintID,
 		StoryPoints: i.StoryPoints,
+		CreatedAt:   i.CreatedAt,
+		CompletedAt: i.CompletedAt,
 	}
 }

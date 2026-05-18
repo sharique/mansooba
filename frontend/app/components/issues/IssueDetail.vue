@@ -110,6 +110,24 @@
         />
       </div>
 
+      <!-- Sprint -->
+      <div v-if="sprintName">
+        <span class="text-sm font-medium block mb-1">Sprint</span>
+        <span class="text-sm">{{ sprintName }}</span>
+      </div>
+
+      <!-- Created -->
+      <div>
+        <span class="text-sm font-medium block mb-1">Created</span>
+        <span class="text-sm text-base-content/60">{{ formatDate(issue.created_at) }}</span>
+      </div>
+
+      <!-- Completed -->
+      <div v-if="issue.completed_at">
+        <span class="text-sm font-medium block mb-1">Completed</span>
+        <span class="text-sm text-base-content/60">{{ formatDate(issue.completed_at) }}</span>
+      </div>
+
       <!-- Reporter -->
       <div>
         <span class="text-sm font-medium block mb-1">Reporter</span>
@@ -141,9 +159,9 @@
 </template>
 
 <script setup lang="ts">
-import type { Issue, MemberResponse } from '~/types/domain.types'
+import type { Issue, MemberResponse, Sprint } from '~/types/domain.types'
 
-const props = defineProps<{ issue: Issue; projectKey: string; members?: MemberResponse[] }>()
+const props = defineProps<{ issue: Issue; projectKey: string; members?: MemberResponse[]; sprints?: Sprint[] }>()
 const emit = defineEmits<{ deleted: [] }>()
 
 const issuesStore = useIssuesStore()
@@ -151,6 +169,15 @@ const authStore = useAuthStore()
 const { showError } = useToast()
 
 const canDelete = computed(() => authStore.user?.id === props.issue.reporter_id)
+
+const sprintName = computed(() =>
+  props.sprints?.find(s => Number(s.id) === props.issue.sprint_id)?.name ?? null
+)
+
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+}
 
 const editing = ref<'title' | 'description' | null>(null)
 const editTitle = ref(props.issue.title)

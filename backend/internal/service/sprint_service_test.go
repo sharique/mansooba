@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/sharique/jira-go/internal/domain"
 	"github.com/sharique/jira-go/internal/dto"
@@ -410,5 +411,100 @@ func TestSprintService_Complete_NextSprintMustBePlanning(t *testing.T) {
 	_, err := svc.Complete(ctx, "TEST", active.ID, 1, dto.CompleteSprintRequest{NextSprintID: &completedNext.ID})
 	if !errors.Is(err, domain.ErrSprintInvalidTransition) {
 		t.Errorf("expected ErrSprintInvalidTransition, got %v", err)
+	}
+}
+
+// ── Burndown tests ────────────────────────────────────────────────────────────
+
+func TestSprintService_Burndown_IssueWithCompletedAtCountsAsDoneOnThatDay(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	start := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC)
+	// Issue completed on day 2 (Jan 2).
+	completedAt := time.Date(2024, 1, 2, 12, 0, 0, 0, time.UTC)
+	points := 5
+
+	sprint := &domain.Sprint{
+		ProjectID: p.ID,
+		Status:    domain.SprintStatusActive,
+		Name:      "Sprint 1",
+		StartDate: &start,
+		EndDate:   &end,
+		Issues: []domain.Issue{
+			{
+				ID:          1,
+				Status:      domain.IssueStatusDone,
+				StoryPoints: &points,
+				CompletedAt: &completedAt,
+			},
+		},
+	}
+	_ = sprintRepo.Create(ctx, sprint)
+
+	resp, err := svc.Burndown(ctx, "TEST", sprint.ID, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Jan 1: issue not yet done → 5 remaining
+	if resp.Data[0].RemainingPoints != 5 {
+		t.Errorf("day 1: expected 5 remaining, got %d", resp.Data[0].RemainingPoints)
+	}
+	// Jan 2: completed at noon on Jan 2, dayEnd is Jan 3 00:00 → counts as done
+	if resp.Data[1].RemainingPoints != 0 {
+		t.Errorf("day 2: expected 0 remaining, got %d", resp.Data[1].RemainingPoints)
+	}
+}
+
+func TestSprintService_Burndown_IssueWithNilCompletedAtStaysInRemaining(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	start := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
+	points := 3
+
+	sprint := &domain.Sprint{
+		ProjectID: p.ID,
+		Status:    domain.SprintStatusActive,
+		Name:      "Sprint 1",
+		StartDate: &start,
+		EndDate:   &end,
+		Issues: []domain.Issue{
+			// Status is done but CompletedAt is nil (legacy data before Task 25).
+			{ID: 1, Status: domain.IssueStatusDone, StoryPoints: &points, CompletedAt: nil},
+		},
+	}
+	_ = sprintRepo.Create(ctx, sprint)
+
+	resp, err := svc.Burndown(ctx, "TEST", sprint.ID, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, pt := range resp.Data {
+		if pt.RemainingPoints != 3 {
+			t.Errorf("day %s: expected 3 remaining for legacy nil CompletedAt issue, got %d", pt.Date, pt.RemainingPoints)
+		}
+	}
+}
+
+func TestSprintService_Burndown_NoStartDate_ReturnsError(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	sprint := &domain.Sprint{
+		ProjectID: p.ID,
+		Status:    domain.SprintStatusPlanning,
+		Name:      "Sprint 1",
+	}
+	_ = sprintRepo.Create(ctx, sprint)
+
+	_, err := svc.Burndown(ctx, "TEST", sprint.ID, 1)
+	if !errors.Is(err, domain.ErrSprintNotStarted) {
+		t.Errorf("expected ErrSprintNotStarted, got %v", err)
 	}
 }

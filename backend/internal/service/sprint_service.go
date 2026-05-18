@@ -349,7 +349,8 @@ func (s *sprintService) Burndown(ctx context.Context, projectKey string, id uint
 		dayEnd := d.AddDate(0, 0, 1)
 		remaining := 0
 		for _, issue := range sprint.Issues {
-			doneByEndOfDay := issue.Status == domain.IssueStatusDone && issue.UpdatedAt.Before(dayEnd)
+			doneByEndOfDay := issue.Status == domain.IssueStatusDone &&
+				issue.CompletedAt != nil && issue.CompletedAt.Before(dayEnd)
 			if !doneByEndOfDay && issue.StoryPoints != nil {
 				remaining += *issue.StoryPoints
 			}
