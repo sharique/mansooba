@@ -20,6 +20,7 @@
         :issue="issuesStore.current"
         :project-key="key"
         :members="members"
+        :sprints="sprintsStore.sprints"
         @deleted="navigateTo(`/projects/${key}`)"
       />
     </div>
@@ -40,6 +41,7 @@ const key = route.params.key as string
 const id = route.params.id as string
 
 const issuesStore = useIssuesStore()
+const sprintsStore = useSprintsStore()
 const { showError } = useToast()
 const loading = ref(true)
 const members = ref<MemberResponse[]>([])
@@ -49,6 +51,7 @@ onMounted(async () => {
     await Promise.all([
       issuesStore.fetchOne(key, Number(id)),
       projectsService.listMembers(key).then(v => members.value = v).catch(() => {}),
+      sprintsStore.fetchSprints(key).catch(() => {}),
     ])
   }
   catch {

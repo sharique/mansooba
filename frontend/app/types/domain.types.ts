@@ -41,6 +41,8 @@ export interface Issue {
   reporter_id: number
   story_points?: number
   sprint_id?: number
+  created_at: string
+  completed_at?: string | null
 }
 
 // ── Domain constant objects ───────────────────────────────────────────────────

@@ -23,6 +23,9 @@ type Issue struct {
 	SprintID    *uint `gorm:"index"`
 	// StoryPoints is the effort estimate for burndown calculations. nil if not estimated.
 	StoryPoints *int
+	// CompletedAt is set when Status transitions to "done" and cleared when it moves away.
+	// Used by the burndown algorithm instead of UpdatedAt for accurate completion tracking.
+	CompletedAt *time.Time
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }

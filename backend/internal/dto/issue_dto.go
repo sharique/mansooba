@@ -1,5 +1,7 @@
 package dto
 
+import "time"
+
 // Note: oneof validator tags intentionally duplicate domain.IssueType*/IssuePriority*/IssueStatus*
 // constants — Go struct tags are compile-time string literals and cannot reference variables.
 type CreateIssueRequest struct {
@@ -32,16 +34,18 @@ type IssueListQuery struct {
 }
 
 type IssueResponse struct {
-	ID          uint   `json:"id"`
-	Key         string `json:"key"`
-	ProjectID   uint   `json:"project_id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	Type        string `json:"type"`
-	Status      string `json:"status"`
-	Priority    string `json:"priority"`
-	AssigneeID  *uint  `json:"assignee_id,omitempty"`
-	ReporterID  uint   `json:"reporter_id"`
-	SprintID    *uint  `json:"sprint_id,omitempty"`
-	StoryPoints *int   `json:"story_points,omitempty"`
+	ID          uint       `json:"id"`
+	Key         string     `json:"key"`
+	ProjectID   uint       `json:"project_id"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	Type        string     `json:"type"`
+	Status      string     `json:"status"`
+	Priority    string     `json:"priority"`
+	AssigneeID  *uint      `json:"assignee_id,omitempty"`
+	ReporterID  uint       `json:"reporter_id"`
+	SprintID    *uint      `json:"sprint_id,omitempty"`
+	StoryPoints *int       `json:"story_points,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
 }

@@ -207,6 +207,75 @@ func TestIssueService_Delete_ForbiddenForNonReporter(t *testing.T) {
 	}
 }
 
+func TestIssueService_Update_SetsCompletedAtWhenTransitioningToDone(t *testing.T) {
+	svc, projectRepo, memberRepo, issueRepo := newIssueService()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+
+	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
+
+	done := domain.IssueStatusDone
+	updated, err := svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{Status: &done})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if updated.CompletedAt == nil {
+		t.Fatal("expected CompletedAt to be set after transitioning to done")
+	}
+	stored, _ := issueRepo.FindByID(ctx, resp.ID)
+	if stored.CompletedAt == nil {
+		t.Error("expected persisted CompletedAt to be set")
+	}
+}
+
+func TestIssueService_Update_ClearsCompletedAtWhenLeavingDone(t *testing.T) {
+	svc, projectRepo, memberRepo, issueRepo := newIssueService()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+
+	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
+
+	done := domain.IssueStatusDone
+	_, _ = svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{Status: &done})
+
+	inProgress := domain.IssueStatusInProgress
+	updated, err := svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{Status: &inProgress})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if updated.CompletedAt != nil {
+		t.Fatal("expected CompletedAt to be cleared after leaving done")
+	}
+	stored, _ := issueRepo.FindByID(ctx, resp.ID)
+	if stored.CompletedAt != nil {
+		t.Error("expected persisted CompletedAt to be nil after leaving done")
+	}
+}
+
+func TestIssueService_Update_PreservesCompletedAtWhenAlreadyDone(t *testing.T) {
+	svc, projectRepo, memberRepo, issueRepo := newIssueService()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+
+	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
+
+	done := domain.IssueStatusDone
+	_, _ = svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{Status: &done})
+
+	first, _ := issueRepo.FindByID(ctx, resp.ID)
+	originalCompletedAt := first.CompletedAt
+
+	// Re-mark as done — CompletedAt must not be reset.
+	_, err := svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{Status: &done})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	stored, _ := issueRepo.FindByID(ctx, resp.ID)
+	if stored.CompletedAt == nil || !stored.CompletedAt.Equal(*originalCompletedAt) {
+		t.Error("expected CompletedAt to be unchanged when issue was already done")
+	}
+}
+
 func TestIssueService_ListByProject_FiltersApplied(t *testing.T) {
 	svc, projectRepo, memberRepo, _ := newIssueService()
 	ctx := context.Background()
