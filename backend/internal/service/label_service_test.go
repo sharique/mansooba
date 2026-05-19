@@ -152,6 +152,15 @@ func TestLabelService_DetachFromIssue_RecordsActivity(t *testing.T) {
 	assert.Equal(t, domain.ActivityLabelRemoved, activitySvc.recorded[0].Kind)
 }
 
+func TestLabelService_AttachToIssue_RejectsLabelFromWrongProject(t *testing.T) {
+	svc, labelRepo, _ := newLabelTestEnv()
+	// Label belongs to project 99, but the issue belongs to project 10
+	labelRepo.labels = append(labelRepo.labels, &domain.Label{ID: 7, ProjectID: 99, Name: "foreign", Color: "#e11d48"})
+
+	err := svc.AttachToIssue(context.Background(), 1, 7, 42)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+}
+
 func TestLabelService_Delete_RemovesLabel(t *testing.T) {
 	svc, labelRepo, _ := newLabelTestEnv()
 	_, _ = svc.Create(context.Background(), "PROJ", 42, dto.CreateLabelRequest{Name: "gone", Color: "#e11d48"})

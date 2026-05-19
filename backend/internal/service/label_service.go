@@ -109,6 +109,9 @@ func (s *labelService) AttachToIssue(ctx context.Context, issueID, labelID, call
 	if err != nil {
 		return err
 	}
+	if label.ProjectID != issue.ProjectID {
+		return domain.ErrNotFound // treat as not-found to avoid leaking label existence
+	}
 	if err := s.labelRepo.AttachToIssue(ctx, issueID, labelID); err != nil {
 		return err
 	}
@@ -130,6 +133,9 @@ func (s *labelService) DetachFromIssue(ctx context.Context, issueID, labelID, ca
 	label, err := s.labelRepo.FindByID(ctx, labelID)
 	if err != nil {
 		return err
+	}
+	if label.ProjectID != issue.ProjectID {
+		return domain.ErrNotFound // treat as not-found to avoid leaking label existence
 	}
 	if err := s.labelRepo.DetachFromIssue(ctx, issueID, labelID); err != nil {
 		return err
