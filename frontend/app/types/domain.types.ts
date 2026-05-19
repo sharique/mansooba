@@ -144,3 +144,19 @@ export const ActivityKind = {
   LabelAdded:         'label_added',
   LabelRemoved:       'label_removed',
 } as const
+
+// ── Labels ────────────────────────────────────────────────────────────────────
+
+export interface Label {
+  id: number
+  project_id: number
+  name: string
+  color: string
+  created_at: string
+}
+
+export const LabelPalette = [
+  '#e11d48', '#f97316', '#eab308', '#22c55e',
+  '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899',
+  '#6b7280', '#78716c', '#0f172a', '#ffffff',
+] as const
