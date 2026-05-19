@@ -17,7 +17,7 @@ func (r *notificationRepo) Create(ctx context.Context, n *domain.Notification) e
 	return r.db.WithContext(ctx).Create(n).Error
 }
 
-func (r *notificationRepo) FindByRecipientID(ctx context.Context, recipientID uint) ([]*domain.Notification, error) {
+func (r *notificationRepo) FindUnreadByRecipientID(ctx context.Context, recipientID uint) ([]*domain.Notification, error) {
 	var notifications []*domain.Notification
 	if err := r.db.WithContext(ctx).
 		Where("recipient_id = ? AND read = false", recipientID).
@@ -28,9 +28,16 @@ func (r *notificationRepo) FindByRecipientID(ctx context.Context, recipientID ui
 	return notifications, nil
 }
 
-func (r *notificationRepo) MarkRead(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).
+func (r *notificationRepo) MarkRead(ctx context.Context, id, recipientID uint) error {
+	result := r.db.WithContext(ctx).
 		Model(&domain.Notification{}).
-		Where("id = ?", id).
-		Update("read", true).Error
+		Where("id = ? AND recipient_id = ?", id, recipientID).
+		Update("read", true)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
 }

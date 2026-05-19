@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -27,7 +28,7 @@ func NewNotificationHandler(repo domain.NotificationRepository) *NotificationHan
 // @Router       /notifications [get]
 func (h *NotificationHandler) List(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
-	notifications, err := h.repo.FindByRecipientID(c.Request().Context(), callerID)
+	notifications, err := h.repo.FindUnreadByRecipientID(c.Request().Context(), callerID)
 	if err != nil {
 		return err
 	}
@@ -51,11 +52,15 @@ func (h *NotificationHandler) List(c echo.Context) error {
 // @Failure      404 {object} apierror.APIError
 // @Router       /notifications/{id}/read [put]
 func (h *NotificationHandler) MarkRead(c echo.Context) error {
+	callerID := c.Get("userID").(uint)
 	id, err := parseUintParam(c, "id")
 	if err != nil {
 		return echo.ErrBadRequest
 	}
-	if err := h.repo.MarkRead(c.Request().Context(), id); err != nil {
+	if err := h.repo.MarkRead(c.Request().Context(), id, callerID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return echo.NewHTTPError(http.StatusNotFound, "not found")
+		}
 		return err
 	}
 	return c.NoContent(http.StatusNoContent)

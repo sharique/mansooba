@@ -27,6 +27,5 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	// FindByEmailPrefix returns the user whose email starts with the given local part
 	// (everything before '@'). Returns ErrNotFound when no match exists.
-	// TODO(task-33): used by @mention parsing to resolve handles like "john.doe" to user IDs.
 	FindByEmailPrefix(ctx context.Context, prefix string) (*User, error)
 }
