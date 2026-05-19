@@ -342,6 +342,8 @@ func ptrIntChanged(a, b *int) bool {
 	return *a != *b
 }
 
+// sprintLabel returns the sprint ID as a label string.
+// TODO(task-34): replace with sprint name lookup once SprintRepository is wired in.
 func sprintLabel(id *uint) string {
 	if id == nil {
 		return "backlog"

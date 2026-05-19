@@ -369,6 +369,33 @@ func TestIssueService_Update_NoActivityWhenNothingChanges(t *testing.T) {
 	assert.Empty(t, activitySvc.recorded)
 }
 
+func TestIssueService_Update_RecordsAssigneeChangeActivity(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	activitySvc := &stubActivitySvc{}
+	userRepo := newStubUserRepo()
+	userRepo.users["alice@example.com"] = &domain.User{ID: 10, Name: "Alice", Email: "alice@example.com"}
+
+	projectRepo.projects["PROJ"] = &domain.Project{ID: 1, Key: "PROJ"}
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 1, UserID: 1, Role: "member"})
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{
+		ID: 1, ProjectID: 1, Key: "PROJ-1",
+		Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityMedium,
+		AssigneeID: nil, ReporterID: 1,
+	})
+
+	aliceID := uint(10)
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo)
+	_, err := svc.Update(context.Background(), "PROJ", 1, 1, dto.UpdateIssueRequest{AssigneeID: &aliceID})
+	require.NoError(t, err)
+
+	require.Len(t, activitySvc.recorded, 1)
+	assert.Equal(t, domain.ActivityAssigneeChanged, activitySvc.recorded[0].Kind)
+	assert.Equal(t, "unassigned", activitySvc.recorded[0].OldValue)
+	assert.Equal(t, "Alice", activitySvc.recorded[0].NewValue)
+}
+
 func TestIssueService_ListByProject_FiltersApplied(t *testing.T) {
 	svc, projectRepo, memberRepo, _ := newIssueService()
 	ctx := context.Background()
