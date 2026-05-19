@@ -63,6 +63,7 @@ func main() {
 	sprintRepo := repository.NewSprintRepository(db)
 	commentRepo := repository.NewCommentRepository(db)
 	activityRepo := repository.NewActivityRepository(db)
+	notifRepo := repository.NewNotificationRepository(db)
 
 	// Services
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
@@ -71,7 +72,7 @@ func main() {
 	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo)
 	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo)
 	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
-	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc)
+	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc, notifRepo, userRepo)
 	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
 
 	// Handlers
@@ -83,6 +84,7 @@ func main() {
 	commentHandler := handler.NewCommentHandler(commentSvc)
 	activityHandler := handler.NewActivityHandler(activitySvc)
 	labelHandler := handler.NewLabelHandler(labelSvc)
+	notifHandler := handler.NewNotificationHandler(notifRepo)
 
 	// Echo
 	e := echo.New()
@@ -151,6 +153,10 @@ func main() {
 	issueItems.GET("/activity", activityHandler.ListByIssue)
 	issueItems.POST("/labels/:lid", labelHandler.Attach)
 	issueItems.DELETE("/labels/:lid", labelHandler.Detach)
+
+	notifs := api.Group("/notifications")
+	notifs.GET("", notifHandler.List)
+	notifs.PUT("/:id/read", notifHandler.MarkRead)
 
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 

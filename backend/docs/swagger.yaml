@@ -242,6 +242,23 @@ definitions:
       user_id:
         type: integer
     type: object
+  dto.NotificationResponse:
+    properties:
+      actor_id:
+        type: integer
+      comment_id:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      issue_id:
+        type: integer
+      read:
+        type: boolean
+      recipient_id:
+        type: integer
+    type: object
   dto.ProjectResponse:
     properties:
       description:
@@ -702,6 +719,50 @@ paths:
       summary: Attach a label to an issue
       tags:
       - labels
+  /notifications:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.NotificationResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: List unread notifications for the current user
+      tags:
+      - notifications
+  /notifications/{id}/read:
+    put:
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Mark a notification as read
+      tags:
+      - notifications
   /projects:
     get:
       produces:

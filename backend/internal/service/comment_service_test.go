@@ -94,7 +94,7 @@ func newCommentTestEnv() (service.CommentService, *stubCommentRepo, *stubActivit
 	commentRepo := newStubCommentRepo()
 	activitySvc := &stubActivityService{}
 
-	svc := service.NewCommentService(commentRepo, issueRepo, memberRepo, activitySvc)
+	svc := service.NewCommentService(commentRepo, issueRepo, memberRepo, activitySvc, newStubNotificationRepo(), &stubUserRepoMention{})
 	return svc, commentRepo, activitySvc
 }
 
@@ -160,7 +160,7 @@ func TestCommentService_Delete_AdminCanDeleteOthersComment(t *testing.T) {
 
 	commentRepo := newStubCommentRepo()
 	activitySvc := &stubActivityService{}
-	svc := service.NewCommentService(commentRepo, issueRepo, memberRepo, activitySvc)
+	svc := service.NewCommentService(commentRepo, issueRepo, memberRepo, activitySvc, newStubNotificationRepo(), &stubUserRepoMention{})
 
 	// Author creates a comment
 	_, _ = svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "author comment"})
@@ -179,4 +179,119 @@ func TestCommentService_List_ReturnsByIssue(t *testing.T) {
 	list, err := svc.List(context.Background(), 1, 42)
 	require.NoError(t, err)
 	assert.Len(t, list, 2)
+}
+
+// ── stubNotificationRepo ──────────────────────────────────────────────────────
+
+type stubNotificationRepo struct {
+	notifications []*domain.Notification
+	nextID        uint
+}
+
+func newStubNotificationRepo() *stubNotificationRepo { return &stubNotificationRepo{nextID: 1} }
+
+func (r *stubNotificationRepo) Create(_ context.Context, n *domain.Notification) error {
+	n.ID = r.nextID
+	r.nextID++
+	cp := *n
+	r.notifications = append(r.notifications, &cp)
+	return nil
+}
+
+func (r *stubNotificationRepo) FindUnreadByRecipientID(_ context.Context, recipientID uint) ([]*domain.Notification, error) {
+	var out []*domain.Notification
+	for _, n := range r.notifications {
+		if n.RecipientID == recipientID {
+			out = append(out, n)
+		}
+	}
+	return out, nil
+}
+
+func (r *stubNotificationRepo) MarkRead(_ context.Context, id, recipientID uint) error {
+	for _, n := range r.notifications {
+		if n.ID == id && n.RecipientID == recipientID {
+			n.Read = true
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+
+// ── stub user repo for mentions ───────────────────────────────────────────────
+
+type stubUserRepoMention struct {
+	users []*domain.User
+}
+
+func (r *stubUserRepoMention) Create(_ context.Context, _ *domain.User) error { return nil }
+func (r *stubUserRepoMention) FindByID(_ context.Context, id uint) (*domain.User, error) {
+	for _, u := range r.users {
+		if u.ID == id {
+			return u, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+func (r *stubUserRepoMention) FindByEmail(_ context.Context, _ string) (*domain.User, error) {
+	return nil, domain.ErrNotFound
+}
+func (r *stubUserRepoMention) FindByEmailPrefix(_ context.Context, prefix string) (*domain.User, error) {
+	for _, u := range r.users {
+		if len(u.Email) > len(prefix) && u.Email[:len(prefix)] == prefix && u.Email[len(prefix)] == '@' {
+			return u, nil
+		}
+	}
+	return nil, domain.ErrNotFound
+}
+
+func newCommentTestEnvWithNotifications() (service.CommentService, *stubCommentRepo, *stubActivityService, *stubNotificationRepo) {
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10})
+
+	memberRepo := newStubProjectMemberRepo()
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"})
+
+	commentRepo := newStubCommentRepo()
+	activitySvc := &stubActivityService{}
+	notifRepo := newStubNotificationRepo()
+	userRepo := &stubUserRepoMention{
+		users: []*domain.User{
+			{ID: 7, Name: "Alice Smith", Email: "alice@example.com"},
+			{ID: 8, Name: "Bob Jones", Email: "bob@example.com"},
+		},
+	}
+
+	svc := service.NewCommentService(commentRepo, issueRepo, memberRepo, activitySvc, notifRepo, userRepo)
+	return svc, commentRepo, activitySvc, notifRepo
+}
+
+func TestCommentService_Create_ParsesMentionAndCreatesNotification(t *testing.T) {
+	svc, _, _, notifRepo := newCommentTestEnvWithNotifications()
+	_, err := svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "hey @alice looks good"})
+	require.NoError(t, err)
+	require.Len(t, notifRepo.notifications, 1)
+	assert.Equal(t, uint(7), notifRepo.notifications[0].RecipientID)
+	assert.Equal(t, uint(42), notifRepo.notifications[0].ActorID)
+}
+
+func TestCommentService_Create_DeduplicatesMentions(t *testing.T) {
+	svc, _, _, notifRepo := newCommentTestEnvWithNotifications()
+	_, err := svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "@alice @alice again"})
+	require.NoError(t, err)
+	assert.Len(t, notifRepo.notifications, 1)
+}
+
+func TestCommentService_Create_SkipsUnknownHandles(t *testing.T) {
+	svc, _, _, notifRepo := newCommentTestEnvWithNotifications()
+	_, err := svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "@nobody hello"})
+	require.NoError(t, err)
+	assert.Len(t, notifRepo.notifications, 0)
+}
+
+func TestCommentService_Create_MultipleMentionsCreatesMultipleNotifications(t *testing.T) {
+	svc, _, _, notifRepo := newCommentTestEnvWithNotifications()
+	_, err := svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "@alice and @bob review this"})
+	require.NoError(t, err)
+	assert.Len(t, notifRepo.notifications, 2)
 }
