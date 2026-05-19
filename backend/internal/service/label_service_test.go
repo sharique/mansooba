@@ -161,6 +161,23 @@ func TestLabelService_AttachToIssue_RejectsLabelFromWrongProject(t *testing.T) {
 	assert.ErrorIs(t, err, domain.ErrNotFound)
 }
 
+func TestLabelService_ListByIssue_ReturnsAttachedLabels(t *testing.T) {
+	svc, labelRepo, _ := newLabelTestEnv()
+	labelRepo.labels = append(labelRepo.labels, &domain.Label{ID: 5, ProjectID: 10, Name: "urgent", Color: "#e11d48"})
+	_ = svc.AttachToIssue(context.Background(), 1, 5, 42)
+
+	labels, err := svc.ListByIssue(context.Background(), 1, 42)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+	assert.Equal(t, "urgent", labels[0].Name)
+}
+
+func TestLabelService_ListByIssue_ForbiddenForNonMember(t *testing.T) {
+	svc, _, _ := newLabelTestEnv()
+	_, err := svc.ListByIssue(context.Background(), 1, 99) // userID 99 is not a member
+	assert.ErrorIs(t, err, domain.ErrForbidden)
+}
+
 func TestLabelService_Delete_RemovesLabel(t *testing.T) {
 	svc, labelRepo, _ := newLabelTestEnv()
 	_, _ = svc.Create(context.Background(), "PROJ", 42, dto.CreateLabelRequest{Name: "gone", Color: "#e11d48"})

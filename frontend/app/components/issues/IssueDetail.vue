@@ -127,6 +127,12 @@
         <span class="text-sm">{{ sprintName }}</span>
       </div>
 
+      <!-- Labels -->
+      <div class="form-control">
+        <label class="label py-1"><span class="label-text font-medium">Labels</span></label>
+        <IssuesIssueLabelPicker :issue-id="issue.id" :project-key="projectKey" />
+      </div>
+
       <!-- Created -->
       <div>
         <span class="text-sm font-medium block mb-1">Created</span>

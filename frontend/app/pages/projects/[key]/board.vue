@@ -15,6 +15,9 @@
         <NuxtLink :to="`/projects/${key}/backlog`" class="btn btn-sm btn-ghost">
           Backlog →
         </NuxtLink>
+        <NuxtLink :to="`/projects/${key}/settings`" class="btn btn-sm btn-ghost">
+          Settings
+        </NuxtLink>
       </div>
       <button class="btn btn-primary btn-sm" @click="openCreateModal('')">Create Issue</button>
     </div>
