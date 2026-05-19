@@ -45,12 +45,12 @@
       <!-- Activity feed -->
       <div class="mt-6 border-t border-base-200 pt-4">
         <h3 class="font-semibold text-sm mb-3">Activity</h3>
-        <ActivityFeed :comments="commentsStore.comments" :activity="commentsStore.activity" />
+        <IssuesActivityFeed :comments="commentsStore.comments" :activity="commentsStore.activity" />
       </div>
 
       <!-- Comment section -->
       <div class="mt-6 border-t border-base-200 pt-4">
-        <CommentSection :issue-id="issue.id" :current-user-id="currentUserId" />
+        <IssuesCommentSection :issue-id="issue.id" :current-user-id="currentUserId" />
       </div>
     </div>
 

@@ -3,7 +3,7 @@
     <h3 class="font-semibold text-sm mb-3">Comments</h3>
     <div v-if="store.loading" class="loading loading-spinner loading-sm" />
     <div v-else>
-      <CommentItem
+      <IssuesCommentItem
         v-for="c in store.comments"
         :key="c.id"
         :comment="c"
