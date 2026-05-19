@@ -110,3 +110,37 @@ export interface BurndownData {
   total_points: number
   data: BurndownPoint[]
 }
+
+// ── Comments ──────────────────────────────────────────────────────────────────
+
+export interface Comment {
+  id: number
+  issue_id: number
+  author_id: number
+  body: string
+  created_at: string
+  updated_at: string
+}
+
+// ── Activity ──────────────────────────────────────────────────────────────────
+
+export interface ActivityEvent {
+  id: number
+  issue_id: number
+  actor_id: number
+  kind: string
+  old_value?: string
+  new_value?: string
+  created_at: string
+}
+
+export const ActivityKind = {
+  StatusChanged:      'status_changed',
+  AssigneeChanged:    'assignee_changed',
+  PriorityChanged:    'priority_changed',
+  SprintChanged:      'sprint_changed',
+  StoryPointsChanged: 'story_points_changed',
+  CommentAdded:       'comment_added',
+  LabelAdded:         'label_added',
+  LabelRemoved:       'label_removed',
+} as const
