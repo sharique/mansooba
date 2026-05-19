@@ -224,6 +224,7 @@ async function saveField(field: 'title' | 'description', value: string) {
 async function onFieldChange(field: string, value: string | number | null) {
   try {
     await issuesStore.update(props.projectKey, props.issue.id, { [field]: value } as never)
+    await commentsStore.fetchActivity(props.issue.id)
   }
   catch {
     showError('Failed to update issue')
@@ -242,5 +243,8 @@ async function deleteIssue() {
   }
 }
 
-onMounted(() => commentsStore.fetchActivity(props.issue.id))
+onMounted(() => Promise.all([
+  commentsStore.fetchActivity(props.issue.id),
+  commentsStore.fetchComments(props.issue.id),
+]))
 </script>
