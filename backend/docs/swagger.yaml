@@ -7,6 +7,23 @@ definitions:
       message:
         type: string
     type: object
+  dto.ActivityEventResponse:
+    properties:
+      actor_id:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      issue_id:
+        type: integer
+      kind:
+        type: string
+      new_value:
+        type: string
+      old_value:
+        type: string
+    type: object
   dto.AddMemberRequest:
     properties:
       email:
@@ -68,10 +85,32 @@ definitions:
       total_points:
         type: integer
     type: object
+  dto.CommentResponse:
+    properties:
+      author_id:
+        type: integer
+      body:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: integer
+      issue_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
   dto.CompleteSprintRequest:
     properties:
       next_sprint_id:
         type: integer
+    type: object
+  dto.CreateCommentRequest:
+    properties:
+      body:
+        type: string
+    required:
+    - body
     type: object
   dto.CreateIssueRequest:
     properties:
@@ -132,6 +171,10 @@ definitions:
     properties:
       assignee_id:
         type: integer
+      completed_at:
+        type: string
+      created_at:
+        type: string
       description:
         type: string
       id:
@@ -213,6 +256,8 @@ definitions:
         type: string
       id:
         type: integer
+      issue_count:
+        type: integer
       name:
         type: string
       project_id:
@@ -221,8 +266,17 @@ definitions:
         type: string
       status:
         type: string
+      total_story_points:
+        type: integer
       updated_at:
         type: string
+    type: object
+  dto.UpdateCommentRequest:
+    properties:
+      body:
+        type: string
+    required:
+    - body
     type: object
   dto.UpdateIssueRequest:
     properties:
@@ -237,6 +291,10 @@ definitions:
         - high
         - critical
         type: string
+      sprint_id:
+        description: SprintID assigns the issue to a sprint. Send 0 to move the issue
+          back to the backlog.
+        type: integer
       status:
         enum:
         - backlog
@@ -368,6 +426,194 @@ paths:
       summary: Register a new user
       tags:
       - auth
+  /issues/{id}/activity:
+    get:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.ActivityEventResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: List activity events for an issue
+      tags:
+      - activity
+  /issues/{id}/comments:
+    get:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.CommentResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: List comments on an issue
+      tags:
+      - comments
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Comment body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.CommentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Add a comment to an issue
+      tags:
+      - comments
+  /issues/{id}/comments/{cid}:
+    delete:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Comment ID
+        in: path
+        name: cid
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Delete a comment
+      tags:
+      - comments
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Comment ID
+        in: path
+        name: cid
+        required: true
+        type: integer
+      - description: Updated body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateCommentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.CommentResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Edit a comment
+      tags:
+      - comments
   /projects:
     get:
       produces:
@@ -1184,6 +1430,42 @@ paths:
       security:
       - BearerAuth: []
       summary: Complete a sprint
+      tags:
+      - sprints
+  /projects/{key}/sprints/{id}/issues:
+    get:
+      description: Returns all issues assigned to the given sprint.
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: Sprint ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.IssueResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Sprint or project not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get sprint issues
       tags:
       - sprints
   /projects/{key}/sprints/{id}/start:
