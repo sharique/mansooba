@@ -4,7 +4,7 @@
       <NuxtLink :to="`/projects/${key}/board`" class="btn btn-sm btn-ghost">← Board</NuxtLink>
       <h1 class="text-xl font-bold">Project Settings</h1>
     </div>
-    <LabelManager :project-key="key" />
+    <LabelsLabelManager :project-key="key" />
   </div>
 </template>
 
