@@ -17,5 +17,7 @@ func Migrate(db *gorm.DB) error {
 		&domain.Sprint{},
 		&domain.Comment{},
 		&domain.ActivityEvent{},
+		&domain.Label{},
+		&domain.IssueLabel{},
 	)
 }

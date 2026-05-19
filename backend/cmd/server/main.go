@@ -72,6 +72,7 @@ func main() {
 	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo)
 	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
 	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc)
+	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authSvc)
@@ -81,6 +82,7 @@ func main() {
 	sprintHandler := handler.NewSprintHandler(sprintSvc)
 	commentHandler := handler.NewCommentHandler(commentSvc)
 	activityHandler := handler.NewActivityHandler(activitySvc)
+	labelHandler := handler.NewLabelHandler(labelSvc)
 
 	// Echo
 	e := echo.New()
@@ -115,6 +117,9 @@ func main() {
 	projects.GET("/:key/members", projectHandler.ListMembers)
 	projects.POST("/:key/members", projectHandler.AddMember)
 	projects.DELETE("/:key/members/:userId", projectHandler.RemoveMember)
+	projects.GET("/:key/labels", labelHandler.List)
+	projects.POST("/:key/labels", labelHandler.Create)
+	projects.DELETE("/:key/labels/:lid", labelHandler.Delete)
 
 	issues := api.Group("/projects/:key/issues")
 	issues.GET("", issueHandler.List)
@@ -144,6 +149,8 @@ func main() {
 	issueItems.PUT("/comments/:cid", commentHandler.Update)
 	issueItems.DELETE("/comments/:cid", commentHandler.Delete)
 	issueItems.GET("/activity", activityHandler.ListByIssue)
+	issueItems.POST("/labels/:lid", labelHandler.Attach)
+	issueItems.DELETE("/labels/:lid", labelHandler.Detach)
 
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
