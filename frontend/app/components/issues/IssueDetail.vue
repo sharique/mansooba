@@ -41,6 +41,17 @@
           {{ issue.description || 'Click to add description…' }}
         </div>
       </div>
+
+      <!-- Activity feed -->
+      <div class="mt-6 border-t border-base-200 pt-4">
+        <h3 class="font-semibold text-sm mb-3">Activity</h3>
+        <IssuesActivityFeed :comments="commentsStore.comments" :activity="commentsStore.activity" />
+      </div>
+
+      <!-- Comment section -->
+      <div class="mt-6 border-t border-base-200 pt-4">
+        <IssuesCommentSection :issue-id="issue.id" :current-user-id="currentUserId" />
+      </div>
     </div>
 
     <!-- Sidebar -->
@@ -160,15 +171,19 @@
 
 <script setup lang="ts">
 import type { Issue, MemberResponse, Sprint } from '~/types/domain.types'
+import { useCommentsStore } from '~/stores/comments.store'
 
 const props = defineProps<{ issue: Issue; projectKey: string; members?: MemberResponse[]; sprints?: Sprint[] }>()
 const emit = defineEmits<{ deleted: [] }>()
 
 const issuesStore = useIssuesStore()
 const authStore = useAuthStore()
+const commentsStore = useCommentsStore()
 const { showError } = useToast()
 
 const canDelete = computed(() => authStore.user?.id === props.issue.reporter_id)
+// currentUserId: use the authenticated user's id if available, otherwise 0 as a placeholder
+const currentUserId = computed(() => authStore.user?.id ?? 0)
 
 const sprintName = computed(() =>
   props.sprints?.find(s => Number(s.id) === props.issue.sprint_id)?.name ?? null
@@ -209,6 +224,7 @@ async function saveField(field: 'title' | 'description', value: string) {
 async function onFieldChange(field: string, value: string | number | null) {
   try {
     await issuesStore.update(props.projectKey, props.issue.id, { [field]: value } as never)
+    await commentsStore.fetchActivity(props.issue.id)
   }
   catch {
     showError('Failed to update issue')
@@ -226,4 +242,9 @@ async function deleteIssue() {
     deleting.value = false
   }
 }
+
+onMounted(() => Promise.all([
+  commentsStore.fetchActivity(props.issue.id),
+  commentsStore.fetchComments(props.issue.id),
+]))
 </script>
