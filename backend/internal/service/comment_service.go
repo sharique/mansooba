@@ -3,10 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"regexp"
 
 	"github.com/sharique/jira-go/internal/domain"
 	"github.com/sharique/jira-go/internal/dto"
 )
+
+var mentionRe = regexp.MustCompile(`@([\w.]+)`)
 
 // CommentService manages comments on issues.
 type CommentService interface {
@@ -21,6 +24,8 @@ type commentService struct {
 	issueRepo   domain.IssueRepository
 	memberRepo  domain.ProjectMemberRepository
 	activitySvc ActivityService
+	notifRepo   domain.NotificationRepository
+	userRepo    domain.UserRepository
 }
 
 func NewCommentService(
@@ -28,12 +33,16 @@ func NewCommentService(
 	issueRepo domain.IssueRepository,
 	memberRepo domain.ProjectMemberRepository,
 	activitySvc ActivityService,
+	notifRepo domain.NotificationRepository,
+	userRepo domain.UserRepository,
 ) CommentService {
 	return &commentService{
 		commentRepo: commentRepo,
 		issueRepo:   issueRepo,
 		memberRepo:  memberRepo,
 		activitySvc: activitySvc,
+		notifRepo:   notifRepo,
+		userRepo:    userRepo,
 	}
 }
 
@@ -60,6 +69,8 @@ func (s *commentService) Create(ctx context.Context, issueID, callerID uint, req
 		ActorID: callerID,
 		Kind:    domain.ActivityCommentAdded,
 	})
+
+	s.sendMentionNotifications(ctx, comment)
 
 	return toCommentResponse(comment), nil
 }
@@ -131,6 +142,28 @@ func (s *commentService) requireMemberOfProject(ctx context.Context, projectID, 
 		return err
 	}
 	return nil
+}
+
+func (s *commentService) sendMentionNotifications(ctx context.Context, comment *domain.Comment) {
+	matches := mentionRe.FindAllStringSubmatch(comment.Body, -1)
+	seen := make(map[uint]bool)
+	for _, m := range matches {
+		handle := m[1]
+		user, err := s.userRepo.FindByEmailPrefix(ctx, handle)
+		if err != nil {
+			continue
+		}
+		if seen[user.ID] {
+			continue
+		}
+		seen[user.ID] = true
+		_ = s.notifRepo.Create(ctx, &domain.Notification{
+			RecipientID: user.ID,
+			ActorID:     comment.AuthorID,
+			IssueID:     comment.IssueID,
+			CommentID:   comment.ID,
+		})
+	}
 }
 
 func toCommentResponse(c *domain.Comment) *dto.CommentResponse {

@@ -19,5 +19,6 @@ func Migrate(db *gorm.DB) error {
 		&domain.ActivityEvent{},
 		&domain.Label{},
 		&domain.IssueLabel{},
+		&domain.Notification{},
 	)
 }
