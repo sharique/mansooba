@@ -1,7 +1,7 @@
 <template>
   <div class="relative">
     <div class="flex flex-wrap gap-1 items-center">
-      <LabelBadge
+      <IssuesLabelBadge
         v-for="l in attachedLabels"
         :key="l.id"
         :label="l"

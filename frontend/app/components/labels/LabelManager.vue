@@ -23,7 +23,7 @@
     </div>
     <div class="space-y-2">
       <div v-for="label in store.projectLabels" :key="label.id" class="flex items-center justify-between">
-        <LabelBadge :label="label" />
+        <IssuesLabelBadge :label="label" />
         <button class="btn btn-xs btn-ghost text-error" @click="remove(label.id)">Delete</button>
       </div>
       <p v-if="store.projectLabels.length === 0" class="text-base-content/40 text-sm">No labels yet.</p>
