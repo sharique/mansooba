@@ -6,6 +6,7 @@
       </div>
       <div class="navbar-end">
         <span class="mr-4 text-sm">{{ authStore.user?.name }}</span>
+        <LayoutNotificationBell class="mr-2" />
         <button class="btn btn-ghost btn-sm" @click="logout">Logout</button>
       </div>
     </div>
@@ -24,10 +25,12 @@
 
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth.store'
+import { useNotificationsStore } from '~/stores/notifications.store'
 
 const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+const notifStore = useNotificationsStore()
 
 const currentProjectKey = computed(() => {
   const key = route.params.key
@@ -38,4 +41,10 @@ async function logout() {
   authStore.clearAuth()
   await router.push('/login')
 }
+
+onMounted(() => {
+  notifStore.fetchUnread()
+  const interval = setInterval(() => notifStore.fetchUnread(), 30_000)
+  onUnmounted(() => clearInterval(interval))
+})
 </script>

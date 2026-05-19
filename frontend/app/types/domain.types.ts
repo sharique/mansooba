@@ -111,6 +111,20 @@ export interface BurndownData {
   data: BurndownPoint[]
 }
 
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+export interface Notification {
+  id: number
+  recipient_id: number
+  actor_id: number
+  issue_id: number
+  issue_key: string
+  project_key: string
+  comment_id: number
+  read: boolean
+  created_at: string
+}
+
 // ── Comments ──────────────────────────────────────────────────────────────────
 
 export interface Comment {
