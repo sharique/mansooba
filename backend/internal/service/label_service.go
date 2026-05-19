@@ -13,6 +13,7 @@ import (
 type LabelService interface {
 	Create(ctx context.Context, projectKey string, callerID uint, req dto.CreateLabelRequest) (*dto.LabelResponse, error)
 	ListByProject(ctx context.Context, projectKey string, callerID uint) ([]*dto.LabelResponse, error)
+	ListByIssue(ctx context.Context, issueID, callerID uint) ([]*dto.LabelResponse, error)
 	Delete(ctx context.Context, projectKey string, labelID, callerID uint) error
 	AttachToIssue(ctx context.Context, issueID, labelID, callerID uint) error
 	DetachFromIssue(ctx context.Context, issueID, labelID, callerID uint) error
@@ -69,6 +70,25 @@ func (s *labelService) ListByProject(ctx context.Context, projectKey string, cal
 		return nil, err
 	}
 	labels, err := s.labelRepo.FindByProjectID(ctx, project.ID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*dto.LabelResponse, 0, len(labels))
+	for _, l := range labels {
+		result = append(result, toLabelResponse(l))
+	}
+	return result, nil
+}
+
+func (s *labelService) ListByIssue(ctx context.Context, issueID, callerID uint) ([]*dto.LabelResponse, error) {
+	issue, err := s.issueRepo.FindByID(ctx, issueID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.requireMember(ctx, issue.ProjectID, callerID); err != nil {
+		return nil, err
+	}
+	labels, err := s.labelRepo.FindByIssueID(ctx, issueID)
 	if err != nil {
 		return nil, err
 	}

@@ -43,6 +43,16 @@ describe('useLabelsStore', () => {
     expect(store.projectLabels).toHaveLength(0)
   })
 
+  it('fetchIssueLabels hydrates issueLabels from API', async () => {
+    vi.mocked(labelsService.labelsService.listForIssue).mockResolvedValue([
+      { id: 3, project_id: 1, name: 'urgent', color: '#e11d48', created_at: '' },
+    ])
+    const store = useLabelsStore()
+    await store.fetchIssueLabels(5)
+    expect(store.issueLabels[5]).toHaveLength(1)
+    expect(store.issueLabels[5]?.[0]?.name).toBe('urgent')
+  })
+
   it('issueLabels tracks labels attached to an issue', async () => {
     vi.mocked(labelsService.labelsService.attach).mockResolvedValue(undefined)
     const store = useLabelsStore()

@@ -25,6 +25,14 @@ export const useLabelsStore = defineStore('labels', () => {
     projectLabels.value = projectLabels.value.filter(l => l.id !== labelId)
   }
 
+  async function fetchIssueLabels(issueId: number) {
+    try {
+      issueLabels.value[issueId] = await labelsService.listForIssue(issueId)
+    } catch (e: any) {
+      error.value = e.data?.message ?? e.message
+    }
+  }
+
   async function attachLabel(issueId: number, label: Label) {
     await labelsService.attach(issueId, label.id)
     if (!issueLabels.value[issueId]) issueLabels.value[issueId] = []
@@ -40,5 +48,5 @@ export const useLabelsStore = defineStore('labels', () => {
     }
   }
 
-  return { projectLabels, issueLabels, error, fetchProjectLabels, createLabel, deleteLabel, attachLabel, detachLabel }
+  return { projectLabels, issueLabels, error, fetchProjectLabels, fetchIssueLabels, createLabel, deleteLabel, attachLabel, detachLabel }
 })

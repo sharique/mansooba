@@ -16,6 +16,11 @@ export const labelsService = {
     return $api(`/projects/${projectKey}/labels/${labelId}`, { method: 'DELETE' })
   },
 
+  listForIssue(issueId: number): Promise<Label[]> {
+    const { $api } = useNuxtApp()
+    return $api<Label[]>(`/issues/${issueId}/labels`)
+  },
+
   attach(issueId: number, labelId: number): Promise<void> {
     const { $api } = useNuxtApp()
     return $api(`/issues/${issueId}/labels/${labelId}`, { method: 'POST' })

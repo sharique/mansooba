@@ -151,6 +151,7 @@ func main() {
 	issueItems.PUT("/comments/:cid", commentHandler.Update)
 	issueItems.DELETE("/comments/:cid", commentHandler.Delete)
 	issueItems.GET("/activity", activityHandler.ListByIssue)
+	issueItems.GET("/labels", labelHandler.ListByIssue)
 	issueItems.POST("/labels/:lid", labelHandler.Attach)
 	issueItems.DELETE("/labels/:lid", labelHandler.Detach)
 

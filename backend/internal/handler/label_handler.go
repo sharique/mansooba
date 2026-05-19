@@ -88,6 +88,30 @@ func (h *LabelHandler) Delete(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+// ListByIssue godoc
+// @Summary      List labels attached to an issue
+// @Tags         labels
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Issue ID"
+// @Success      200 {array} dto.LabelResponse
+// @Failure      401 {object} apierror.APIError
+// @Failure      403 {object} apierror.APIError
+// @Failure      404 {object} apierror.APIError
+// @Router       /issues/{id}/labels [get]
+func (h *LabelHandler) ListByIssue(c echo.Context) error {
+	callerID := c.Get("userID").(uint)
+	issueID, err := parseUintParam(c, "id")
+	if err != nil {
+		return echo.ErrBadRequest
+	}
+	labels, err := h.svc.ListByIssue(c.Request().Context(), issueID, callerID)
+	if err != nil {
+		return mapLabelError(err)
+	}
+	return c.JSON(http.StatusOK, labels)
+}
+
 // Attach godoc
 // @Summary      Attach a label to an issue
 // @Tags         labels

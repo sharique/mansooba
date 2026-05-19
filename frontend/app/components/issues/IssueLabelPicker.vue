@@ -34,7 +34,10 @@ import type { Label } from '~/types/domain.types'
 const props = defineProps<{ issueId: number; projectKey: string }>()
 const store = useLabelsStore()
 
-onMounted(() => store.fetchProjectLabels(props.projectKey))
+onMounted(() => Promise.all([
+  store.fetchProjectLabels(props.projectKey),
+  store.fetchIssueLabels(props.issueId),
+]))
 
 const attachedLabels = computed(() => store.issueLabels[props.issueId] ?? [])
 const attachedIds = computed(() => new Set(attachedLabels.value.map(l => l.id)))
