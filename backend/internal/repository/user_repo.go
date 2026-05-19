@@ -50,3 +50,18 @@ func (r *userRepo) FindByEmail(ctx context.Context, email string) (*domain.User,
 	}
 	return &user, nil
 }
+
+// FindByEmailPrefix retrieves a user whose email starts with the given local part (before '@').
+// Returns domain.ErrNotFound when no row matches.
+func (r *userRepo) FindByEmailPrefix(ctx context.Context, prefix string) (*domain.User, error) {
+	var u domain.User
+	if err := r.db.WithContext(ctx).
+		Where("email LIKE ?", prefix+"@%").
+		First(&u).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, err
+	}
+	return &u, nil
+}

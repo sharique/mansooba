@@ -8,7 +8,22 @@ import (
 	"github.com/sharique/jira-go/internal/domain"
 	"github.com/sharique/jira-go/internal/dto"
 	"github.com/sharique/jira-go/internal/service"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+type stubActivitySvc struct {
+	recorded []*domain.ActivityEvent
+}
+
+func (s *stubActivitySvc) Record(_ context.Context, e *domain.ActivityEvent) error {
+	s.recorded = append(s.recorded, e)
+	return nil
+}
+
+func (s *stubActivitySvc) ListByIssue(_ context.Context, _ uint) ([]*domain.ActivityEvent, error) {
+	return nil, nil
+}
 
 // stubIssueRepo is a full in-memory IssueRepository for issue service tests.
 // stubIssueRepoForProject (no-op) is defined in project_service_test.go.
@@ -96,7 +111,9 @@ func newIssueService() (service.IssueService, *stubProjectRepo, *stubProjectMemb
 	projectRepo := newStubProjectRepo()
 	memberRepo := newStubProjectMemberRepo()
 	issueRepo := newStubIssueRepo()
-	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo)
+	activitySvc := &stubActivitySvc{}
+	userRepo := newStubUserRepo()
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo)
 	return svc, projectRepo, memberRepo, issueRepo
 }
 
@@ -278,6 +295,78 @@ func TestIssueService_Update_PreservesCompletedAtWhenAlreadyDone(t *testing.T) {
 	if stored.CompletedAt == nil || !stored.CompletedAt.Equal(*originalCompletedAt) {
 		t.Error("expected CompletedAt to be unchanged when issue was already done")
 	}
+}
+
+func TestIssueService_Update_RecordsStatusChangeActivity(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	activitySvc := &stubActivitySvc{}
+	userRepo := newStubUserRepo()
+
+	projectRepo.projects["PROJ"] = &domain.Project{ID: 1, Key: "PROJ"}
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 1, UserID: 1, Role: "member"})
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{
+		ID: 1, ProjectID: 1, Key: "PROJ-1",
+		Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityMedium,
+		ReporterID: 1,
+	})
+
+	newStatus := domain.IssueStatusInProgress
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo)
+	_, err := svc.Update(context.Background(), "PROJ", 1, 1, dto.UpdateIssueRequest{Status: &newStatus})
+	require.NoError(t, err)
+
+	require.Len(t, activitySvc.recorded, 1)
+	assert.Equal(t, domain.ActivityStatusChanged, activitySvc.recorded[0].Kind)
+	assert.Equal(t, domain.IssueStatusTodo, activitySvc.recorded[0].OldValue)
+	assert.Equal(t, domain.IssueStatusInProgress, activitySvc.recorded[0].NewValue)
+}
+
+func TestIssueService_Update_RecordsPriorityChangeActivity(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	activitySvc := &stubActivitySvc{}
+	userRepo := newStubUserRepo()
+
+	projectRepo.projects["PROJ"] = &domain.Project{ID: 1, Key: "PROJ"}
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 1, UserID: 1, Role: "member"})
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{
+		ID: 1, ProjectID: 1, Key: "PROJ-1",
+		Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityMedium,
+		ReporterID: 1,
+	})
+
+	newPriority := domain.IssuePriorityHigh
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo)
+	_, err := svc.Update(context.Background(), "PROJ", 1, 1, dto.UpdateIssueRequest{Priority: &newPriority})
+	require.NoError(t, err)
+
+	require.Len(t, activitySvc.recorded, 1)
+	assert.Equal(t, domain.ActivityPriorityChanged, activitySvc.recorded[0].Kind)
+}
+
+func TestIssueService_Update_NoActivityWhenNothingChanges(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	activitySvc := &stubActivitySvc{}
+	userRepo := newStubUserRepo()
+
+	projectRepo.projects["PROJ"] = &domain.Project{ID: 1, Key: "PROJ"}
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 1, UserID: 1, Role: "member"})
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{
+		ID: 1, ProjectID: 1, Key: "PROJ-1",
+		Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityMedium,
+		ReporterID: 1,
+	})
+
+	sameStatus := domain.IssueStatusTodo
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo)
+	_, err := svc.Update(context.Background(), "PROJ", 1, 1, dto.UpdateIssueRequest{Status: &sameStatus})
+	require.NoError(t, err)
+	assert.Empty(t, activitySvc.recorded)
 }
 
 func TestIssueService_ListByProject_FiltersApplied(t *testing.T) {
