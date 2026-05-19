@@ -67,10 +67,10 @@ func main() {
 	// Services
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo)
-	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo)
+	activitySvc := service.NewActivityService(activityRepo)
+	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo)
 	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo)
 	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
-	activitySvc := service.NewActivityService(activityRepo)
 	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc)
 
 	// Handlers

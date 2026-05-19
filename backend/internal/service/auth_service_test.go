@@ -49,6 +49,10 @@ func (s *stubUserRepo) FindByEmail(_ context.Context, email string) (*domain.Use
 	return u, nil
 }
 
+func (s *stubUserRepo) FindByEmailPrefix(_ context.Context, _ string) (*domain.User, error) {
+	return nil, domain.ErrNotFound
+}
+
 const testSecret = "test-secret-key-that-is-long-enough"
 
 func newTestService(repo domain.UserRepository) service.AuthService {

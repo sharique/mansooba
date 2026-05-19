@@ -23,6 +23,8 @@ type issueService struct {
 	issueRepo   domain.IssueRepository
 	projectRepo domain.ProjectRepository
 	memberRepo  domain.ProjectMemberRepository
+	activitySvc ActivityService
+	userRepo    domain.UserRepository
 }
 
 // NewIssueService returns an IssueService backed by the given repositories.
@@ -30,11 +32,15 @@ func NewIssueService(
 	issueRepo domain.IssueRepository,
 	projectRepo domain.ProjectRepository,
 	memberRepo domain.ProjectMemberRepository,
+	activitySvc ActivityService,
+	userRepo domain.UserRepository,
 ) IssueService {
 	return &issueService{
 		issueRepo:   issueRepo,
 		projectRepo: projectRepo,
 		memberRepo:  memberRepo,
+		activitySvc: activitySvc,
+		userRepo:    userRepo,
 	}
 }
 
@@ -178,6 +184,13 @@ func (s *issueService) Update(ctx context.Context, projectKey string, id uint, c
 		return nil, fmt.Errorf("invalid status: %s", *req.Status)
 	}
 
+	// Capture old values before patching so we can record what changed.
+	oldStatus := issue.Status
+	oldPriority := issue.Priority
+	oldAssigneeID := issue.AssigneeID
+	oldSprintID := issue.SprintID
+	oldPoints := issue.StoryPoints
+
 	if req.Title != nil {
 		issue.Title = *req.Title
 	}
@@ -216,6 +229,9 @@ func (s *issueService) Update(ctx context.Context, projectKey string, id uint, c
 	if err := s.issueRepo.Update(ctx, issue); err != nil {
 		return nil, err
 	}
+
+	s.recordFieldChanges(ctx, issue.ID, callerID, oldStatus, oldPriority, oldAssigneeID, oldSprintID, oldPoints, issue)
+
 	return toIssueResponse(issue), nil
 }
 
@@ -248,6 +264,99 @@ func (s *issueService) Delete(ctx context.Context, projectKey string, id uint, c
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+func (s *issueService) recordFieldChanges(
+	ctx context.Context,
+	issueID, actorID uint,
+	oldStatus, oldPriority string,
+	oldAssigneeID, oldSprintID *uint,
+	oldPoints *int,
+	issue *domain.Issue,
+) {
+	if issue.Status != oldStatus {
+		_ = s.activitySvc.Record(ctx, &domain.ActivityEvent{
+			IssueID: issueID, ActorID: actorID,
+			Kind: domain.ActivityStatusChanged, OldValue: oldStatus, NewValue: issue.Status,
+		})
+	}
+	if issue.Priority != oldPriority {
+		_ = s.activitySvc.Record(ctx, &domain.ActivityEvent{
+			IssueID: issueID, ActorID: actorID,
+			Kind: domain.ActivityPriorityChanged, OldValue: oldPriority, NewValue: issue.Priority,
+		})
+	}
+	if ptrUintChanged(oldAssigneeID, issue.AssigneeID) {
+		_ = s.activitySvc.Record(ctx, &domain.ActivityEvent{
+			IssueID: issueID, ActorID: actorID,
+			Kind:     domain.ActivityAssigneeChanged,
+			OldValue: s.resolveUserName(ctx, oldAssigneeID),
+			NewValue: s.resolveUserName(ctx, issue.AssigneeID),
+		})
+	}
+	if ptrUintChanged(oldSprintID, issue.SprintID) {
+		_ = s.activitySvc.Record(ctx, &domain.ActivityEvent{
+			IssueID: issueID, ActorID: actorID,
+			Kind:     domain.ActivitySprintChanged,
+			OldValue: sprintLabel(oldSprintID),
+			NewValue: sprintLabel(issue.SprintID),
+		})
+	}
+	if ptrIntChanged(oldPoints, issue.StoryPoints) {
+		_ = s.activitySvc.Record(ctx, &domain.ActivityEvent{
+			IssueID: issueID, ActorID: actorID,
+			Kind:     domain.ActivityStoryPointsChanged,
+			OldValue: pointsLabel(oldPoints),
+			NewValue: pointsLabel(issue.StoryPoints),
+		})
+	}
+}
+
+func (s *issueService) resolveUserName(ctx context.Context, userID *uint) string {
+	if userID == nil {
+		return "unassigned"
+	}
+	u, err := s.userRepo.FindByID(ctx, *userID)
+	if err != nil {
+		return "unknown"
+	}
+	return u.Name
+}
+
+func ptrUintChanged(a, b *uint) bool {
+	if a == nil && b == nil {
+		return false
+	}
+	if a == nil || b == nil {
+		return true
+	}
+	return *a != *b
+}
+
+func ptrIntChanged(a, b *int) bool {
+	if a == nil && b == nil {
+		return false
+	}
+	if a == nil || b == nil {
+		return true
+	}
+	return *a != *b
+}
+
+// sprintLabel returns the sprint ID as a label string.
+// TODO(task-34): replace with sprint name lookup once SprintRepository is wired in.
+func sprintLabel(id *uint) string {
+	if id == nil {
+		return "backlog"
+	}
+	return fmt.Sprintf("sprint %d", *id)
+}
+
+func pointsLabel(pts *int) string {
+	if pts == nil {
+		return "none"
+	}
+	return fmt.Sprintf("%d", *pts)
+}
 
 func (s *issueService) requireMember(ctx context.Context, projectID, userID uint) error {
 	if _, err := s.memberRepo.FindByProjectAndUser(ctx, projectID, userID); err != nil {
