@@ -36,7 +36,8 @@ func (h *NotificationHandler) List(c echo.Context) error {
 	for _, n := range notifications {
 		result = append(result, &dto.NotificationResponse{
 			ID: n.ID, RecipientID: n.RecipientID, ActorID: n.ActorID,
-			IssueID: n.IssueID, CommentID: n.CommentID, Read: n.Read, CreatedAt: n.CreatedAt,
+			IssueID: n.IssueID, IssueKey: n.IssueKey, ProjectKey: n.ProjectKey,
+			CommentID: n.CommentID, Read: n.Read, CreatedAt: n.CreatedAt,
 		})
 	}
 	return c.JSON(http.StatusOK, result)

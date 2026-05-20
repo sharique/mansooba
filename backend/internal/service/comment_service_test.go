@@ -198,11 +198,11 @@ func (r *stubNotificationRepo) Create(_ context.Context, n *domain.Notification)
 	return nil
 }
 
-func (r *stubNotificationRepo) FindUnreadByRecipientID(_ context.Context, recipientID uint) ([]*domain.Notification, error) {
-	var out []*domain.Notification
+func (r *stubNotificationRepo) FindUnreadByRecipientID(_ context.Context, recipientID uint) ([]*domain.NotificationDetail, error) {
+	var out []*domain.NotificationDetail
 	for _, n := range r.notifications {
 		if n.RecipientID == recipientID {
-			out = append(out, n)
+			out = append(out, &domain.NotificationDetail{Notification: *n})
 		}
 	}
 	return out, nil
