@@ -64,7 +64,7 @@ func (s *stubActivitySvcHandler) ListByIssue(ctx context.Context, issueID uint) 
 		{ID: 1, IssueID: issueID, Kind: domain.ActivityStatusChanged, OldValue: "todo", NewValue: "in_progress"},
 	}, nil
 }
-func (s *stubActivitySvcHandler) GetMyActivity(ctx context.Context, actorID uint, limit, offset int) ([]*dto.ActivityEventResponse, error) {
+func (s *stubActivitySvcHandler) GetMyActivity(_ context.Context, _ uint, _, _ int) ([]*dto.ActivityEventResponse, error) {
 	return nil, nil
 }
 

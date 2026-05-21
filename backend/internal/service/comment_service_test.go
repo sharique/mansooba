@@ -271,6 +271,10 @@ func (r *stubUserRepoMention) FindByEmailPrefix(_ context.Context, prefix string
 	return nil, domain.ErrNotFound
 }
 
+func (r *stubUserRepoMention) Update(_ context.Context, u *domain.User) error {
+	return nil
+}
+
 func newCommentTestEnvWithNotifications() (service.CommentService, *stubCommentRepo, *stubActivityService, *stubNotificationRepo) {
 	issueRepo := newStubIssueRepo()
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10})

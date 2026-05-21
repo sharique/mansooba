@@ -67,6 +67,7 @@ func main() {
 
 	// Services
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
+	userSvc := service.NewUserService(userRepo)
 	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo)
 	activitySvc := service.NewActivityService(activityRepo, userRepo, issueRepo)
 	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo)
@@ -77,6 +78,7 @@ func main() {
 
 	// Handlers
 	authHandler := handler.NewAuthHandler(authSvc)
+	userHandler := handler.NewUserHandler(userSvc, activitySvc)
 	projectHandler := handler.NewProjectHandler(projectSvc)
 	issueHandler := handler.NewIssueHandler(issueSvc)
 	boardHandler := handler.NewBoardHandler(boardSvc)
@@ -110,6 +112,12 @@ func main() {
 
 	// Protected routes
 	api := e.Group("/api/v1", apimw.JWTAuth(cfg.JWTSecret))
+
+	authMe := api.Group("/auth")
+	authMe.GET("/me", userHandler.GetProfile)
+	authMe.PUT("/me", userHandler.UpdateProfile)
+	authMe.GET("/me/activity", userHandler.GetMyActivity)
+
 	projects := api.Group("/projects")
 	projects.GET("", projectHandler.List)
 	projects.POST("", projectHandler.Create)

@@ -7,11 +7,14 @@ import (
 
 // User represents an authenticated account in the system.
 // Password stores a bcrypt hash — never the plaintext value.
+// AvatarURL and Timezone are optional profile fields.
 type User struct {
 	ID        uint      `gorm:"primaryKey"`
 	Name      string    `gorm:"not null"`
 	Email     string    `gorm:"uniqueIndex;not null"`
 	Password  string    `gorm:"not null"`
+	AvatarURL string    // optional; full URL or empty
+	Timezone  string    // IANA timezone name (e.g. "America/New_York"); empty = UTC
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -28,4 +31,6 @@ type UserRepository interface {
 	// FindByEmailPrefix returns the user whose email starts with the given local part
 	// (everything before '@'). Returns ErrNotFound when no match exists.
 	FindByEmailPrefix(ctx context.Context, prefix string) (*User, error)
+	// Update persists all writable fields of an existing user (name, avatar_url, timezone).
+	Update(ctx context.Context, user *User) error
 }
