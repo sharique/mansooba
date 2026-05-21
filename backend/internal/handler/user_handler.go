@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sharique/jira-go/internal/dto"
@@ -56,7 +56,7 @@ func (h *UserHandler) UpdateProfile(c echo.Context) error {
 	}
 	resp, err := h.userSvc.UpdateProfile(c.Request().Context(), callerID, req)
 	if err != nil {
-		return err
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 	return c.JSON(http.StatusOK, resp)
 }
@@ -76,14 +76,21 @@ func (h *UserHandler) GetMyActivity(c echo.Context) error {
 	limit := 20
 	offset := 0
 	if v := c.QueryParam("limit"); v != "" {
-		if _, err := fmt.Sscanf(v, "%d", &limit); err != nil {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
 			return echo.ErrBadRequest
 		}
+		limit = n
 	}
 	if v := c.QueryParam("offset"); v != "" {
-		if _, err := fmt.Sscanf(v, "%d", &offset); err != nil {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
 			return echo.ErrBadRequest
 		}
+		offset = n
+	}
+	if limit > 100 {
+		limit = 100
 	}
 	events, err := h.activitySvc.GetMyActivity(c.Request().Context(), callerID, limit, offset)
 	if err != nil {
