@@ -26,9 +26,12 @@ type UpdateIssueRequest struct {
 }
 
 type IssueListQuery struct {
+	Q          string `query:"q"`
 	Type       string `query:"type"`
 	Status     string `query:"status"`
+	Priority   string `query:"priority"`
 	AssigneeID uint   `query:"assignee_id"`
+	LabelID    uint   `query:"label_id"`
 	Page       int    `query:"page"`
 	Limit      int    `query:"limit"`
 }

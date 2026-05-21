@@ -85,6 +85,18 @@ func (r *issueRepo) FindBySprint(ctx context.Context, sprintID uint) ([]*domain.
 	return issues, nil
 }
 
+// FindIssueIDsByLabelID returns all issue IDs that have the given label attached.
+func (r *issueRepo) FindIssueIDsByLabelID(ctx context.Context, labelID uint) ([]uint, error) {
+	var ids []uint
+	if err := r.db.WithContext(ctx).
+		Table("issue_labels").
+		Where("label_id = ?", labelID).
+		Pluck("issue_id", &ids).Error; err != nil {
+		return nil, err
+	}
+	return ids, nil
+}
+
 // CountBySprint returns the issue count and total story points for a sprint in one aggregate query.
 func (r *issueRepo) CountBySprint(ctx context.Context, sprintID uint) (int, int, error) {
 	type result struct {

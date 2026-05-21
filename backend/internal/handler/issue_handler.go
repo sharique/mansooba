@@ -26,9 +26,12 @@ func NewIssueHandler(svc service.IssueService) *IssueHandler {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        key         path  string false "Project key"
+// @Param        q           query string false "Full-text search on title and description"
 // @Param        type        query string false "Filter by type (task|story|bug|epic)"
 // @Param        status      query string false "Filter by status (backlog|todo|in_progress|in_review|done)"
+// @Param        priority    query string false "Filter by priority (low|medium|high|critical)"
 // @Param        assignee_id query int    false "Filter by assignee user ID"
+// @Param        label_id    query int    false "Filter by label ID"
 // @Param        page        query int    false "Page number"
 // @Param        limit       query int    false "Page size"
 // @Success      200 {array}  dto.IssueResponse
