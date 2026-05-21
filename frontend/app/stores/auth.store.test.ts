@@ -1,6 +1,19 @@
 import { setActivePinia, createPinia } from 'pinia'
-import { beforeEach, describe, expect, test } from 'vitest'
+import { beforeEach, describe, expect, test, it, vi } from 'vitest'
 import { useAuthStore } from './auth.store'
+import { authService } from '~/services/auth.service'
+import type { UserProfileResponse } from '~/types/domain.types'
+
+vi.mock('~/services/auth.service', () => ({
+  authService: {
+    login: vi.fn(),
+    register: vi.fn(),
+    logout: vi.fn(),
+    getMe: vi.fn(),
+    updateMe: vi.fn(),
+    getMyActivity: vi.fn(),
+  },
+}))
 
 describe('auth store', () => {
   beforeEach(() => {
@@ -29,5 +42,30 @@ describe('auth store', () => {
     expect(store.isAuthenticated).toBe(false)
     expect(store.user).toBeNull()
     expect(store.accessToken).toBeNull()
+  })
+
+  it('fetchMe sets profile state', async () => {
+    const mockProfile: UserProfileResponse = {
+      id: 1, name: 'Alice', email: 'alice@example.com',
+      avatar_url: '', timezone: 'UTC', created_at: '',
+    }
+    vi.mocked(authService.getMe).mockResolvedValue(mockProfile)
+
+    const store = useAuthStore()
+    await store.fetchMe()
+    expect(store.profile?.name).toBe('Alice')
+  })
+
+  it('updateProfile updates profile state', async () => {
+    const updated: UserProfileResponse = {
+      id: 1, name: 'Alice B', email: 'alice@example.com',
+      avatar_url: '', timezone: 'America/New_York', created_at: '',
+    }
+    vi.mocked(authService.updateMe).mockResolvedValue(updated)
+
+    const store = useAuthStore()
+    await store.updateProfile({ full_name: 'Alice B', timezone: 'America/New_York' })
+    expect(store.profile?.name).toBe('Alice B')
+    expect(store.profile?.timezone).toBe('America/New_York')
   })
 })
