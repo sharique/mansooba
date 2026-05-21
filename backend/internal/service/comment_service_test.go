@@ -78,7 +78,11 @@ func (s *stubActivityService) Record(_ context.Context, e *domain.ActivityEvent)
 	return nil
 }
 
-func (s *stubActivityService) ListByIssue(_ context.Context, issueID uint) ([]*domain.ActivityEvent, error) {
+func (s *stubActivityService) ListByIssue(_ context.Context, _ uint) ([]*dto.ActivityEventResponse, error) {
+	return nil, nil
+}
+
+func (s *stubActivityService) GetMyActivity(_ context.Context, _ uint, _, _ int) ([]*dto.ActivityEventResponse, error) {
 	return nil, nil
 }
 
@@ -179,6 +183,28 @@ func TestCommentService_List_ReturnsByIssue(t *testing.T) {
 	list, err := svc.List(context.Background(), 1, 42)
 	require.NoError(t, err)
 	assert.Len(t, list, 2)
+}
+
+func TestCommentService_List_IncludesAuthorName(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10})
+
+	memberRepo := newStubProjectMemberRepo()
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"})
+
+	commentRepo := newStubCommentRepo()
+	activitySvc := &stubActivityService{}
+
+	userRepo := newStubUserRepo()
+	_ = userRepo.Create(context.Background(), &domain.User{ID: 42, Name: "Alice", Email: "alice@example.com", Password: "x"})
+
+	svc2 := service.NewCommentService(commentRepo, issueRepo, memberRepo, activitySvc, newStubNotificationRepo(), userRepo)
+	_, _ = svc2.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "hello"})
+
+	list, err := svc2.List(context.Background(), 1, 42)
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	assert.Equal(t, "Alice", list[0].AuthorName)
 }
 
 // ── stubNotificationRepo ──────────────────────────────────────────────────────

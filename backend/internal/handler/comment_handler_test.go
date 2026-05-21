@@ -59,10 +59,13 @@ type stubActivitySvcHandler struct{}
 func (s *stubActivitySvcHandler) Record(ctx context.Context, e *domain.ActivityEvent) error {
 	return nil
 }
-func (s *stubActivitySvcHandler) ListByIssue(ctx context.Context, issueID uint) ([]*domain.ActivityEvent, error) {
-	return []*domain.ActivityEvent{
+func (s *stubActivitySvcHandler) ListByIssue(ctx context.Context, issueID uint) ([]*dto.ActivityEventResponse, error) {
+	return []*dto.ActivityEventResponse{
 		{ID: 1, IssueID: issueID, Kind: domain.ActivityStatusChanged, OldValue: "todo", NewValue: "in_progress"},
 	}, nil
+}
+func (s *stubActivitySvcHandler) GetMyActivity(ctx context.Context, actorID uint, limit, offset int) ([]*dto.ActivityEventResponse, error) {
+	return nil, nil
 }
 
 var _ service.ActivityService = (*stubActivitySvcHandler)(nil)

@@ -33,4 +33,7 @@ const (
 type ActivityRepository interface {
 	Create(ctx context.Context, event *ActivityEvent) error
 	FindByIssueID(ctx context.Context, issueID uint) ([]*ActivityEvent, error)
+	// FindByActorID returns events where the actor is actorID, ordered by created_at DESC,
+	// with pagination. Used by the "my activity" endpoint.
+	FindByActorID(ctx context.Context, actorID uint, limit, offset int) ([]*ActivityEvent, error)
 }

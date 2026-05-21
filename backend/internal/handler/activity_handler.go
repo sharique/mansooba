@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/sharique/jira-go/internal/dto"
 	"github.com/sharique/jira-go/internal/service"
 )
 
@@ -36,17 +35,5 @@ func (h *ActivityHandler) ListByIssue(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	result := make([]*dto.ActivityEventResponse, 0, len(events))
-	for _, e := range events {
-		result = append(result, &dto.ActivityEventResponse{
-			ID:        e.ID,
-			IssueID:   e.IssueID,
-			ActorID:   e.ActorID,
-			Kind:      e.Kind,
-			OldValue:  e.OldValue,
-			NewValue:  e.NewValue,
-			CreatedAt: e.CreatedAt,
-		})
-	}
-	return c.JSON(http.StatusOK, result)
+	return c.JSON(http.StatusOK, events)
 }
