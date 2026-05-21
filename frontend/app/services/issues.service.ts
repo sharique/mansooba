@@ -1,4 +1,4 @@
-import type { Issue } from '~/types/domain.types'
+import type { Issue, IssueFilters } from '~/types/domain.types'
 
 export interface CreateIssueRequest {
   title: string
@@ -45,5 +45,18 @@ export const issuesService = {
   remove(key: string, id: number): Promise<void> {
     const { $api } = useNuxtApp()
     return $api(`/projects/${key}/issues/${id}`, { method: 'DELETE' })
+  },
+
+  search(projectKey: string, filters: IssueFilters): Promise<Issue[]> {
+    const { $api } = useNuxtApp()
+    const params = new URLSearchParams()
+    if (filters.q)           params.set('q', filters.q)
+    if (filters.type)        params.set('type', filters.type)
+    if (filters.status)      params.set('status', filters.status)
+    if (filters.priority)    params.set('priority', filters.priority)
+    if (filters.assignee_id) params.set('assignee_id', String(filters.assignee_id))
+    if (filters.label_id)    params.set('label_id', String(filters.label_id))
+    const qs = params.toString()
+    return $api<Issue[]>(`/projects/${projectKey}/issues${qs ? '?' + qs : ''}`)
   },
 }

@@ -195,3 +195,14 @@ export interface UpdateProfilePatch {
   avatar_url?: string
   timezone?: string
 }
+
+// ── Search / Filters ──────────────────────────────────────────────────────────
+
+export interface IssueFilters {
+  q?: string
+  type?: string
+  status?: string
+  priority?: string
+  assignee_id?: number
+  label_id?: number
+}

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { issuesService } from '~/services/issues.service'
-import type { Issue } from '~/types/domain.types'
+import type { Issue, IssueFilters } from '~/types/domain.types'
 import type { CreateIssueRequest, IssueListQuery } from '~/services/issues.service'
 
 export const useIssuesStore = defineStore('issues', {
@@ -30,6 +30,9 @@ export const useIssuesStore = defineStore('issues', {
     async remove(key: string, id: number) {
       await issuesService.remove(key, id)
       this.issues = this.issues.filter(i => i.id !== id)
+    },
+    async searchIssues(projectKey: string, filters: IssueFilters) {
+      this.issues = await issuesService.search(projectKey, filters)
     },
   },
 })

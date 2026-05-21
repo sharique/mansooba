@@ -28,6 +28,7 @@
         <h2 class="text-lg font-semibold">Backlog</h2>
         <span class="badge badge-neutral">{{ issues.length }}</span>
       </div>
+      <IssuesIssueSearchBar @search="onSearch" />
       <BacklogList
         :issues="issues"
         :project-key="key"
@@ -44,7 +45,7 @@
 import { backlogService } from '~/services/backlog.service'
 import { projectsService } from '~/services/projects.service'
 import { issuesService } from '~/services/issues.service'
-import type { Issue, MemberResponse } from '~/types/domain.types'
+import type { Issue, IssueFilters, MemberResponse } from '~/types/domain.types'
 
 const route = useRoute()
 const key = route.params.key as string
@@ -53,11 +54,13 @@ const { showSuccess, showError } = useToast()
 const authStore = useAuthStore()
 const projectsStore = useProjectsStore()
 const sprintsStore = useSprintsStore()
+const issuesStore = useIssuesStore()
 
 const issues = ref<Issue[]>([])
 const members = ref<MemberResponse[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+const searchActive = ref(false)
 
 const myRole = computed(() =>
   members.value.find(m => m.user_id === authStore.user?.id)?.role
@@ -89,6 +92,22 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+async function onSearch(filters: IssueFilters) {
+  const isEmpty = !filters.q && !filters.type && !filters.status && !filters.priority
+  if (isEmpty) {
+    searchActive.value = false
+    try {
+      issues.value = await backlogService.getBacklog(key)
+    } catch {
+      showError('Failed to refresh backlog')
+    }
+    return
+  }
+  searchActive.value = true
+  await issuesStore.searchIssues(key, filters)
+  issues.value = issuesStore.issues
+}
 
 async function onRemovedFromSprint({ issueId }: { issueId: number; sprintId: string }) {
   try {

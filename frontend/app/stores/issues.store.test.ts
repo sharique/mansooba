@@ -7,6 +7,7 @@ const mockGet = vi.fn()
 const mockCreate = vi.fn()
 const mockUpdate = vi.fn()
 const mockRemove = vi.fn()
+const mockSearch = vi.fn()
 
 vi.mock('~/services/issues.service', () => ({
   issuesService: {
@@ -15,6 +16,7 @@ vi.mock('~/services/issues.service', () => ({
     create: (key: string, data: unknown) => mockCreate(key, data),
     update: (key: string, id: number, data: unknown) => mockUpdate(key, id, data),
     remove: (key: string, id: number) => mockRemove(key, id),
+    search: (key: string, filters: unknown) => mockSearch(key, filters),
   },
 }))
 
@@ -33,6 +35,7 @@ describe('issues store', () => {
     mockCreate.mockReset()
     mockUpdate.mockReset()
     mockRemove.mockReset()
+    mockSearch.mockReset()
   })
 
   test('create appends issue to list', async () => {
@@ -60,5 +63,17 @@ describe('issues store', () => {
     store.issues = [issue]
     await store.remove('PROJ', 1)
     expect(store.issues).toHaveLength(0)
+  })
+
+  test('searchIssues calls service with filters and updates issues', async () => {
+    vi.mocked(mockSearch).mockResolvedValue([
+      { id: 1, key: 'P-1', title: 'Bug', project_id: 1, type: 'bug',
+        status: 'todo', priority: 'high', reporter_id: 1, description: '',
+        created_at: '' },
+    ])
+    const store = useIssuesStore()
+    await store.searchIssues('PROJ', { q: 'bug' })
+    expect(store.issues).toHaveLength(1)
+    expect(store.issues[0]!.key).toBe('P-1')
   })
 })
