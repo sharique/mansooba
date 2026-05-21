@@ -32,8 +32,9 @@ func (s *stubActivitySvc) GetMyActivity(_ context.Context, _ uint, _, _ int) ([]
 // stubIssueRepo is a full in-memory IssueRepository for issue service tests.
 // stubIssueRepoForProject (no-op) is defined in project_service_test.go.
 type stubIssueRepo struct {
-	issues []*domain.Issue
-	nextID uint
+	issues            []*domain.Issue
+	nextID            uint
+	labelIDToIssueIDs map[uint][]uint
 }
 
 func newStubIssueRepo() *stubIssueRepo {
@@ -107,6 +108,13 @@ func (r *stubIssueRepo) FindBySprint(_ context.Context, sprintID uint) ([]*domai
 
 func (r *stubIssueRepo) CountBySprint(_ context.Context, sprintID uint) (int, int, error) {
 	return 0, 0, nil
+}
+
+func (r *stubIssueRepo) FindIssueIDsByLabelID(_ context.Context, labelID uint) ([]uint, error) {
+	if r.labelIDToIssueIDs != nil {
+		return r.labelIDToIssueIDs[labelID], nil
+	}
+	return nil, nil
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -421,4 +429,72 @@ func TestIssueService_ListByProject_FiltersApplied(t *testing.T) {
 			t.Errorf("expected type task, got %s", r.Type)
 		}
 	}
+}
+
+func TestIssueService_ListByProject_SearchByText(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	userRepo := newStubUserRepo()
+
+	proj := &domain.Project{ID: 10, Key: "SRCH"}
+	projectRepo.projects["SRCH"] = proj
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 1, Role: "member"})
+	issueRepo.issues = append(issueRepo.issues,
+		&domain.Issue{ID: 1, ProjectID: 10, Key: "SRCH-1", Title: "Login bug", Description: "auth fails"},
+		&domain.Issue{ID: 2, ProjectID: 10, Key: "SRCH-2", Title: "Signup flow", Description: "registration"},
+	)
+
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, &stubActivitySvc{}, userRepo)
+
+	result, err := svc.ListByProject(context.Background(), "SRCH", 1, dto.IssueListQuery{Q: "login"})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "SRCH-1", result[0].Key)
+}
+
+func TestIssueService_ListByProject_FilterByPriority(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	userRepo := newStubUserRepo()
+
+	proj := &domain.Project{ID: 11, Key: "PRI"}
+	projectRepo.projects["PRI"] = proj
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 11, UserID: 1, Role: "member"})
+	issueRepo.issues = append(issueRepo.issues,
+		&domain.Issue{ID: 3, ProjectID: 11, Key: "PRI-1", Title: "A", Priority: domain.IssuePriorityHigh},
+		&domain.Issue{ID: 4, ProjectID: 11, Key: "PRI-2", Title: "B", Priority: domain.IssuePriorityLow},
+	)
+
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, &stubActivitySvc{}, userRepo)
+
+	result, err := svc.ListByProject(context.Background(), "PRI", 1, dto.IssueListQuery{Priority: "high"})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "PRI-1", result[0].Key)
+}
+
+func TestIssueService_ListByProject_FilterByLabelID(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	userRepo := newStubUserRepo()
+
+	proj := &domain.Project{ID: 12, Key: "LBL"}
+	projectRepo.projects["LBL"] = proj
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 12, UserID: 1, Role: "member"})
+	issueRepo.issues = append(issueRepo.issues,
+		&domain.Issue{ID: 5, ProjectID: 12, Key: "LBL-1", Title: "Has label"},
+		&domain.Issue{ID: 6, ProjectID: 12, Key: "LBL-2", Title: "No label"},
+	)
+	// Stub FindIssueIDsByLabelID to return only issue 5 for label 7.
+	issueRepo.labelIDToIssueIDs = map[uint][]uint{7: {5}}
+
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, &stubActivitySvc{}, userRepo)
+
+	result, err := svc.ListByProject(context.Background(), "LBL", 1, dto.IssueListQuery{LabelID: 7})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "LBL-1", result[0].Key)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/sharique/jira-go/internal/domain"
@@ -102,6 +103,21 @@ func (s *issueService) ListByProject(ctx context.Context, projectKey string, cal
 
 	// Filter in-memory — acceptable for MVP scale.
 	var filtered []*domain.Issue
+
+	// Resolve label filter IDs once (avoid repeated repo calls).
+	labelIssueSet := make(map[uint]bool)
+	if q.LabelID != 0 {
+		ids, err := s.issueRepo.FindIssueIDsByLabelID(ctx, q.LabelID)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range ids {
+			labelIssueSet[id] = true
+		}
+	}
+
+	searchQ := strings.ToLower(q.Q)
+
 	for _, i := range all {
 		if q.Type != "" && i.Type != q.Type {
 			continue
@@ -109,8 +125,21 @@ func (s *issueService) ListByProject(ctx context.Context, projectKey string, cal
 		if q.Status != "" && i.Status != q.Status {
 			continue
 		}
+		if q.Priority != "" && i.Priority != q.Priority {
+			continue
+		}
 		if q.AssigneeID != 0 && (i.AssigneeID == nil || *i.AssigneeID != q.AssigneeID) {
 			continue
+		}
+		if q.LabelID != 0 && !labelIssueSet[i.ID] {
+			continue
+		}
+		if searchQ != "" {
+			titleMatch := strings.Contains(strings.ToLower(i.Title), searchQ)
+			descMatch := strings.Contains(strings.ToLower(i.Description), searchQ)
+			if !titleMatch && !descMatch {
+				continue
+			}
 		}
 		filtered = append(filtered, i)
 	}

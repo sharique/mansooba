@@ -77,4 +77,6 @@ type IssueRepository interface {
 	// CountBySprint returns the total number of issues and the sum of story points
 	// for a given sprint. Issues without story points contribute 0 to the sum.
 	CountBySprint(ctx context.Context, sprintID uint) (int, int, error)
+	// FindIssueIDsByLabelID returns all issue IDs that have the given label attached.
+	FindIssueIDsByLabelID(ctx context.Context, labelID uint) ([]uint, error)
 }
