@@ -89,7 +89,7 @@ func (s *commentService) List(ctx context.Context, issueID, callerID uint) ([]*d
 		return nil, err
 	}
 
-	// Collect unique author IDs to batch-resolve names.
+	// Collect unique author IDs to reduce repeated lookups (one call per unique ID).
 	idSet := make(map[uint]string)
 	for _, c := range comments {
 		idSet[c.AuthorID] = ""

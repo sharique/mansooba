@@ -113,4 +113,7 @@ func TestActivityService_GetMyActivity_ReturnsOnlyCallerEvents(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, my, 1)
 	assert.Equal(t, uint(5), my[0].ActorID)
+	assert.Equal(t, "Carol", my[0].ActorName)
+	assert.Equal(t, "P-1", my[0].IssueKey)
+	assert.Equal(t, "T", my[0].IssueTitle)
 }

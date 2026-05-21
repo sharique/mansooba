@@ -55,7 +55,7 @@ func (s *activityServiceImpl) GetMyActivity(ctx context.Context, actorID uint, l
 
 // enrich resolves actor names and issue key/title for a slice of activity events.
 func (s *activityServiceImpl) enrich(ctx context.Context, events []*domain.ActivityEvent) []*dto.ActivityEventResponse {
-	// Batch-resolve unique actor IDs → names.
+	// Resolve unique actor IDs → names (one repo call per distinct actor).
 	actorNames := make(map[uint]string)
 	issueKeys := make(map[uint]string)
 	issueTitles := make(map[uint]string)
@@ -69,6 +69,7 @@ func (s *activityServiceImpl) enrich(ctx context.Context, events []*domain.Activ
 			actorNames[id] = u.Name
 		}
 	}
+	// Resolve unique issue IDs → keys and titles (one repo call per distinct issue).
 	for id := range issueKeys {
 		if issue, err := s.issueRepo.FindByID(ctx, id); err == nil {
 			issueKeys[id] = issue.Key
