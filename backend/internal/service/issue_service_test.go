@@ -29,6 +29,10 @@ func (s *stubActivitySvc) GetMyActivity(_ context.Context, _ uint, _, _ int) ([]
 	return nil, nil
 }
 
+func (s *stubActivitySvc) GetMyActivity(_ context.Context, _ uint, _, _ int) ([]*dto.ActivityEventResponse, error) {
+	return nil, nil
+}
+
 // stubIssueRepo is a full in-memory IssueRepository for issue service tests.
 // stubIssueRepoForProject (no-op) is defined in project_service_test.go.
 type stubIssueRepo struct {

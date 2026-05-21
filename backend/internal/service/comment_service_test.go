@@ -86,6 +86,10 @@ func (s *stubActivityService) GetMyActivity(_ context.Context, _ uint, _, _ int)
 	return nil, nil
 }
 
+func (s *stubActivityService) GetMyActivity(_ context.Context, _ uint, _, _ int) ([]*dto.ActivityEventResponse, error) {
+	return nil, nil
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 func newCommentTestEnv() (service.CommentService, *stubCommentRepo, *stubActivityService) {
@@ -269,6 +273,10 @@ func (r *stubUserRepoMention) FindByEmailPrefix(_ context.Context, prefix string
 		}
 	}
 	return nil, domain.ErrNotFound
+}
+
+func (r *stubUserRepoMention) Update(_ context.Context, u *domain.User) error {
+	return nil
 }
 
 func newCommentTestEnvWithNotifications() (service.CommentService, *stubCommentRepo, *stubActivityService, *stubNotificationRepo) {

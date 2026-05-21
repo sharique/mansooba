@@ -68,6 +68,10 @@ func (s *stubActivitySvcHandler) GetMyActivity(ctx context.Context, actorID uint
 	return nil, nil
 }
 
+func (s *stubActivitySvcHandler) GetMyActivity(_ context.Context, _ uint, _, _ int) ([]*dto.ActivityEventResponse, error) {
+	return nil, nil
+}
+
 var _ service.ActivityService = (*stubActivitySvcHandler)(nil)
 
 // ── helpers ───────────────────────────────────────────────────────────────────

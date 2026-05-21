@@ -65,3 +65,8 @@ func (r *userRepo) FindByEmailPrefix(ctx context.Context, prefix string) (*domai
 	}
 	return &u, nil
 }
+
+// Update persists name, avatar_url, and timezone for an existing user.
+func (r *userRepo) Update(ctx context.Context, user *domain.User) error {
+	return r.db.WithContext(ctx).Save(user).Error
+}
