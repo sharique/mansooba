@@ -3,7 +3,7 @@
     <div v-for="item in timeline" :key="item.key" class="flex gap-2 items-start py-1 text-sm">
       <span class="text-base-content/40 w-20 shrink-0 text-xs mt-0.5">{{ formatDate(item.created_at) }}</span>
       <span v-if="item.type === 'activity'" class="text-base-content/70">{{ describeEvent(item as ActivityEvent) }}</span>
-      <span v-else class="text-base-content/70">User {{ (item as Comment).author_id }} added a comment</span>
+      <span v-else class="text-base-content/70">{{ (item as Comment).author_name || 'Unknown' }} added a comment</span>
     </div>
     <p v-if="timeline.length === 0" class="text-base-content/40 text-sm">No activity yet.</p>
   </div>
@@ -26,15 +26,17 @@ const timeline = computed<(TimelineItem & (ActivityEvent | Comment))[]>(() => {
 function formatDate(iso: string) { return new Date(iso).toLocaleDateString() }
 
 function describeEvent(e: ActivityEvent): string {
+  const actor = e.actor_name || `User ${e.actor_id}`
+  const issue = e.issue_key ? `[${e.issue_key}] ` : ''
   switch (e.kind) {
-    case ActivityKind.StatusChanged:      return `Status changed from "${e.old_value}" to "${e.new_value}"`
-    case ActivityKind.AssigneeChanged:    return `Assignee changed from "${e.old_value}" to "${e.new_value}"`
-    case ActivityKind.PriorityChanged:    return `Priority changed from "${e.old_value}" to "${e.new_value}"`
-    case ActivityKind.SprintChanged:      return `Sprint changed from "${e.old_value}" to "${e.new_value}"`
-    case ActivityKind.StoryPointsChanged: return `Story points changed from ${e.old_value} to ${e.new_value}`
-    case ActivityKind.LabelAdded:         return `Label "${e.new_value}" added`
-    case ActivityKind.LabelRemoved:       return `Label "${e.old_value}" removed`
-    default:                              return `Updated`
+    case ActivityKind.StatusChanged:      return `${issue}${actor} changed status from "${e.old_value}" to "${e.new_value}"`
+    case ActivityKind.AssigneeChanged:    return `${issue}${actor} changed assignee`
+    case ActivityKind.PriorityChanged:    return `${issue}${actor} changed priority from "${e.old_value}" to "${e.new_value}"`
+    case ActivityKind.SprintChanged:      return `${issue}${actor} changed sprint`
+    case ActivityKind.StoryPointsChanged: return `${issue}${actor} changed story points from ${e.old_value} to ${e.new_value}`
+    case ActivityKind.LabelAdded:         return `${issue}${actor} added label "${e.new_value}"`
+    case ActivityKind.LabelRemoved:       return `${issue}${actor} removed label "${e.old_value}"`
+    default:                              return `${issue}${actor} updated issue`
   }
 }
 </script>

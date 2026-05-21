@@ -13,7 +13,7 @@ describe('useCommentsStore', () => {
 
   it('fetchComments populates comments list', async () => {
     vi.mocked(commentsService.commentsService.list).mockResolvedValue([
-      { id: 1, issue_id: 5, author_id: 1, body: 'hello', created_at: '', updated_at: '' },
+      { id: 1, issue_id: 5, author_id: 1, author_name: 'Alice', body: 'hello', created_at: '', updated_at: '' },
     ])
     const store = useCommentsStore()
     await store.fetchComments(5)
@@ -23,7 +23,7 @@ describe('useCommentsStore', () => {
 
   it('addComment appends to list', async () => {
     vi.mocked(commentsService.commentsService.create).mockResolvedValue(
-      { id: 2, issue_id: 5, author_id: 1, body: 'new', created_at: '', updated_at: '' }
+      { id: 2, issue_id: 5, author_id: 1, author_name: 'Alice', body: 'new', created_at: '', updated_at: '' }
     )
     const store = useCommentsStore()
     await store.addComment(5, 'new')
@@ -32,7 +32,7 @@ describe('useCommentsStore', () => {
 
   it('deleteComment removes from list', async () => {
     vi.mocked(commentsService.commentsService.list).mockResolvedValue([
-      { id: 1, issue_id: 5, author_id: 1, body: 'bye', created_at: '', updated_at: '' },
+      { id: 1, issue_id: 5, author_id: 1, author_name: 'Alice', body: 'bye', created_at: '', updated_at: '' },
     ])
     vi.mocked(commentsService.commentsService.delete).mockResolvedValue(undefined)
     const store = useCommentsStore()

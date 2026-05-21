@@ -131,6 +131,7 @@ export interface Comment {
   id: number
   issue_id: number
   author_id: number
+  author_name: string
   body: string
   created_at: string
   updated_at: string
@@ -142,6 +143,9 @@ export interface ActivityEvent {
   id: number
   issue_id: number
   actor_id: number
+  actor_name: string
+  issue_key: string
+  issue_title: string
   kind: string
   old_value?: string
   new_value?: string

@@ -7,7 +7,7 @@
     </div>
     <div class="flex-1 min-w-0">
       <div class="flex items-baseline gap-2 mb-1">
-        <span class="font-medium text-sm">User {{ comment.author_id }}</span>
+        <span class="font-medium text-sm">{{ comment.author_name }}</span>
         <span class="text-xs text-base-content/50">{{ relativeTime }}</span>
       </div>
       <div v-if="editing">
@@ -37,7 +37,11 @@ const editBody = ref(props.comment.body)
 
 const isOwn = computed(() => props.comment.author_id === props.currentUserId)
 const rendered = computed(() => useMarkdown(props.comment.body))
-const initials = computed(() => String(props.comment.author_id).slice(0, 2))
+const initials = computed(() =>
+  props.comment.author_name
+    ? props.comment.author_name.slice(0, 2).toUpperCase()
+    : String(props.comment.author_id)
+)
 const relativeTime = computed(() => new Date(props.comment.created_at).toLocaleDateString())
 
 function startEdit() {

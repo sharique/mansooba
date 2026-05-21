@@ -127,7 +127,12 @@ const statusBadge: Record<string, string> = {
                     class="flex items-center gap-2 py-2 text-sm"
                 >
                     <span class="badge badge-xs badge-outline">{{ issue.key }}</span>
-                    <span class="flex-1 truncate">{{ issue.title }}</span>
+                    <NuxtLink
+                        :to="`/projects/${projectKey}/issues/${issue.id}`"
+                        class="flex-1 truncate hover:text-primary hover:underline"
+                    >
+                        {{ issue.title }}
+                    </NuxtLink>
                     <span class="text-base-content/50 text-xs shrink-0">{{ issue.story_points ?? '?' }} pts</span>
                     <button
                         v-if="canManage"
