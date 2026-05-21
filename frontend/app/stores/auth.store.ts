@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { User, UserProfileResponse, ActivityEvent } from '~/types/domain.types'
+import type { User, UserProfileResponse, ActivityEvent, UpdateProfilePatch } from '~/types/domain.types'
 import { authService } from '~/services/auth.service'
 
 export const useAuthStore = defineStore('auth', {
@@ -26,7 +26,7 @@ export const useAuthStore = defineStore('auth', {
     async fetchMe() {
       this.profile = await authService.getMe()
     },
-    async updateProfile(patch: { full_name?: string; avatar_url?: string; timezone?: string }) {
+    async updateProfile(patch: UpdateProfilePatch) {
       this.profile = await authService.updateMe(patch)
     },
     async fetchMyActivity(limit = 20, offset = 0) {

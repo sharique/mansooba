@@ -42,6 +42,8 @@ describe('auth store', () => {
     expect(store.isAuthenticated).toBe(false)
     expect(store.user).toBeNull()
     expect(store.accessToken).toBeNull()
+    expect(store.profile).toBeNull()
+    expect(store.myActivity).toHaveLength(0)
   })
 
   it('fetchMe sets profile state', async () => {

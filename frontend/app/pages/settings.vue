@@ -87,12 +87,15 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from '~/stores/auth.store'
+
 const authStore = useAuthStore()
 const { showSuccess, showError } = useToast()
 
 const activeTab = ref<'profile' | 'activity'>('profile')
 const saving = ref(false)
 const loadingActivity = ref(false)
+const activityLoaded = ref(false)
 
 const form = reactive({
   fullName: authStore.profile?.name ?? authStore.user?.name ?? '',
@@ -115,12 +118,13 @@ onMounted(async () => {
 })
 
 watch(activeTab, async (tab) => {
-  if (tab === 'activity' && authStore.myActivity.length === 0) {
+  if (tab === 'activity' && !activityLoaded.value) {
     loadingActivity.value = true
     try {
       await authStore.fetchMyActivity()
     } finally {
       loadingActivity.value = false
+      activityLoaded.value = true
     }
   }
 })
