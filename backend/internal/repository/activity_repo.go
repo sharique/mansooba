@@ -27,3 +27,16 @@ func (r *activityRepo) FindByIssueID(ctx context.Context, issueID uint) ([]*doma
 	}
 	return events, nil
 }
+
+func (r *activityRepo) FindByActorID(ctx context.Context, actorID uint, limit, offset int) ([]*domain.ActivityEvent, error) {
+	var events []*domain.ActivityEvent
+	if err := r.db.WithContext(ctx).
+		Where("actor_id = ?", actorID).
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&events).Error; err != nil {
+		return nil, err
+	}
+	return events, nil
+}
