@@ -1,5 +1,6 @@
 import { useAuthStore } from '~/stores/auth.store'
 import type { AuthResponse } from '~/types/auth.types'
+import type { UserProfileResponse, UpdateProfilePatch, ActivityEvent } from '~/types/domain.types'
 
 export const authService = {
   async login(email: string, password: string): Promise<AuthResponse> {
@@ -25,5 +26,23 @@ export const authService = {
   logout(): void {
     useAuthStore().clearAuth()
     navigateTo('/login')
+  },
+
+  async getMe(): Promise<UserProfileResponse> {
+    const { $api } = useNuxtApp()
+    return $api<UserProfileResponse>('/auth/me')
+  },
+
+  async updateMe(patch: UpdateProfilePatch): Promise<UserProfileResponse> {
+    const { $api } = useNuxtApp()
+    return $api<UserProfileResponse>('/auth/me', {
+      method: 'PUT',
+      body: patch,
+    })
+  },
+
+  async getMyActivity(limit = 20, offset = 0): Promise<ActivityEvent[]> {
+    const { $api } = useNuxtApp()
+    return $api<ActivityEvent[]>(`/auth/me/activity?limit=${limit}&offset=${offset}`)
   },
 }

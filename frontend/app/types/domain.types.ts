@@ -178,3 +178,20 @@ export const LabelPalette = [
   '#06b6d4', '#3b82f6', '#8b5cf6', '#ec4899',
   '#6b7280', '#78716c', '#0f172a', '#ffffff',
 ] as const
+
+// ── User Profile ──────────────────────────────────────────────────────────────
+
+export interface UserProfileResponse {
+  id: number
+  name: string
+  email: string
+  avatar_url: string
+  timezone: string
+  created_at: string
+}
+
+export interface UpdateProfilePatch {
+  full_name?: string
+  avatar_url?: string
+  timezone?: string
+}
