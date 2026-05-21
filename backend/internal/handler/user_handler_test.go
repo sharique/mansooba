@@ -48,7 +48,7 @@ type stubActivityServiceForUser struct{}
 func (s *stubActivityServiceForUser) Record(_ context.Context, _ *domain.ActivityEvent) error {
 	return nil
 }
-func (s *stubActivityServiceForUser) ListByIssue(_ context.Context, _ uint) ([]*domain.ActivityEvent, error) {
+func (s *stubActivityServiceForUser) ListByIssue(_ context.Context, _ uint) ([]*dto.ActivityEventResponse, error) {
 	return nil, nil
 }
 func (s *stubActivityServiceForUser) GetMyActivity(_ context.Context, _ uint, _, _ int) ([]*dto.ActivityEventResponse, error) {

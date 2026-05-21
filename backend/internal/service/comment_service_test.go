@@ -86,10 +86,6 @@ func (s *stubActivityService) GetMyActivity(_ context.Context, _ uint, _, _ int)
 	return nil, nil
 }
 
-func (s *stubActivityService) GetMyActivity(_ context.Context, _ uint, _, _ int) ([]*dto.ActivityEventResponse, error) {
-	return nil, nil
-}
-
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 func newCommentTestEnv() (service.CommentService, *stubCommentRepo, *stubActivityService) {
