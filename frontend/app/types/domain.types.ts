@@ -131,7 +131,7 @@ export interface Comment {
   id: number
   issue_id: number
   author_id: number
-  author_name: string
+  author_name: string | null
   body: string
   created_at: string
   updated_at: string

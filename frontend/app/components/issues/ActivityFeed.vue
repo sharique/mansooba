@@ -18,7 +18,9 @@ const props = defineProps<{ comments: Comment[]; activity: ActivityEvent[] }>()
 interface TimelineItem { key: string; type: 'activity' | 'comment'; created_at: string }
 
 const timeline = computed<(TimelineItem & (ActivityEvent | Comment))[]>(() => {
-  const acts = props.activity.map(a => ({ ...a, key: `a-${a.id}`, type: 'activity' as const }))
+  const acts = props.activity
+    .filter(a => a.kind !== ActivityKind.CommentAdded)
+    .map(a => ({ ...a, key: `a-${a.id}`, type: 'activity' as const }))
   const coms = props.comments.map(c => ({ ...c, key: `c-${c.id}`, type: 'comment' as const }))
   return [...acts, ...coms].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 })
