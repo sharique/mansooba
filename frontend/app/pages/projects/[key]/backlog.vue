@@ -132,7 +132,13 @@ async function onSearch(filters: IssueFilters) {
     return
   }
   searchActive.value = true
-  await issuesStore.searchIssues(key, filters)
+  loading.value = true
+  try {
+    await issuesStore.searchIssues(key, filters)
+  }
+  finally {
+    loading.value = false
+  }
 }
 
 async function onRemovedFromSprint({ issueId }: { issueId: number; sprintId: string }) {

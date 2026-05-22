@@ -33,7 +33,8 @@ export const useIssuesStore = defineStore('issues', {
       this.issues = this.issues.filter(i => i.id !== id)
     },
     async searchIssues(projectKey: string, filters: IssueFilters) {
-      const hasFilters = Object.values(filters).some(v => v !== undefined && v !== '' && v !== 0)
+      const hasFilters = !!(filters.q || filters.type || filters.status || filters.priority
+        || filters.assignee_id || filters.label_id)
       if (!hasFilters) {
         this.searchResults = []
         return
