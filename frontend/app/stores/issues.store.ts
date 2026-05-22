@@ -7,6 +7,7 @@ export const useIssuesStore = defineStore('issues', {
   state: () => ({
     issues: [] as Issue[],
     current: null as Issue | null,
+    searchResults: [] as Issue[],
   }),
   actions: {
     async fetchForProject(key: string, filters?: IssueListQuery) {
@@ -32,7 +33,12 @@ export const useIssuesStore = defineStore('issues', {
       this.issues = this.issues.filter(i => i.id !== id)
     },
     async searchIssues(projectKey: string, filters: IssueFilters) {
-      this.issues = await issuesService.search(projectKey, filters)
+      const hasFilters = Object.values(filters).some(v => v !== undefined && v !== '' && v !== 0)
+      if (!hasFilters) {
+        this.searchResults = []
+        return
+      }
+      this.searchResults = await issuesService.search(projectKey, filters)
     },
   },
 })

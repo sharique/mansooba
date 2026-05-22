@@ -22,6 +22,7 @@ vi.stubGlobal('useRoute', () => ({ params: { key: 'TEST' } }))
 vi.stubGlobal('useAuthStore', () => ({ user: { id: 1 } }))
 vi.stubGlobal('useProjectsStore', () => ({ current: null, fetchOne: mockFetchOne }))
 vi.stubGlobal('useSprintsStore', () => ({ sprints: [], fetchSprints: mockFetchSprints }))
+vi.stubGlobal('useIssuesStore', () => ({ searchResults: [], searchIssues: vi.fn().mockResolvedValue(undefined) }))
 vi.stubGlobal('useToast', () => ({ showSuccess: vi.fn(), showError: vi.fn() }))
 
 describe('backlog page', () => {

@@ -65,7 +65,7 @@ describe('issues store', () => {
     expect(store.issues).toHaveLength(0)
   })
 
-  test('searchIssues calls service with filters and updates issues', async () => {
+  test('searchIssues calls service with filters and updates searchResults', async () => {
     vi.mocked(mockSearch).mockResolvedValue([
       { id: 1, key: 'P-1', title: 'Bug', project_id: 1, type: 'bug',
         status: 'todo', priority: 'high', reporter_id: 1, description: '',
@@ -73,7 +73,17 @@ describe('issues store', () => {
     ])
     const store = useIssuesStore()
     await store.searchIssues('PROJ', { q: 'bug' })
-    expect(store.issues).toHaveLength(1)
-    expect(store.issues[0]!.key).toBe('P-1')
+    expect(store.searchResults).toHaveLength(1)
+    expect(store.searchResults[0]!.key).toBe('P-1')
+    // issues list must not be overwritten
+    expect(store.issues).toHaveLength(0)
+  })
+
+  test('searchIssues with empty filters clears searchResults without calling service', async () => {
+    const store = useIssuesStore()
+    store.searchResults = [issue]
+    await store.searchIssues('PROJ', {})
+    expect(store.searchResults).toHaveLength(0)
+    expect(mockSearch).not.toHaveBeenCalled()
   })
 })
