@@ -17,16 +17,17 @@ import (
 )
 
 type stubSprintService struct {
-	listFn     func(ctx context.Context, projectKey string, callerID uint) ([]*dto.SprintResponse, error)
-	createFn   func(ctx context.Context, projectKey string, callerID uint, req dto.CreateSprintRequest) (*dto.SprintResponse, error)
-	getFn      func(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.SprintResponse, error)
-	updateFn   func(ctx context.Context, projectKey string, id uint, callerID uint, req dto.UpdateSprintRequest) (*dto.SprintResponse, error)
-	deleteFn   func(ctx context.Context, projectKey string, id uint, callerID uint) error
-	startFn    func(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.SprintResponse, error)
-	completeFn func(ctx context.Context, projectKey string, id uint, callerID uint, req dto.CompleteSprintRequest) (*dto.SprintResponse, error)
+	listFn       func(ctx context.Context, projectKey string, callerID uint) ([]*dto.SprintResponse, error)
+	createFn     func(ctx context.Context, projectKey string, callerID uint, req dto.CreateSprintRequest) (*dto.SprintResponse, error)
+	getFn        func(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.SprintResponse, error)
+	updateFn     func(ctx context.Context, projectKey string, id uint, callerID uint, req dto.UpdateSprintRequest) (*dto.SprintResponse, error)
+	deleteFn     func(ctx context.Context, projectKey string, id uint, callerID uint) error
+	startFn      func(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.SprintResponse, error)
+	completeFn   func(ctx context.Context, projectKey string, id uint, callerID uint, req dto.CompleteSprintRequest) (*dto.SprintResponse, error)
 	backlogFn    func(ctx context.Context, projectKey string, callerID uint) ([]*domain.Issue, error)
 	getIssuesFn  func(ctx context.Context, projectKey string, id uint, callerID uint) ([]*domain.Issue, error)
 	burndownFn   func(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.BurndownResponse, error)
+	velocityFn   func(ctx context.Context, projectKey string, callerID uint) ([]dto.VelocityDataPoint, error)
 }
 
 func (s *stubSprintService) List(ctx context.Context, projectKey string, callerID uint) ([]*dto.SprintResponse, error) {
@@ -59,6 +60,9 @@ func (s *stubSprintService) GetIssues(ctx context.Context, projectKey string, id
 func (s *stubSprintService) Burndown(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.BurndownResponse, error) {
 	return s.burndownFn(ctx, projectKey, id, callerID)
 }
+func (s *stubSprintService) Velocity(ctx context.Context, projectKey string, callerID uint) ([]dto.VelocityDataPoint, error) {
+	return s.velocityFn(ctx, projectKey, callerID)
+}
 
 var _ service.SprintService = (*stubSprintService)(nil)
 
@@ -81,6 +85,7 @@ func newSprintEcho(h *handler.SprintHandler) *echo.Echo {
 	sprints.GET("/:id/burndown", h.Burndown)
 	sprints.GET("/:id/issues", h.GetIssues)
 	api.GET("/projects/:key/backlog", h.Backlog)
+	api.GET("/projects/:key/velocity", h.Velocity)
 	return e
 }
 
@@ -215,5 +220,76 @@ func TestSprintHandler_Burndown_Returns400_WhenNotStarted(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestSprintHandler_Velocity_Returns200WithData(t *testing.T) {
+	svc := &stubSprintService{
+		velocityFn: func(_ context.Context, _ string, _ uint) ([]dto.VelocityDataPoint, error) {
+			return []dto.VelocityDataPoint{
+				{SprintID: 1, SprintName: "Sprint 1", Committed: 10, Completed: 7},
+				{SprintID: 2, SprintName: "Sprint 2", Committed: 8, Completed: 8},
+			}, nil
+		},
+	}
+	e := newSprintEcho(handler.NewSprintHandler(svc))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/TEST/velocity", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var resp []dto.VelocityDataPoint
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(resp) != 2 {
+		t.Errorf("expected 2 data points, got %d", len(resp))
+	}
+	if resp[0].SprintName != "Sprint 1" || resp[0].Committed != 10 || resp[0].Completed != 7 {
+		t.Errorf("unexpected first data point: %+v", resp[0])
+	}
+}
+
+func TestSprintHandler_Velocity_Returns404_WhenProjectNotFound(t *testing.T) {
+	svc := &stubSprintService{
+		velocityFn: func(_ context.Context, _ string, _ uint) ([]dto.VelocityDataPoint, error) {
+			return nil, domain.ErrNotFound
+		},
+	}
+	e := newSprintEcho(handler.NewSprintHandler(svc))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/NOPE/velocity", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestSprintHandler_Velocity_Returns200EmptyArray_WhenNoCompletedSprints(t *testing.T) {
+	svc := &stubSprintService{
+		velocityFn: func(_ context.Context, _ string, _ uint) ([]dto.VelocityDataPoint, error) {
+			return []dto.VelocityDataPoint{}, nil
+		},
+	}
+	e := newSprintEcho(handler.NewSprintHandler(svc))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/TEST/velocity", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var resp []dto.VelocityDataPoint
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(resp) != 0 {
+		t.Errorf("expected empty array, got %d items", len(resp))
 	}
 }

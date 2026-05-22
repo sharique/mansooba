@@ -111,6 +111,15 @@ export interface BurndownData {
   data: BurndownPoint[]
 }
 
+// ── Velocity ──────────────────────────────────────────────────────────────────
+
+export interface VelocityDataPoint {
+  sprint_id: number
+  sprint_name: string
+  committed: number
+  completed: number
+}
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 export interface Notification {

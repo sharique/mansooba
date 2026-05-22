@@ -310,6 +310,26 @@ func (h *SprintHandler) Burndown(c echo.Context) error {
 	return c.JSON(http.StatusOK, data)
 }
 
+// Velocity godoc
+// @Summary      Sprint velocity data
+// @Description  Returns committed vs. completed story points for every completed sprint in the project, ordered oldest-first.
+// @Tags         sprints
+// @Produce      json
+// @Param        key path string true "Project key"
+// @Success      200 {array} dto.VelocityDataPoint
+// @Failure      404 {object} apierror.APIError "Project not found"
+// @Failure      401 {object} apierror.APIError "Unauthorized"
+// @Router       /projects/{key}/velocity [get]
+// @Security     BearerAuth
+func (h *SprintHandler) Velocity(c echo.Context) error {
+	callerID := c.Get("userID").(uint)
+	data, err := h.svc.Velocity(c.Request().Context(), c.Param("key"), callerID)
+	if err != nil {
+		return mapSprintError(err)
+	}
+	return c.JSON(http.StatusOK, data)
+}
+
 func parseSprintID(c echo.Context) (uint, error) {
 	raw, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {

@@ -47,3 +47,12 @@ type BurndownResponse struct {
 	TotalPoints int             `json:"total_points"`
 	Data        []BurndownPoint `json:"data"`
 }
+
+// VelocityDataPoint represents the committed vs. completed story points for one
+// completed sprint. Used by the GET /projects/:key/velocity endpoint.
+type VelocityDataPoint struct {
+	SprintID   uint    `json:"sprint_id"`
+	SprintName string  `json:"sprint_name"`
+	Committed  float64 `json:"committed"`  // total story points across all sprint issues
+	Completed  float64 `json:"completed"`  // story points of Done issues
+}
