@@ -1,13 +1,11 @@
-# go-jira
+# Mansooba
 
-A project management application (similar to Jira) built in Go and Nuxt.js as a learning and portfolio project.
+A project management application built in Go and Nuxt.js as a learning and portfolio project.
 
 Built using a spec-driven approach where I worked as architect/manager and Claude worked as engineer.
 
 **Backend:** Go + Echo v4 · GORM · SQLite (local) / PostgreSQL (prod) · JWT auth  
 **Frontend:** Nuxt 4 (SPA) · Pinia · Tailwind CSS v4 · DaisyUI
-
-> Design spec, ADRs, and task plans live in the docs repo: [sharique/jira-go](https://github.com/sharique/jira-go)
 
 ---
 
