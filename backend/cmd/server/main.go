@@ -152,6 +152,7 @@ func main() {
 	sprints.GET("/:id/issues", sprintHandler.GetIssues)
 
 	api.GET("/projects/:key/backlog", sprintHandler.Backlog)
+	api.GET("/projects/:key/velocity", sprintHandler.Velocity)
 
 	issueItems := api.Group("/issues/:id")
 	issueItems.GET("/comments", commentHandler.List)

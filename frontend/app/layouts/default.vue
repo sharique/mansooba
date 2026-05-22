@@ -5,6 +5,7 @@
         <NuxtLink to="/projects" class="btn btn-ghost text-xl">jira-go</NuxtLink>
       </div>
       <div class="navbar-end">
+        <NuxtLink to="/reports" class="btn btn-ghost btn-sm mr-2">Reports</NuxtLink>
         <NuxtLink to="/settings" class="mr-4 text-sm hover:underline">{{ authStore.user?.name }}</NuxtLink>
         <LayoutNotificationBell class="mr-2" />
         <button class="btn btn-ghost btn-sm" @click="logout">Logout</button>

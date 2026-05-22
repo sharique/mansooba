@@ -20,6 +20,9 @@ type SprintService interface {
 	Backlog(ctx context.Context, projectKey string, callerID uint) ([]*domain.Issue, error)
 	GetIssues(ctx context.Context, projectKey string, id uint, callerID uint) ([]*domain.Issue, error)
 	Burndown(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.BurndownResponse, error)
+	// Velocity returns committed vs. completed story points for every completed
+	// sprint in the project, ordered by sprint creation date (oldest first).
+	Velocity(ctx context.Context, projectKey string, callerID uint) ([]dto.VelocityDataPoint, error)
 }
 
 type sprintService struct {
@@ -348,6 +351,56 @@ func (s *sprintService) GetIssues(ctx context.Context, projectKey string, id uin
 		return nil, err
 	}
 	return s.issueRepo.FindBySprint(ctx, sprint.ID)
+}
+
+// Velocity computes committed vs. completed story points for all completed
+// sprints in the project, ordered by creation date (oldest first).
+//
+// Committed = total story points of all issues assigned to the sprint.
+// Completed  = story points of issues whose status is "done".
+// Issues with nil story_points contribute 0 to both totals.
+func (s *sprintService) Velocity(ctx context.Context, projectKey string, callerID uint) ([]dto.VelocityDataPoint, error) {
+	p, err := s.resolveProject(ctx, projectKey)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.requireMember(ctx, p.ID, callerID); err != nil {
+		return nil, err
+	}
+
+	// Single query: fetch only completed sprints with their issues preloaded.
+	// This avoids the N+1 problem of fetching all sprints then re-querying each.
+	completedSprints, err := s.sprintRepo.FindCompletedWithIssuesByProject(ctx, p.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []dto.VelocityDataPoint
+	for _, sprint := range completedSprints {
+		var committed, completed float64
+		for _, issue := range sprint.Issues {
+			pts := 0
+			if issue.StoryPoints != nil {
+				pts = *issue.StoryPoints
+			}
+			committed += float64(pts)
+			if issue.Status == domain.IssueStatusDone {
+				completed += float64(pts)
+			}
+		}
+
+		result = append(result, dto.VelocityDataPoint{
+			SprintID:   sprint.ID,
+			SprintName: sprint.Name,
+			Committed:  committed,
+			Completed:  completed,
+		})
+	}
+
+	if result == nil {
+		result = []dto.VelocityDataPoint{}
+	}
+	return result, nil
 }
 
 func (s *sprintService) Burndown(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.BurndownResponse, error) {

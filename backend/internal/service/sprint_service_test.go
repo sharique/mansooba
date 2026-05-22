@@ -84,6 +84,16 @@ func (r *stubSprintRepo) FindWithIssues(ctx context.Context, id uint) (*domain.S
 	return r.FindByID(ctx, id)
 }
 
+func (r *stubSprintRepo) FindCompletedWithIssuesByProject(_ context.Context, projectID uint) ([]*domain.Sprint, error) {
+	var result []*domain.Sprint
+	for _, s := range r.sprints {
+		if s.ProjectID == projectID && s.Status == domain.SprintStatusCompleted {
+			result = append(result, s)
+		}
+	}
+	return result, nil
+}
+
 func (r *stubSprintRepo) CompleteWithMigration(ctx context.Context, sprint *domain.Sprint, unfinishedIDs []uint, nextSprintID *uint) error {
 	r.lastMigratedIDs = unfinishedIDs
 	r.lastNextSprintID = nextSprintID
@@ -506,5 +516,132 @@ func TestSprintService_Burndown_NoStartDate_ReturnsError(t *testing.T) {
 	_, err := svc.Burndown(ctx, "TEST", sprint.ID, 1)
 	if !errors.Is(err, domain.ErrSprintNotStarted) {
 		t.Errorf("expected ErrSprintNotStarted, got %v", err)
+	}
+}
+
+// ── Velocity tests ────────────────────────────────────────────────────────────
+
+func TestSprintService_Velocity_ReturnsOnlyCompletedSprints(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	points5 := 5
+	// Completed sprint with one Done and one not-Done issue.
+	completed := &domain.Sprint{
+		ProjectID: p.ID,
+		Status:    domain.SprintStatusCompleted,
+		Name:      "Sprint 1",
+		Issues: []domain.Issue{
+			{ID: 1, Status: domain.IssueStatusDone, StoryPoints: &points5},
+			{ID: 2, Status: domain.IssueStatusTodo, StoryPoints: &points5},
+		},
+	}
+	_ = sprintRepo.Create(ctx, completed)
+
+	// Active sprint — must be excluded from velocity.
+	active := &domain.Sprint{
+		ProjectID: p.ID,
+		Status:    domain.SprintStatusActive,
+		Name:      "Sprint 2",
+		Issues:    []domain.Issue{{ID: 3, Status: domain.IssueStatusTodo, StoryPoints: &points5}},
+	}
+	_ = sprintRepo.Create(ctx, active)
+
+	data, err := svc.Velocity(ctx, "TEST", 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(data) != 1 {
+		t.Fatalf("expected 1 velocity point (completed sprints only), got %d", len(data))
+	}
+	if data[0].SprintID != completed.ID {
+		t.Errorf("expected sprint ID %d, got %d", completed.ID, data[0].SprintID)
+	}
+	if data[0].SprintName != "Sprint 1" {
+		t.Errorf("expected sprint name 'Sprint 1', got %q", data[0].SprintName)
+	}
+	// Committed = sum of all issue story points = 5 + 5 = 10
+	if data[0].Committed != 10 {
+		t.Errorf("expected Committed=10, got %g", data[0].Committed)
+	}
+	// Completed = sum of Done issue story points = 5
+	if data[0].Completed != 5 {
+		t.Errorf("expected Completed=5, got %g", data[0].Completed)
+	}
+}
+
+func TestSprintService_Velocity_EmptyWhenNoCompletedSprints(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	active := &domain.Sprint{
+		ProjectID: p.ID,
+		Status:    domain.SprintStatusActive,
+		Name:      "Sprint 1",
+	}
+	_ = sprintRepo.Create(ctx, active)
+
+	data, err := svc.Velocity(ctx, "TEST", 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(data) != 0 {
+		t.Errorf("expected empty velocity data, got %d points", len(data))
+	}
+}
+
+func TestSprintService_Velocity_IssuesWithNilStoryPointsCountAsZero(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	points3 := 3
+	completed := &domain.Sprint{
+		ProjectID: p.ID,
+		Status:    domain.SprintStatusCompleted,
+		Name:      "Sprint 1",
+		Issues: []domain.Issue{
+			{ID: 1, Status: domain.IssueStatusDone, StoryPoints: &points3},
+			{ID: 2, Status: domain.IssueStatusDone, StoryPoints: nil}, // nil points
+		},
+	}
+	_ = sprintRepo.Create(ctx, completed)
+
+	data, err := svc.Velocity(ctx, "TEST", 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(data) != 1 {
+		t.Fatalf("expected 1 velocity point, got %d", len(data))
+	}
+	// Committed = 3 + 0 = 3; Completed = 3 + 0 = 3
+	if data[0].Committed != 3 {
+		t.Errorf("expected Committed=3, got %g", data[0].Committed)
+	}
+	if data[0].Completed != 3 {
+		t.Errorf("expected Completed=3, got %g", data[0].Completed)
+	}
+}
+
+func TestSprintService_Velocity_ProjectNotFound(t *testing.T) {
+	svc, _, _, _, _ := newSprintService()
+	ctx := context.Background()
+
+	_, err := svc.Velocity(ctx, "NOPE", 1)
+	if !errors.Is(err, domain.ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestSprintService_Velocity_ForbiddenForNonMember(t *testing.T) {
+	svc, projectRepo, memberRepo, _, _ := newSprintService()
+	ctx := context.Background()
+	seedSprintProject(ctx, projectRepo, memberRepo, 1) // owner=1
+
+	_, err := svc.Velocity(ctx, "TEST", 99) // caller 99 is not a member
+	if !errors.Is(err, domain.ErrForbidden) {
+		t.Errorf("expected ErrForbidden, got %v", err)
 	}
 }
