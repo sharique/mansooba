@@ -368,27 +368,17 @@ func (s *sprintService) Velocity(ctx context.Context, projectKey string, callerI
 		return nil, err
 	}
 
-	// FindByProject returns all sprints ordered by created_at ASC — perfect for
-	// chronological velocity display.
-	allSprints, err := s.sprintRepo.FindByProject(ctx, p.ID)
+	// Single query: fetch only completed sprints with their issues preloaded.
+	// This avoids the N+1 problem of fetching all sprints then re-querying each.
+	completedSprints, err := s.sprintRepo.FindCompletedWithIssuesByProject(ctx, p.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	var result []dto.VelocityDataPoint
-	for _, sprint := range allSprints {
-		if sprint.Status != domain.SprintStatusCompleted {
-			continue
-		}
-
-		// Load the sprint with its issues preloaded.
-		sprintWithIssues, err := s.sprintRepo.FindWithIssues(ctx, sprint.ID)
-		if err != nil {
-			return nil, err
-		}
-
+	for _, sprint := range completedSprints {
 		var committed, completed float64
-		for _, issue := range sprintWithIssues.Issues {
+		for _, issue := range sprint.Issues {
 			pts := 0
 			if issue.StoryPoints != nil {
 				pts = *issue.StoryPoints

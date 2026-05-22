@@ -84,6 +84,16 @@ func (r *stubSprintRepo) FindWithIssues(ctx context.Context, id uint) (*domain.S
 	return r.FindByID(ctx, id)
 }
 
+func (r *stubSprintRepo) FindCompletedWithIssuesByProject(_ context.Context, projectID uint) ([]*domain.Sprint, error) {
+	var result []*domain.Sprint
+	for _, s := range r.sprints {
+		if s.ProjectID == projectID && s.Status == domain.SprintStatusCompleted {
+			result = append(result, s)
+		}
+	}
+	return result, nil
+}
+
 func (r *stubSprintRepo) CompleteWithMigration(ctx context.Context, sprint *domain.Sprint, unfinishedIDs []uint, nextSprintID *uint) error {
 	r.lastMigratedIDs = unfinishedIDs
 	r.lastNextSprintID = nextSprintID

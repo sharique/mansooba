@@ -12,8 +12,11 @@ const maxValue = computed(() => {
   return Math.max(...props.data.map(d => Math.max(d.committed, d.completed)), 1)
 })
 
-function barHeightPct(value: number): string {
-  return `${Math.round((value / maxValue.value) * 100)}%`
+// CHART_HEIGHT_PX must match the Tailwind h-48 class (12rem = 192px at 16px base).
+const CHART_HEIGHT_PX = 192
+
+function barHeightPx(value: number): string {
+  return `${Math.round((value / maxValue.value) * CHART_HEIGHT_PX)}px`
 }
 </script>
 
@@ -64,7 +67,7 @@ function barHeightPct(value: number): string {
               <span class="text-xs text-base-content/70 font-mono">{{ point.committed }}</span>
               <div
                 class="w-8 bg-neutral rounded-t transition-all duration-300"
-                :style="{ height: barHeightPct(point.committed) }"
+                :style="{ height: barHeightPx(point.committed) }"
                 :title="`Committed: ${point.committed} pts`"
               />
             </div>
@@ -73,7 +76,7 @@ function barHeightPct(value: number): string {
               <span class="text-xs text-success font-mono">{{ point.completed }}</span>
               <div
                 class="w-8 bg-success rounded-t transition-all duration-300"
-                :style="{ height: barHeightPct(point.completed) }"
+                :style="{ height: barHeightPx(point.completed) }"
                 :title="`Completed: ${point.completed} pts`"
               />
             </div>

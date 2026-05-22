@@ -12,7 +12,12 @@ const error = ref<string | null>(null)
 // Fetch all projects on mount so the selector is populated.
 onMounted(async () => {
   if (projectsStore.projects.length === 0) {
-    await projectsStore.fetchAll()
+    try {
+      await projectsStore.fetchAll()
+    }
+    catch (e: unknown) {
+      error.value = e instanceof Error ? e.message : 'Failed to load projects'
+    }
   }
 })
 

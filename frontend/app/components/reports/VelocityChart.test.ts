@@ -54,15 +54,16 @@ describe('VelocityChart', () => {
     expect(completedBars.length).toBeGreaterThanOrEqual(sample.length)
   })
 
-  it('applies proportional height style to bars', () => {
+  it('applies proportional height style to bars in pixels', () => {
     const single: VelocityDataPoint[] = [
       { sprint_id: 1, sprint_name: 'Sprint 1', committed: 10, completed: 5 },
     ]
     const w = mount(VelocityChart, { props: { data: single } })
-    // committed bar should be 100% (it's the max), completed should be 50%
+    // committed bar is the max (10/10 = 100% of 192px = 192px)
+    // completed bar is half (5/10 = 50% of 192px = 96px)
     const committedBar = w.find('.bg-neutral.rounded-t')
     const completedBar = w.find('.bg-success.rounded-t')
-    expect(committedBar.attributes('style')).toContain('height: 100%')
-    expect(completedBar.attributes('style')).toContain('height: 50%')
+    expect(committedBar.attributes('style')).toContain('height: 192px')
+    expect(completedBar.attributes('style')).toContain('height: 96px')
   })
 })

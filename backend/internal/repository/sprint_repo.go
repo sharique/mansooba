@@ -84,6 +84,20 @@ func (r *sprintRepo) FindWithIssues(ctx context.Context, id uint) (*domain.Sprin
 	return &sprint, nil
 }
 
+// FindCompletedWithIssuesByProject returns completed sprints for a project with their Issues
+// preloaded in a single query (WHERE project_id AND status='completed' + Preload("Issues")).
+func (r *sprintRepo) FindCompletedWithIssuesByProject(ctx context.Context, projectID uint) ([]*domain.Sprint, error) {
+	var sprints []*domain.Sprint
+	if err := r.db.WithContext(ctx).
+		Preload("Issues").
+		Where("project_id = ? AND status = ?", projectID, domain.SprintStatusCompleted).
+		Order("created_at ASC").
+		Find(&sprints).Error; err != nil {
+		return nil, err
+	}
+	return sprints, nil
+}
+
 // CompleteWithMigration atomically marks a sprint completed and migrates unfinished issues.
 // The sprint update and issue bulk-update run in a single DB transaction.
 func (r *sprintRepo) CompleteWithMigration(ctx context.Context, sprint *domain.Sprint, unfinishedIDs []uint, nextSprintID *uint) error {

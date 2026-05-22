@@ -293,3 +293,20 @@ func TestSprintHandler_Velocity_Returns200EmptyArray_WhenNoCompletedSprints(t *t
 		t.Errorf("expected empty array, got %d items", len(resp))
 	}
 }
+
+func TestSprintHandler_Velocity_Returns403_WhenForbidden(t *testing.T) {
+	svc := &stubSprintService{
+		velocityFn: func(_ context.Context, _ string, _ uint) ([]dto.VelocityDataPoint, error) {
+			return nil, domain.ErrForbidden
+		},
+	}
+	e := newSprintEcho(handler.NewSprintHandler(svc))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/TEST/velocity", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d: %s", rec.Code, rec.Body.String())
+	}
+}

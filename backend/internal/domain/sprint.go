@@ -56,6 +56,11 @@ type SprintRepository interface {
 	// Used by Complete and Burndown.
 	FindWithIssues(ctx context.Context, id uint) (*Sprint, error)
 
+	// FindCompletedWithIssuesByProject returns all completed sprints for a project
+	// with their Issues preloaded, in a single query (ordered by created_at ASC).
+	// Used by Velocity to avoid N+1 queries.
+	FindCompletedWithIssuesByProject(ctx context.Context, projectID uint) ([]*Sprint, error)
+
 	// CompleteWithMigration atomically marks the sprint completed and migrates
 	// unfinished issues. If nextSprintID is nil, issues move to the backlog (sprint_id = NULL).
 	// Executes inside a single DB transaction.
