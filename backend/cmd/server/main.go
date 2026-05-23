@@ -8,8 +8,13 @@
 package main
 
 import (
+	"context"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
@@ -170,9 +175,33 @@ func main() {
 
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
-	addr := ":" + cfg.ServerPort
-	log.Info("starting server", zap.String("address", addr))
-	if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
-		log.Fatal("server error", zap.Error(err))
+	// Start the server in a goroutine so main() can wait for OS signals.
+	go func() {
+		addr := ":" + cfg.ServerPort
+		log.Info("starting server", zap.String("address", addr))
+		if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
+			log.Fatal("server error", zap.Error(err))
+		}
+	}()
+
+	// Block until SIGTERM or SIGINT.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	<-ctx.Done()
+
+	log.Info("shutdown signal received — draining requests")
+
+	shutdownDuration, err := time.ParseDuration(cfg.ShutdownTimeout)
+	if err != nil {
+		shutdownDuration = 30 * time.Second
+	}
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownDuration)
+	defer cancel()
+
+	if err := e.Shutdown(shutdownCtx); err != nil {
+		log.Error("graceful shutdown failed", zap.Error(err))
+	} else {
+		log.Info("server shutdown complete")
 	}
 }

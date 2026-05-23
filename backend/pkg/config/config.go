@@ -24,6 +24,8 @@ type Config struct {
 	JWTRefreshTTL string `mapstructure:"JWT_REFRESH_TTL"`
 	LogLevel      string `mapstructure:"LOG_LEVEL"`
 	CORSOrigins   string `mapstructure:"CORS_ORIGINS"`
+
+	ShutdownTimeout string `mapstructure:"SHUTDOWN_TIMEOUT"` // e.g. "30s"
 }
 
 // Load reads configuration from a .env file and environment variables.
@@ -48,6 +50,7 @@ func Load() *Config {
 	viper.SetDefault("JWT_REFRESH_TTL", "168h")
 	viper.SetDefault("LOG_LEVEL", "debug")
 	viper.SetDefault("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
+	viper.SetDefault("SHUTDOWN_TIMEOUT", "30s")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
