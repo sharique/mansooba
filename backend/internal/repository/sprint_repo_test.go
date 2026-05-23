@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sharique/jira-go/internal/domain"
-	"github.com/sharique/jira-go/internal/repository"
+	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/repository"
 )
 
 // seedSprint creates a sprint in the test DB and returns it.

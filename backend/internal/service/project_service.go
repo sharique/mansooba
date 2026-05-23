@@ -7,8 +7,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/sharique/jira-go/internal/domain"
-	"github.com/sharique/jira-go/internal/dto"
+	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/dto"
 )
 
 // ProjectService defines the projects business-logic contract.

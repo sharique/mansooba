@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sharique/jira-go/internal/domain"
-	"github.com/sharique/jira-go/internal/dto"
+	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/dto"
 )
 
 // IssueService defines the issues business-logic contract.

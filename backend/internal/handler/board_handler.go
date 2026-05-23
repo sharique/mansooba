@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/sharique/jira-go/internal/domain"
-	"github.com/sharique/jira-go/internal/service"
+	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/service"
 )
 
 // BoardHandler exposes the kanban board aggregation endpoint.

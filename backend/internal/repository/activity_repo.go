@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"github.com/sharique/jira-go/internal/domain"
+	"github.com/sharique/mansooba/internal/domain"
 	"gorm.io/gorm"
 )
 

@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/sharique/jira-go/internal/domain"
-	"github.com/sharique/jira-go/internal/dto"
+	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/dto"
 )
 
 // NotificationHandler exposes notification endpoints.

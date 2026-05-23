@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/sharique/jira-go/internal/domain"
-	"github.com/sharique/jira-go/internal/dto"
+	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/dto"
 )
 
 // ActivityService records and retrieves issue state-change events.

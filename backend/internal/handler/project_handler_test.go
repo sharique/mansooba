@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
-	"github.com/sharique/jira-go/internal/domain"
-	"github.com/sharique/jira-go/internal/dto"
-	"github.com/sharique/jira-go/internal/handler"
+	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/dto"
+	"github.com/sharique/mansooba/internal/handler"
 )
 
 // stubProjectService controls service responses in handler tests.

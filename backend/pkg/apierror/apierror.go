@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/sharique/jira-go/internal/domain"
+	"github.com/sharique/mansooba/internal/domain"
 )
 
 // APIError is the standard error body returned by all endpoints.

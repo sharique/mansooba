@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/sharique/jira-go/internal/domain"
-	"github.com/sharique/jira-go/internal/dto"
+	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/dto"
 )
 
 // LabelService manages project labels and their attachment to issues.

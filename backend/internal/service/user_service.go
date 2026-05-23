@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sharique/jira-go/internal/domain"
-	"github.com/sharique/jira-go/internal/dto"
+	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/dto"
 )
 
 // UserService manages user profile read and update operations.

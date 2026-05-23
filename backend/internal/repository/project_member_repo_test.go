@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/sharique/jira-go/internal/domain"
-	"github.com/sharique/jira-go/internal/repository"
+	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/repository"
 )
 
 func TestProjectMemberRepository_Create_Succeeds(t *testing.T) {
