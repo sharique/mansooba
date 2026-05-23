@@ -5,8 +5,8 @@ import (
 	"errors"
 	"regexp"
 
-	"github.com/sharique/jira-go/internal/domain"
-	"github.com/sharique/jira-go/internal/dto"
+	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/dto"
 )
 
 var mentionRe = regexp.MustCompile(`@([\w.]+)`)

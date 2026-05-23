@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/sharique/jira-go/internal/domain"
-	"github.com/sharique/jira-go/internal/service"
+	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
