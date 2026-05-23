@@ -82,6 +82,7 @@ func main() {
 	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
 
 	// Handlers
+	healthHandler := handler.NewHealthHandler(sqlDB)
 	authHandler := handler.NewAuthHandler(authSvc)
 	userHandler := handler.NewUserHandler(userSvc, activitySvc)
 	projectHandler := handler.NewProjectHandler(projectSvc)
@@ -106,9 +107,7 @@ func main() {
 	}))
 
 	// Public routes
-	e.GET("/health", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
-	})
+	e.GET("/health", healthHandler.Check)
 
 	auth := e.Group("/api/v1/auth")
 	auth.POST("/register", authHandler.Register)
