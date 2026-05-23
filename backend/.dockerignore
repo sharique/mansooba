@@ -1,0 +1,7 @@
+dev.db
+*.db
+docs
+server
+.env
+.env.*
+!.env.example
