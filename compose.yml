@@ -1,0 +1,44 @@
+# Dev compose stack — builds images locally, uses SQLite for zero-config startup.
+#
+# Usage:
+#   docker compose up --build
+#
+# The frontend proxies /api/ to the backend via nginx (see frontend/nginx.conf),
+# so the browser never needs direct access to port 8080.
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_PORT: "8080"
+      DB_DRIVER: sqlite
+      DB_DSN: /data/dev.db
+      JWT_SECRET: dev-secret-change-me
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 168h
+      LOG_LEVEL: debug
+      CORS_ORIGINS: "http://localhost:3000"
+    volumes:
+      - sqlite_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NUXT_PUBLIC_API_BASE_URL: /api/v1
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  sqlite_data:
