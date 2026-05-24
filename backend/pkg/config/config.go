@@ -26,6 +26,10 @@ type Config struct {
 	CORSOrigins   string `mapstructure:"CORS_ORIGINS"`
 
 	ShutdownTimeout string `mapstructure:"SHUTDOWN_TIMEOUT"` // e.g. "30s"
+
+	BodySizeLimit  string `mapstructure:"BODY_SIZE_LIMIT"`  // e.g. "1M"
+	RequestTimeout string `mapstructure:"REQUEST_TIMEOUT"`  // e.g. "30s"
+	AuthRateLimit  int    `mapstructure:"AUTH_RATE_LIMIT"`  // req/s per IP
 }
 
 // Load reads configuration from a .env file and environment variables.
@@ -51,6 +55,9 @@ func Load() *Config {
 	viper.SetDefault("LOG_LEVEL", "debug")
 	viper.SetDefault("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
 	viper.SetDefault("SHUTDOWN_TIMEOUT", "30s")
+	viper.SetDefault("BODY_SIZE_LIMIT", "1M")
+	viper.SetDefault("REQUEST_TIMEOUT", "30s")
+	viper.SetDefault("AUTH_RATE_LIMIT", 20)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

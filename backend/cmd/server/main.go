@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/time/rate"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
@@ -106,10 +107,42 @@ func main() {
 		AllowOrigins: strings.Split(cfg.CORSOrigins, ","),
 	}))
 
+	// Body limit — reject payloads > BodySizeLimit with 413
+	e.Use(echomw.BodyLimit(cfg.BodySizeLimit))
+
+	// Request timeout — abort requests exceeding RequestTimeout with 503
+	requestTimeout, err := time.ParseDuration(cfg.RequestTimeout)
+	if err != nil {
+		log.Warn("invalid REQUEST_TIMEOUT value, defaulting to 30s", zap.String("value", cfg.RequestTimeout), zap.Error(err))
+		requestTimeout = 30 * time.Second
+	}
+	e.Use(echomw.TimeoutWithConfig(echomw.TimeoutConfig{
+		Timeout: requestTimeout,
+	}))
+
 	// Public routes
 	e.GET("/health", healthHandler.Check)
 
 	auth := e.Group("/api/v1/auth")
+	auth.Use(echomw.RateLimiterWithConfig(echomw.RateLimiterConfig{
+		Skipper: echomw.DefaultSkipper,
+		Store: echomw.NewRateLimiterMemoryStoreWithConfig(
+			echomw.RateLimiterMemoryStoreConfig{
+				Rate:      rate.Limit(cfg.AuthRateLimit),
+				Burst:     cfg.AuthRateLimit,
+				ExpiresIn: 3 * time.Minute,
+			},
+		),
+		IdentifierExtractor: func(ctx echo.Context) (string, error) {
+			return ctx.RealIP(), nil
+		},
+		ErrorHandler: func(context echo.Context, err error) error {
+			return context.JSON(http.StatusForbidden, map[string]string{"error": "forbidden"})
+		},
+		DenyHandler: func(context echo.Context, identifier string, err error) error {
+			return context.JSON(http.StatusTooManyRequests, map[string]string{"error": "rate limit exceeded"})
+		},
+	}))
 	auth.POST("/register", authHandler.Register)
 	auth.POST("/login", authHandler.Login)
 	auth.POST("/refresh", authHandler.Refresh)
