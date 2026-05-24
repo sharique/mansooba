@@ -1,0 +1,9 @@
+# Terraform — never commit real secrets or state
+terraform/terraform.tfvars
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+
+# OS
+.DS_Store
+Thumbs.db
