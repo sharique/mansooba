@@ -7,6 +7,8 @@
                 >
             </div>
             <div class="navbar-end">
+                <NuxtLink to="/" class="btn btn-ghost btn-sm">Dashboard</NuxtLink>
+                <NuxtLink to="/projects" class="btn btn-ghost btn-sm mr-2">Projects</NuxtLink>
                 <NuxtLink to="/reports" class="btn btn-ghost btn-sm mr-2"
                     >Reports</NuxtLink
                 >
