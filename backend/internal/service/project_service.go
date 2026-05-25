@@ -251,7 +251,7 @@ func generateKey(name string) string {
 func toProjectResponse(p *domain.Project) *dto.ProjectResponse {
 	return &dto.ProjectResponse{
 		ID:          p.ID,
-		Key:         p.Key,
+		Key:         strings.ToLower(p.Key),
 		Name:        p.Name,
 		Description: p.Description,
 		OwnerID:     p.OwnerID,

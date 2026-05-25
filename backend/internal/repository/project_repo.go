@@ -39,7 +39,7 @@ func (r *projectRepo) FindByID(ctx context.Context, id uint) (*domain.Project, e
 // Returns domain.ErrNotFound when no row matches.
 func (r *projectRepo) FindByKey(ctx context.Context, key string) (*domain.Project, error) {
 	var project domain.Project
-	if err := r.db.WithContext(ctx).Where("key = ?", key).First(&project).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("LOWER(key) = LOWER(?)", key).First(&project).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrNotFound
 		}
