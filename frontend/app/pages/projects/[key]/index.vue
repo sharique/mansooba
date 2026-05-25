@@ -29,7 +29,7 @@
     <dialog ref="editModal" class="modal">
       <div class="modal-box">
         <h3 class="font-bold text-lg mb-4">Edit Project</h3>
-        <ProjectsProjectForm :project="projectsStore.current ?? undefined" @saved="onSaved" />
+        <ProjectsProjectForm :project="projectsStore.current ?? undefined" @saved="onSaved" @cancel="editModal?.close()" />
       </div>
       <form method="dialog" class="modal-backdrop"><button>close</button></form>
     </dialog>

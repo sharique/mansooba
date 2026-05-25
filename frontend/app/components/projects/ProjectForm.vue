@@ -17,9 +17,10 @@
       <input
         v-model="form.key"
         type="text"
-        class="input input-bordered w-full font-mono uppercase"
-        placeholder="PROJ"
+        class="input input-bordered w-full font-mono lowercase"
+        placeholder="proj"
         maxlength="10"
+        @input="form.key = form.key.toLowerCase()"
       />
       <label class="label"><span class="label-text-alt text-base-content/60">Auto-generated from name, max 10 chars</span></label>
     </div>
@@ -39,6 +40,7 @@
     </div>
 
     <div class="modal-action">
+      <button type="button" class="btn btn-ghost" @click="emit('cancel')">Cancel</button>
       <button type="submit" class="btn btn-primary" :disabled="loading">
         <span v-if="loading" class="loading loading-spinner loading-sm" />
         {{ project ? 'Save changes' : 'Create project' }}
@@ -53,7 +55,7 @@ import { useProjectsStore } from '~/stores/projects.store'
 import { projectsService } from '~/services/projects.service'
 
 const props = defineProps<{ project?: Project }>()
-const emit = defineEmits<{ saved: [project: Project] }>()
+const emit = defineEmits<{ saved: [project: Project]; cancel: [] }>()
 
 const projectsStore = useProjectsStore()
 const loading = ref(false)
@@ -67,7 +69,7 @@ const form = reactive({
 
 function autoKey() {
   if (props.project) return
-  form.key = form.name.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 10)
+  form.key = form.name.replace(/[^A-Za-z]/g, '').toLowerCase().slice(0, 10)
 }
 
 async function submit() {

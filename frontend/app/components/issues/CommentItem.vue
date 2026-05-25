@@ -42,7 +42,8 @@ const initials = computed(() =>
     ? props.comment.author_name.slice(0, 2).toUpperCase()
     : String(props.comment.author_id)
 )
-const relativeTime = computed(() => new Date(props.comment.created_at).toLocaleDateString())
+const { formatDateTime } = useTimeFormatter()
+const relativeTime = computed(() => formatDateTime(props.comment.created_at))
 
 function startEdit() {
   editBody.value = props.comment.body

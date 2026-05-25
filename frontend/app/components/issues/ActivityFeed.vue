@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-1">
     <div v-for="item in timeline" :key="item.key" class="flex gap-2 items-start py-1 text-sm">
-      <span class="text-base-content/40 w-20 shrink-0 text-xs mt-0.5">{{ formatDate(item.created_at) }}</span>
+      <span class="text-base-content/40 w-20 shrink-0 text-xs mt-0.5">{{ formatDateTime(item.created_at) }}</span>
       <span v-if="item.type === 'activity'" class="text-base-content/70">{{ describeEvent(item as ActivityEvent) }}</span>
       <span v-else class="text-base-content/70">{{ (item as Comment).author_name || 'Unknown' }} added a comment</span>
     </div>
@@ -25,7 +25,7 @@ const timeline = computed<(TimelineItem & (ActivityEvent | Comment))[]>(() => {
   return [...acts, ...coms].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 })
 
-function formatDate(iso: string) { return new Date(iso).toLocaleDateString() }
+const { formatDateTime } = useTimeFormatter()
 
 function describeEvent(e: ActivityEvent): string {
   const actor = e.actor_name || `User ${e.actor_id}`
