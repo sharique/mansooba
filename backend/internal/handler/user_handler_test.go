@@ -59,13 +59,38 @@ func (s *stubActivityServiceForUser) GetMyActivity(_ context.Context, _ uint, _,
 
 var _ service.ActivityService = (*stubActivityServiceForUser)(nil)
 
+// stubIssueServiceForUser is a no-op IssueService used in user handler tests.
+type stubIssueServiceForUser struct{}
+
+func (s *stubIssueServiceForUser) Create(_ context.Context, _ string, _ uint, _ dto.CreateIssueRequest) (*dto.IssueResponse, error) {
+	return nil, nil
+}
+func (s *stubIssueServiceForUser) ListByProject(_ context.Context, _ string, _ uint, _ dto.IssueListQuery) ([]*dto.IssueResponse, error) {
+	return nil, nil
+}
+func (s *stubIssueServiceForUser) GetMyIssues(_ context.Context, _ uint, _ dto.IssueListQuery) ([]*dto.IssueResponse, error) {
+	return nil, nil
+}
+func (s *stubIssueServiceForUser) FindByID(_ context.Context, _ string, _ uint, _ uint) (*dto.IssueResponse, error) {
+	return nil, nil
+}
+func (s *stubIssueServiceForUser) Update(_ context.Context, _ string, _ uint, _ uint, _ dto.UpdateIssueRequest) (*dto.IssueResponse, error) {
+	return nil, nil
+}
+func (s *stubIssueServiceForUser) Delete(_ context.Context, _ string, _ uint, _ uint) error {
+	return nil
+}
+
+var _ service.IssueService = (*stubIssueServiceForUser)(nil)
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 func newUserHandler() (*handler.UserHandler, *stubUserService) {
 	profile := &dto.UserProfileResponse{ID: 1, Name: "Alice", Email: "alice@example.com"}
 	userSvc := &stubUserService{profile: profile}
 	activitySvc := &stubActivityServiceForUser{}
-	return handler.NewUserHandler(userSvc, activitySvc), userSvc
+	issueSvc := &stubIssueServiceForUser{}
+	return handler.NewUserHandler(userSvc, activitySvc, issueSvc), userSvc
 }
 
 func setupUserEcho(method, path string, body string, userID uint) (echo.Context, *httptest.ResponseRecorder) {

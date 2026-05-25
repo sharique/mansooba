@@ -85,7 +85,7 @@ func main() {
 	// Handlers
 	healthHandler := handler.NewHealthHandler(sqlDB)
 	authHandler := handler.NewAuthHandler(authSvc)
-	userHandler := handler.NewUserHandler(userSvc, activitySvc)
+	userHandler := handler.NewUserHandler(userSvc, activitySvc, issueSvc)
 	projectHandler := handler.NewProjectHandler(projectSvc)
 	issueHandler := handler.NewIssueHandler(issueSvc)
 	boardHandler := handler.NewBoardHandler(boardSvc)
@@ -154,6 +154,7 @@ func main() {
 	authMe.GET("/me", userHandler.GetProfile)
 	authMe.PUT("/me", userHandler.UpdateProfile)
 	authMe.GET("/me/activity", userHandler.GetMyActivity)
+	authMe.GET("/me/issues", userHandler.GetMyIssues)
 
 	projects := api.Group("/projects")
 	projects.GET("", projectHandler.List)

@@ -97,6 +97,19 @@ func (r *issueRepo) FindIssueIDsByLabelID(ctx context.Context, labelID uint) ([]
 	return ids, nil
 }
 
+// FindByAssignee returns all issues assigned to the given user, across all projects,
+// ordered by created_at descending (newest first).
+func (r *issueRepo) FindByAssignee(ctx context.Context, userID uint) ([]*domain.Issue, error) {
+	var issues []*domain.Issue
+	if err := r.db.WithContext(ctx).
+		Where("assignee_id = ?", userID).
+		Order("created_at DESC").
+		Find(&issues).Error; err != nil {
+		return nil, err
+	}
+	return issues, nil
+}
+
 // CountBySprint returns the issue count and total story points for a sprint in one aggregate query.
 func (r *issueRepo) CountBySprint(ctx context.Context, sprintID uint) (int, int, error) {
 	type result struct {

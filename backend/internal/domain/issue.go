@@ -79,4 +79,6 @@ type IssueRepository interface {
 	CountBySprint(ctx context.Context, sprintID uint) (int, int, error)
 	// FindIssueIDsByLabelID returns all issue IDs that have the given label attached.
 	FindIssueIDsByLabelID(ctx context.Context, labelID uint) ([]uint, error)
+	// FindByAssignee returns all issues assigned to the given user, across all projects.
+	FindByAssignee(ctx context.Context, userID uint) ([]*Issue, error)
 }

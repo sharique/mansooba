@@ -15,6 +15,9 @@ import (
 type IssueService interface {
 	Create(ctx context.Context, projectKey string, callerID uint, req dto.CreateIssueRequest) (*dto.IssueResponse, error)
 	ListByProject(ctx context.Context, projectKey string, callerID uint, q dto.IssueListQuery) ([]*dto.IssueResponse, error)
+	// GetMyIssues returns all issues assigned to callerID across all projects,
+	// optionally filtered by status via q.Status.
+	GetMyIssues(ctx context.Context, callerID uint, q dto.IssueListQuery) ([]*dto.IssueResponse, error)
 	FindByID(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.IssueResponse, error)
 	Update(ctx context.Context, projectKey string, id uint, callerID uint, req dto.UpdateIssueRequest) (*dto.IssueResponse, error)
 	Delete(ctx context.Context, projectKey string, id uint, callerID uint) error
@@ -290,6 +293,24 @@ func (s *issueService) Delete(ctx context.Context, projectKey string, id uint, c
 	}
 
 	return s.issueRepo.Delete(ctx, id)
+}
+
+// GetMyIssues returns all issues assigned to callerID across all projects.
+// If q.Status is non-empty only issues with that status are returned.
+func (s *issueService) GetMyIssues(ctx context.Context, callerID uint, q dto.IssueListQuery) ([]*dto.IssueResponse, error) {
+	issues, err := s.issueRepo.FindByAssignee(ctx, callerID)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp []*dto.IssueResponse
+	for _, issue := range issues {
+		if q.Status != "" && issue.Status != q.Status {
+			continue
+		}
+		resp = append(resp, toIssueResponse(issue))
+	}
+	return resp, nil
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────

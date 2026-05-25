@@ -39,9 +39,12 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from '~/stores/auth.store'
 import type { Issue } from '~/types/domain.types'
 
-const props = defineProps<{ tasks: Issue[]; loading: boolean }>()
+defineProps<{ loading: boolean }>()
+
+const authStore = useAuthStore()
 
 const STATUS_ORDER: Record<string, number> = {
   in_progress: 0,
@@ -52,7 +55,7 @@ const STATUS_ORDER: Record<string, number> = {
 }
 
 const sorted = computed(() =>
-  [...props.tasks]
+  [...authStore.myIssues]
     .sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9))
     .slice(0, 10),
 )

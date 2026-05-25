@@ -498,3 +498,63 @@ func TestIssueService_ListByProject_FilterByLabelID(t *testing.T) {
 	require.Len(t, result, 1)
 	assert.Equal(t, "LBL-1", result[0].Key)
 }
+
+// ── GetMyIssues ───────────────────────────────────────────────────────────────
+
+func (r *stubIssueRepo) FindByAssignee(_ context.Context, userID uint) ([]*domain.Issue, error) {
+	var result []*domain.Issue
+	for _, i := range r.issues {
+		if i.AssigneeID != nil && *i.AssigneeID == userID {
+			result = append(result, i)
+		}
+	}
+	return result, nil
+}
+
+func TestIssueService_GetMyIssues_returns_assigned_issues(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	uid := uint(42)
+	other := uint(99)
+	issueRepo.issues = []*domain.Issue{
+		{ID: 1, Key: "A-1", Title: "Mine", AssigneeID: &uid, Status: domain.IssueStatusInProgress},
+		{ID: 2, Key: "A-2", Title: "Not mine", AssigneeID: &other, Status: domain.IssueStatusTodo},
+		{ID: 3, Key: "A-3", Title: "Unassigned", AssigneeID: nil, Status: domain.IssueStatusTodo},
+	}
+
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo())
+
+	result, err := svc.GetMyIssues(context.Background(), uid, dto.IssueListQuery{})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "A-1", result[0].Key)
+}
+
+func TestIssueService_GetMyIssues_filters_by_status(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	uid := uint(7)
+	issueRepo.issues = []*domain.Issue{
+		{ID: 1, Key: "B-1", Title: "Active", AssigneeID: &uid, Status: domain.IssueStatusInProgress},
+		{ID: 2, Key: "B-2", Title: "Done", AssigneeID: &uid, Status: domain.IssueStatusDone},
+	}
+
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo())
+
+	result, err := svc.GetMyIssues(context.Background(), uid, dto.IssueListQuery{Status: domain.IssueStatusInProgress})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "B-1", result[0].Key)
+}
+
+func TestIssueService_GetMyIssues_empty_when_none_assigned(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	other := uint(5)
+	issueRepo.issues = []*domain.Issue{
+		{ID: 1, Key: "C-1", AssigneeID: &other, Status: domain.IssueStatusTodo},
+	}
+
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo())
+
+	result, err := svc.GetMyIssues(context.Background(), 999, dto.IssueListQuery{})
+	require.NoError(t, err)
+	assert.Empty(t, result)
+}

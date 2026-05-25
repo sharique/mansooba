@@ -37,6 +37,9 @@ func (s *stubIssueService) Update(ctx context.Context, projectKey string, id uin
 func (s *stubIssueService) Delete(ctx context.Context, projectKey string, id uint, callerID uint) error {
 	return s.deleteFn(ctx, projectKey, id, callerID)
 }
+func (s *stubIssueService) GetMyIssues(_ context.Context, _ uint, _ dto.IssueListQuery) ([]*dto.IssueResponse, error) {
+	return nil, nil
+}
 
 // newIssueEcho wires the issue handler into a test Echo instance with userID pre-set.
 func newIssueEcho(h *handler.IssueHandler) *echo.Echo {

@@ -167,6 +167,9 @@ func (s *stubIssueRepoForProject) CountBySprint(_ context.Context, _ uint) (int,
 func (s *stubIssueRepoForProject) FindIssueIDsByLabelID(_ context.Context, _ uint) ([]uint, error) {
 	return nil, nil
 }
+func (s *stubIssueRepoForProject) FindByAssignee(_ context.Context, _ uint) ([]*domain.Issue, error) {
+	return nil, nil
+}
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
