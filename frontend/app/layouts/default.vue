@@ -2,7 +2,7 @@
     <div class="min-h-screen bg-base-100">
         <div class="navbar bg-base-200 shadow-sm">
             <div class="navbar-start">
-                <NuxtLink to="/projects" class="btn btn-ghost text-xl"
+                <NuxtLink to="/" class="btn btn-ghost text-xl"
                     >Mansooba</NuxtLink
                 >
             </div>

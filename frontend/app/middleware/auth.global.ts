@@ -4,9 +4,9 @@ export default defineNuxtRouteMiddleware((to) => {
   const authStore = useAuthStore()
   const publicRoutes = ['/login', '/register']
 
-  // Smart redirect for root
-  if (to.path === '/') {
-    return navigateTo(authStore.isAuthenticated ? '/projects' : '/login', { replace: true })
+  // Unauthenticated users trying to access root → send to login
+  if (to.path === '/' && !authStore.isAuthenticated) {
+    return navigateTo('/login', { replace: true })
   }
 
   // Guard protected routes
@@ -14,8 +14,8 @@ export default defineNuxtRouteMiddleware((to) => {
     return navigateTo('/login', { replace: true })
   }
 
-  // Redirect authenticated users away from auth pages
+  // Redirect authenticated users away from auth pages → dashboard
   if (authStore.isAuthenticated && publicRoutes.includes(to.path)) {
-    return navigateTo('/projects', { replace: true })
+    return navigateTo('/', { replace: true })
   }
 })
