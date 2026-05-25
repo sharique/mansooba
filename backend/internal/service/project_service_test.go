@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/sharique/mansooba/internal/domain"
@@ -193,8 +194,8 @@ func TestProjectService_Create_AutoGeneratesKey(t *testing.T) {
 	if resp.Key == "" {
 		t.Fatal("expected auto-generated key")
 	}
-	if resp.Key != "MYPR" {
-		t.Errorf("expected key MYPR, got %s", resp.Key)
+	if resp.Key != "mypr" {
+		t.Errorf("expected key mypr, got %s", resp.Key)
 	}
 }
 
@@ -207,11 +208,11 @@ func TestProjectService_Create_KeyConflictAppendsDigit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error on second create: %v", err)
 	}
-	if resp.Key == "MYPR" {
+	if resp.Key == "mypr" {
 		t.Error("second project must not reuse the same key")
 	}
-	if resp.Key != "MYPR2" {
-		t.Errorf("expected key MYPR2, got %s", resp.Key)
+	if resp.Key != "mypr2" {
+		t.Errorf("expected key mypr2, got %s", resp.Key)
 	}
 }
 
@@ -220,7 +221,7 @@ func TestProjectService_FindByKey_ForbiddenForNonMember(t *testing.T) {
 
 	_, _ = svc.Create(context.Background(), 1, dto.CreateProjectRequest{Name: "My Project"})
 
-	_, err := svc.FindByKey(context.Background(), "MYPR", 99)
+	_, err := svc.FindByKey(context.Background(), "mypr", 99)
 
 	if !errors.Is(err, domain.ErrForbidden) {
 		t.Errorf("expected ErrForbidden, got %v", err)
@@ -238,12 +239,12 @@ func TestProjectService_AddMember_ConflictIfAlreadyMember(t *testing.T) {
 	_ = userRepo.Create(ctx, &domain.User{ID: 2, Name: "Bob", Email: "bob@example.com", Password: "x"})
 	_, _ = svc.Create(ctx, 1, dto.CreateProjectRequest{Name: "My Project"})
 
-	err1 := svc.AddMember(ctx, "MYPR", 1, dto.AddMemberRequest{Email: "bob@example.com", Role: "member"})
+	err1 := svc.AddMember(ctx, "mypr", 1, dto.AddMemberRequest{Email: "bob@example.com", Role: "member"})
 	if err1 != nil {
 		t.Fatalf("first add failed: %v", err1)
 	}
 
-	err2 := svc.AddMember(ctx, "MYPR", 1, dto.AddMemberRequest{Email: "bob@example.com", Role: "member"})
+	err2 := svc.AddMember(ctx, "mypr", 1, dto.AddMemberRequest{Email: "bob@example.com", Role: "member"})
 	if !errors.Is(err2, domain.ErrConflict) {
 		t.Errorf("expected ErrConflict on duplicate add, got %v", err2)
 	}
@@ -259,5 +260,59 @@ func TestProjectService_RemoveMember_CannotRemoveOwner(t *testing.T) {
 
 	if !errors.Is(err, domain.ErrForbidden) {
 		t.Errorf("expected ErrForbidden when removing owner, got %v", err)
+	}
+}
+
+func TestProjectService_Create_KeyIsLowercase(t *testing.T) {
+	svc := newProjectService()
+
+	resp, err := svc.Create(context.Background(), 1, dto.CreateProjectRequest{
+		Name: "My Project",
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Key != strings.ToLower(resp.Key) {
+		t.Errorf("expected lowercase key, got %s", resp.Key)
+	}
+}
+
+func TestProjectService_Create_ExplicitKeyIsLowercased(t *testing.T) {
+	svc := newProjectService()
+
+	resp, err := svc.Create(context.Background(), 1, dto.CreateProjectRequest{
+		Name: "My Project",
+		Key:  "MYPR",
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Key != "mypr" {
+		t.Errorf("expected key mypr, got %s", resp.Key)
+	}
+}
+
+func TestProjectService_FindByKey_UppercaseInputNormalizedToLowercase(t *testing.T) {
+	svc := newProjectService()
+	ctx := context.Background()
+
+	// Create a project (key stored as lowercase "mypr")
+	created, err := svc.Create(ctx, 1, dto.CreateProjectRequest{Name: "My Project"})
+	if err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
+	if created.Key != "mypr" {
+		t.Fatalf("expected lowercase key mypr on create, got %s", created.Key)
+	}
+
+	// Lookup with uppercase key — service normalizes to lowercase before querying
+	found, err := svc.FindByKey(ctx, "MYPR", 1)
+	if err != nil {
+		t.Fatalf("FindByKey with uppercase input failed: %v", err)
+	}
+	if found.Key != "mypr" {
+		t.Errorf("expected found key mypr, got %s", found.Key)
 	}
 }

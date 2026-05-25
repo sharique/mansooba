@@ -66,7 +66,7 @@ func (s *projectService) Create(ctx context.Context, callerID uint, req dto.Crea
 	if key == "" {
 		key = generateKey(req.Name)
 	}
-	key = strings.ToUpper(key)
+	key = strings.ToLower(key)
 
 	// Resolve key conflict by appending a digit suffix.
 	if _, err := s.projectRepo.FindByKey(ctx, key); err == nil {
@@ -91,6 +91,7 @@ func (s *projectService) Create(ctx context.Context, callerID uint, req dto.Crea
 }
 
 func (s *projectService) FindByKey(ctx context.Context, key string, callerID uint) (*dto.ProjectResponse, error) {
+	key = strings.ToLower(key)
 	project, err := s.projectRepo.FindByKey(ctx, key)
 	if err != nil {
 		return nil, err
@@ -102,6 +103,7 @@ func (s *projectService) FindByKey(ctx context.Context, key string, callerID uin
 }
 
 func (s *projectService) Update(ctx context.Context, key string, callerID uint, req dto.UpdateProjectRequest) (*dto.ProjectResponse, error) {
+	key = strings.ToLower(key)
 	project, err := s.projectRepo.FindByKey(ctx, key)
 	if err != nil {
 		return nil, err
@@ -126,6 +128,7 @@ func (s *projectService) Update(ctx context.Context, key string, callerID uint, 
 }
 
 func (s *projectService) Delete(ctx context.Context, key string, callerID uint) error {
+	key = strings.ToLower(key)
 	project, err := s.projectRepo.FindByKey(ctx, key)
 	if err != nil {
 		return err
@@ -144,6 +147,7 @@ func (s *projectService) Delete(ctx context.Context, key string, callerID uint) 
 }
 
 func (s *projectService) ListMembers(ctx context.Context, key string, callerID uint) ([]*dto.MemberResponse, error) {
+	key = strings.ToLower(key)
 	project, err := s.projectRepo.FindByKey(ctx, key)
 	if err != nil {
 		return nil, err
@@ -172,6 +176,7 @@ func (s *projectService) ListMembers(ctx context.Context, key string, callerID u
 }
 
 func (s *projectService) AddMember(ctx context.Context, key string, callerID uint, req dto.AddMemberRequest) error {
+	key = strings.ToLower(key)
 	project, err := s.projectRepo.FindByKey(ctx, key)
 	if err != nil {
 		return err
@@ -196,6 +201,7 @@ func (s *projectService) AddMember(ctx context.Context, key string, callerID uin
 }
 
 func (s *projectService) RemoveMember(ctx context.Context, key string, callerID uint, targetUserID uint) error {
+	key = strings.ToLower(key)
 	project, err := s.projectRepo.FindByKey(ctx, key)
 	if err != nil {
 		return err
@@ -231,7 +237,7 @@ func (s *projectService) requireMember(ctx context.Context, projectID, userID ui
 
 func generateKey(name string) string {
 	var letters []rune
-	for _, r := range strings.ToUpper(name) {
+	for _, r := range strings.ToLower(name) {
 		if unicode.IsLetter(r) {
 			letters = append(letters, r)
 			if len(letters) == 4 {
