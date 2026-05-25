@@ -22,4 +22,12 @@ describe('useThemeStore', () => {
     store.toggle('mansooba-dark')
     expect(store.selected).toBe('mansooba')
   })
+
+  it('toggle uses selected over the passed-in current when selected is already set', () => {
+    const store = useThemeStore()
+    store.setTheme('mansooba-dark')
+    // even though we pass 'mansooba' as current, selected ('mansooba-dark') takes precedence
+    store.toggle('mansooba')
+    expect(store.selected).toBe('mansooba')
+  })
 })

@@ -13,6 +13,14 @@ export function useTheme() {
   // The theme actually in effect right now.
   const effective = computed<ThemeName>(() => store.selected ?? systemTheme())
 
+  // Keep <html data-theme="..."> in sync whenever effective changes
+  // (e.g., when store.setTheme() is called directly, not just via toggle())
+  if (import.meta.client) {
+    watchEffect(() => {
+      document.documentElement.setAttribute('data-theme', effective.value)
+    })
+  }
+
   function apply() {
     if (import.meta.client) {
       document.documentElement.setAttribute('data-theme', effective.value)
