@@ -39,6 +39,7 @@
     </div>
 
     <div class="modal-action">
+      <button type="button" class="btn btn-ghost" @click="emit('cancel')">Cancel</button>
       <button type="submit" class="btn btn-primary" :disabled="loading">
         <span v-if="loading" class="loading loading-spinner loading-sm" />
         {{ project ? 'Save changes' : 'Create project' }}
@@ -53,7 +54,7 @@ import { useProjectsStore } from '~/stores/projects.store'
 import { projectsService } from '~/services/projects.service'
 
 const props = defineProps<{ project?: Project }>()
-const emit = defineEmits<{ saved: [project: Project] }>()
+const emit = defineEmits<{ saved: [project: Project]; cancel: [] }>()
 
 const projectsStore = useProjectsStore()
 const loading = ref(false)
