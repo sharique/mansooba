@@ -2,11 +2,13 @@
     <div class="min-h-screen bg-base-100">
         <div class="navbar bg-base-200 shadow-sm">
             <div class="navbar-start">
-                <NuxtLink to="/projects" class="btn btn-ghost text-xl"
+                <NuxtLink to="/" class="btn btn-ghost text-xl"
                     >Mansooba</NuxtLink
                 >
             </div>
             <div class="navbar-end">
+                <NuxtLink to="/" class="btn btn-ghost btn-sm">Dashboard</NuxtLink>
+                <NuxtLink to="/projects" class="btn btn-ghost btn-sm mr-2">Projects</NuxtLink>
                 <NuxtLink to="/reports" class="btn btn-ghost btn-sm mr-2"
                     >Reports</NuxtLink
                 >

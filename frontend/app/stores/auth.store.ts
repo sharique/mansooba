@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { User, UserProfileResponse, ActivityEvent, UpdateProfilePatch } from '~/types/domain.types'
+import type { User, UserProfileResponse, ActivityEvent, UpdateProfilePatch, Issue } from '~/types/domain.types'
 import { authService } from '~/services/auth.service'
 
 export const useAuthStore = defineStore('auth', {
@@ -8,6 +8,7 @@ export const useAuthStore = defineStore('auth', {
     accessToken: null as string | null,
     profile: null as UserProfileResponse | null,
     myActivity: [] as ActivityEvent[],
+    myIssues: [] as Issue[],
   }),
   getters: {
     isAuthenticated: (state) => !!state.accessToken,
@@ -22,6 +23,7 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = null
       this.profile = null
       this.myActivity = []
+      this.myIssues = []
     },
     async fetchMe() {
       this.profile = await authService.getMe()
@@ -31,6 +33,9 @@ export const useAuthStore = defineStore('auth', {
     },
     async fetchMyActivity(limit = 20, offset = 0) {
       this.myActivity = await authService.getMyActivity(limit, offset)
+    },
+    async fetchMyIssues() {
+      this.myIssues = await authService.getMyIssues()
     },
   },
   persist: true,

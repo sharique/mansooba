@@ -9,15 +9,16 @@ import (
 	"github.com/sharique/mansooba/internal/service"
 )
 
-// UserHandler exposes profile and my-activity endpoints for the current user.
+// UserHandler exposes profile, my-activity, and my-issues endpoints for the current user.
 type UserHandler struct {
 	userSvc     service.UserService
 	activitySvc service.ActivityService
+	issueSvc    service.IssueService
 }
 
 // NewUserHandler creates a UserHandler backed by the given services.
-func NewUserHandler(userSvc service.UserService, activitySvc service.ActivityService) *UserHandler {
-	return &UserHandler{userSvc: userSvc, activitySvc: activitySvc}
+func NewUserHandler(userSvc service.UserService, activitySvc service.ActivityService, issueSvc service.IssueService) *UserHandler {
+	return &UserHandler{userSvc: userSvc, activitySvc: activitySvc, issueSvc: issueSvc}
 }
 
 // GetProfile godoc
@@ -97,4 +98,28 @@ func (h *UserHandler) GetMyActivity(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusOK, events)
+}
+
+// GetMyIssues godoc
+// @Summary      Get issues assigned to the current user
+// @Tags         users
+// @Produce      json
+// @Security     BearerAuth
+// @Param        status query string false "Filter by status (todo, in_progress, in_review, done, backlog)"
+// @Success      200 {array} dto.IssueResponse
+// @Failure      401 {object} apierror.APIError
+// @Router       /auth/me/issues [get]
+func (h *UserHandler) GetMyIssues(c echo.Context) error {
+	callerID := c.Get("userID").(uint)
+	q := dto.IssueListQuery{
+		Status: c.QueryParam("status"),
+	}
+	issues, err := h.issueSvc.GetMyIssues(c.Request().Context(), callerID, q)
+	if err != nil {
+		return err
+	}
+	if issues == nil {
+		issues = []*dto.IssueResponse{}
+	}
+	return c.JSON(http.StatusOK, issues)
 }
