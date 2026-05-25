@@ -1,0 +1,9 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored — never commit real values.
+
+aws_region     = "us-east-1"
+ssh_public_key = "ssh-ed25519 AAAA... your-key-comment"  # cat ~/.ssh/mansooba.pub
+db_password    = "change-me-strong-password"
+
+# Optional: restrict SSH to your IP only (recommended)
+# allowed_ssh_cidr = "1.2.3.4/32"
