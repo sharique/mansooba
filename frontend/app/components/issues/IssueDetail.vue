@@ -35,10 +35,11 @@
         />
         <div
           v-else
-          class="cursor-pointer hover:bg-base-200 rounded p-1 -mx-1 min-h-12 text-base-content/70 whitespace-pre-wrap"
+          class="cursor-pointer hover:bg-base-200 rounded p-1 -mx-1 min-h-12"
           @click="startEdit('description')"
         >
-          {{ issue.description || 'Click to add description…' }}
+          <div v-if="issue.description" class="prose prose-sm max-w-none" v-html="renderedDescription" />
+          <span v-else class="text-base-content/40">Click to add description…</span>
         </div>
       </div>
 
@@ -199,6 +200,8 @@ function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—'
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
+
+const renderedDescription = computed(() => useMarkdown(props.issue.description ?? ''))
 
 const editing = ref<'title' | 'description' | null>(null)
 const editTitle = ref(props.issue.title)
