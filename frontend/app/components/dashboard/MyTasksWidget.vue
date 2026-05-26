@@ -1,7 +1,7 @@
 <template>
   <div class="card bg-base-100 shadow border border-base-200">
     <div class="card-body">
-      <h2 class="card-title text-base mb-2">My Tasks</h2>
+      <h2 class="card-title text-base mb-2">In your tray</h2>
 
       <!-- Skeleton -->
       <div v-if="loading" class="space-y-2">
@@ -9,9 +9,12 @@
       </div>
 
       <!-- Empty state -->
-      <p v-else-if="sorted.length === 0" class="text-base-content/40 text-sm py-4">
-        No tasks assigned to you yet.
-      </p>
+      <UiEmptyState
+        v-else-if="sorted.length === 0"
+        title="Your tray is empty"
+        description="Issues assigned to you will show up here."
+        icon="mdi:tray-full"
+      />
 
       <!-- Task list -->
       <div v-else class="divide-y divide-base-200">

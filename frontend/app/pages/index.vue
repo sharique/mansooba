@@ -1,13 +1,15 @@
 <template>
-  <div class="space-y-8">
-    <!-- Greeting -->
+  <div class="space-y-6">
     <DashboardGreeting />
 
-    <!-- My Tasks -->
-    <DashboardMyTasksWidget :loading="loading" />
-
-    <!-- Recent Activity -->
-    <DashboardActivityWidget :loading="loading" />
+    <div class="grid gap-6 lg:grid-cols-3">
+      <div class="lg:col-span-2">
+        <DashboardMyTasksWidget :loading="loading" />
+      </div>
+      <div class="lg:col-span-1">
+        <DashboardActivityWidget :loading="loading" />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -27,7 +29,7 @@ onMounted(async () => {
     ])
   }
   catch {
-    showError('Failed to load dashboard')
+    showError('Failed to load your desk')
   }
   finally {
     loading.value = false
