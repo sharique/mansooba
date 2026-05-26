@@ -12,6 +12,7 @@ vi.mock('~/services/auth.service', () => ({
     getMe: vi.fn(),
     updateMe: vi.fn(),
     getMyActivity: vi.fn(),
+    getMyIssues: vi.fn(),
   },
 }))
 
