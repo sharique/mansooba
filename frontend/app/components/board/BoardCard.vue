@@ -6,7 +6,7 @@
     <div class="card-body p-3">
       <div class="flex justify-between items-start">
         <span class="text-xs text-base-content/50 font-mono">{{ issue.key }}</span>
-        <span class="badge badge-sm" :class="priorityClass">{{ issue.priority }}</span>
+        <span class="badge badge-sm" :class="priorityBadgeClass(issue.priority)">{{ issue.priority }}</span>
       </div>
       <p class="text-sm font-medium line-clamp-2">{{ issue.title }}</p>
       <div class="flex justify-between items-center mt-1">
@@ -28,14 +28,8 @@
 
 <script setup lang="ts">
 import type { Issue } from '~/types/domain.types'
+import { priorityBadgeClass } from '~/utils/issueStyles'
 
-const props = defineProps<{ issue: Issue; projectKey: string }>()
+defineProps<{ issue: Issue; projectKey: string }>()
 defineEmits<{ statusChanged: [issueId: number, newStatus: string] }>()
-
-const priorityClass = computed(() => ({
-  'badge-error': props.issue.priority === 'critical',
-  'badge-warning': props.issue.priority === 'high',
-  'badge-info': props.issue.priority === 'medium',
-  'badge-ghost': props.issue.priority === 'low',
-}))
 </script>
