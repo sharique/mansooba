@@ -1,6 +1,5 @@
 dev.db
 *.db
-docs
 server
 .env
 .env.*
