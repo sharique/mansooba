@@ -48,7 +48,7 @@ const router = useRouter()
 const q = ref('')
 const displayName = computed(() => authStore.profile?.name || authStore.user?.name || 'Account')
 const initials = computed(() =>
-  displayName.value.split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase() || '?',
+  displayName.value.split(' ').map(s => s?.charAt(0) ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase() || '?',
 )
 
 function search() {

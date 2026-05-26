@@ -9,4 +9,20 @@ describe('projectNavLinks', () => {
     )
     expect(links[1]).toEqual({ label: 'Board', to: '/projects/apollo/board', icon: 'mdi:view-column-outline' })
   })
+
+  it('generates correct routes for all six sections', () => {
+    const links = projectNavLinks('demo')
+    expect(links[0].to).toBe('/projects/demo')
+    expect(links[1].to).toBe('/projects/demo/board')
+    expect(links[2].to).toBe('/projects/demo/backlog')
+    // Sprints intentionally shares the backlog route until a dedicated page exists
+    expect(links[3].to).toBe('/projects/demo/backlog')
+    expect(links[4].to).toBe('/projects/demo/reports')
+    expect(links[5].to).toBe('/projects/demo/settings')
+  })
+
+  it('uses the provided key in every route', () => {
+    const links = projectNavLinks('xyz')
+    expect(links.every(l => l.to.includes('/projects/xyz'))).toBe(true)
+  })
 })
