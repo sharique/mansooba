@@ -50,6 +50,7 @@ func Load() *Config {
 	viper.SetDefault("DB_MAX_OPEN_CONNS", 0)
 	viper.SetDefault("DB_MAX_IDLE_CONNS", 2)
 	viper.SetDefault("DB_CONN_MAX_LIFETIME", "0")
+	viper.SetDefault("JWT_SECRET", "")
 	viper.SetDefault("JWT_ACCESS_TTL", "15m")
 	viper.SetDefault("JWT_REFRESH_TTL", "168h")
 	viper.SetDefault("LOG_LEVEL", "debug")

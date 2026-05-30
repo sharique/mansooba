@@ -13,11 +13,11 @@ func Migrate(db *gorm.DB) error {
 		&domain.User{},
 		&domain.Project{},
 		&domain.ProjectMember{},
-		&domain.Issue{},
 		&domain.Sprint{},
+		&domain.Label{},
+		&domain.Issue{},
 		&domain.Comment{},
 		&domain.ActivityEvent{},
-		&domain.Label{},
 		&domain.IssueLabel{},
 		&domain.Notification{},
 	)

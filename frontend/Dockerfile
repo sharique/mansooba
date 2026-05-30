@@ -15,7 +15,7 @@ COPY . .
 ARG NUXT_PUBLIC_API_BASE_URL=/api/v1
 ENV NUXT_PUBLIC_API_BASE_URL=${NUXT_PUBLIC_API_BASE_URL}
 
-RUN npm run build
+RUN npm run generate
 
 # ── final ──────────────────────────────────────────────────────────────────────
 # nginx:alpine serves the static Nuxt output and proxies /api/ to the backend.

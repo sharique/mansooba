@@ -5,12 +5,7 @@ export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
   srcDir: "app",
-  ssr: true,
-  nitro: {
-    routeRules: {
-      "/**": { ssr: false },
-    },
-  },
+  ssr: false,
   modules: [
     "@nuxt/eslint",
     "@nuxt/icon",
