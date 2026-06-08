@@ -6,45 +6,6 @@ This guide covers three ways to run the full stack (Go backend + Nuxt frontend +
 2. **ddev** — lightweight dev environment manager
 3. **Lando** — flexible local dev platform
 
-> **Prerequisite — add PostgreSQL driver to the backend**  
-> `database.go` currently only wires SQLite. Before using any Docker setup below, add Postgres support:
->
-> ```bash
-> cd backend
-> go get gorm.io/driver/postgres
-> ```
->
-> Then update `backend/pkg/database/database.go`:
->
-> ```go
-> import (
->     "fmt"
->     "github.com/sharique/jira-go/pkg/config"
->     "gorm.io/driver/postgres"
->     "gorm.io/driver/sqlite"
->     "gorm.io/gorm"
-> )
->
-> func Open(cfg *config.Config) (*gorm.DB, error) {
->     switch cfg.DBDriver {
->     case "sqlite":
->         db, err := gorm.Open(sqlite.Open(cfg.DBDSN), &gorm.Config{})
->         if err != nil {
->             return nil, fmt.Errorf("database: sqlite: %w", err)
->         }
->         return db, nil
->     case "postgres":
->         db, err := gorm.Open(postgres.Open(cfg.DBDSN), &gorm.Config{})
->         if err != nil {
->             return nil, fmt.Errorf("database: postgres: %w", err)
->         }
->         return db, nil
->     default:
->         return nil, fmt.Errorf("database: unsupported driver %q", cfg.DBDriver)
->     }
-> }
-> ```
-
 ---
 
 ## Environment variables reference
@@ -52,8 +13,11 @@ This guide covers three ways to run the full stack (Go backend + Nuxt frontend +
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SERVER_PORT` | `8080` | Port the Go API listens on |
-| `DB_DRIVER` | `sqlite` | `sqlite` or `postgres` |
-| `DB_DSN` | `./dev.db` | SQLite path **or** Postgres connection string |
+| `DB_DRIVER` | `sqlite` | `sqlite`, `postgres` / `postgresql`, `mysql` / `mariadb` |
+| `DB_DSN` | `./dev.db` | SQLite path **or** database connection string |
+| `DB_MAX_OPEN_CONNS` | `0` | Max open DB connections (`0` = unlimited) |
+| `DB_MAX_IDLE_CONNS` | `2` | Max idle DB connections |
+| `DB_CONN_MAX_LIFETIME` | `0` | Max connection lifetime (e.g. `5m`; `0` = never expire) |
 | `JWT_SECRET` | *(required)* | Secret used to sign JWTs — use a long random string |
 | `JWT_ACCESS_TTL` | `15m` | Access token lifetime |
 | `JWT_REFRESH_TTL` | `168h` | Refresh token lifetime |

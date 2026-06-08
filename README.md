@@ -61,7 +61,7 @@ Built using a spec-driven approach where I worked as architect/manager and Claud
 
 ---
 
-## Running locally
+## Running locally from source
 
 ### 1. Environment
 
@@ -89,5 +89,7 @@ npm run dev
 ```
 
 ---
+
+For running using pre-build images see [`docs/running-from-ghcr.md`](docs/running-from-ghcr.md).
 
 For API reference, project structure, and architecture details see [`docs/arch-overview.md`](docs/arch-overview.md).
