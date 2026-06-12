@@ -185,6 +185,51 @@ func TestCommentService_List_ReturnsByIssue(t *testing.T) {
 	assert.Len(t, list, 2)
 }
 
+// T017: author_avatar_url enrichment tests
+func TestCommentService_List_IncludesAuthorAvatarURL(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10})
+
+	memberRepo := newStubProjectMemberRepo()
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"})
+
+	commentRepo := newStubCommentRepo()
+	activitySvc := &stubActivityService{}
+
+	userRepo := newStubUserRepo()
+	_ = userRepo.Create(context.Background(), &domain.User{ID: 42, Name: "Alice", Email: "alice@example.com", Password: "x", AvatarURL: "/uploads/avatars/avatar-42.jpg?v=1000"})
+
+	svc := service.NewCommentService(commentRepo, issueRepo, memberRepo, activitySvc, newStubNotificationRepo(), userRepo)
+	_, _ = svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "hello"})
+
+	list, err := svc.List(context.Background(), 1, 42)
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	assert.Equal(t, "/uploads/avatars/avatar-42.jpg?v=1000", list[0].AuthorAvatarURL)
+}
+
+func TestCommentService_List_EmptyAvatarURLWhenNoAvatar(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10})
+
+	memberRepo := newStubProjectMemberRepo()
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"})
+
+	commentRepo := newStubCommentRepo()
+	activitySvc := &stubActivityService{}
+
+	userRepo := newStubUserRepo()
+	_ = userRepo.Create(context.Background(), &domain.User{ID: 42, Name: "Bob", Email: "bob@example.com", Password: "x"})
+
+	svc := service.NewCommentService(commentRepo, issueRepo, memberRepo, activitySvc, newStubNotificationRepo(), userRepo)
+	_, _ = svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "hi"})
+
+	list, err := svc.List(context.Background(), 1, 42)
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	assert.Equal(t, "", list[0].AuthorAvatarURL)
+}
+
 func TestCommentService_List_IncludesAuthorName(t *testing.T) {
 	issueRepo := newStubIssueRepo()
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10})

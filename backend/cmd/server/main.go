@@ -155,6 +155,13 @@ func main() {
 	authMe.PUT("/me", userHandler.UpdateProfile)
 	authMe.GET("/me/activity", userHandler.GetMyActivity)
 	authMe.GET("/me/issues", userHandler.GetMyIssues)
+	authMe.POST("/me/avatar", userHandler.UploadAvatar)
+	authMe.DELETE("/me/avatar", userHandler.DeleteAvatar)
+
+	// Public static file serving for uploaded avatars.
+	// Intentionally unauthenticated — browser <img> tags fetch images as
+	// unauthenticated sub-resources. Rationale documented in ADR-026.
+	e.Static("/uploads", "uploads")
 
 	projects := api.Group("/projects")
 	projects.GET("", projectHandler.List)

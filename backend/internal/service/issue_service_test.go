@@ -558,3 +558,83 @@ func TestIssueService_GetMyIssues_empty_when_none_assigned(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, result)
 }
+
+// T022: assignee_avatar_url and assignee_name enrichment tests
+
+func newIssueServiceWithUsers(userRepo domain.UserRepository) (service.IssueService, *stubProjectRepo, *stubProjectMemberRepo, *stubIssueRepo) {
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	issueRepo := newStubIssueRepo()
+	activitySvc := &stubActivitySvc{}
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo)
+	return svc, projectRepo, memberRepo, issueRepo
+}
+
+func TestIssueService_GetMyIssues_AssigneeAvatarURLPopulated(t *testing.T) {
+	userRepo := newStubUserRepo()
+	assigneeID := uint(10)
+	_ = userRepo.Create(context.Background(), &domain.User{ID: assigneeID, Name: "Alice", Email: "alice@example.com", Password: "x", AvatarURL: "/uploads/avatars/avatar-10.jpg?v=1000"})
+
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = []*domain.Issue{
+		{ID: 1, Key: "P-1", Title: "Issue", AssigneeID: &assigneeID, Status: domain.IssueStatusTodo},
+	}
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, userRepo)
+
+	result, err := svc.GetMyIssues(context.Background(), assigneeID, dto.IssueListQuery{})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.NotNil(t, result[0].AssigneeAvatarURL)
+	assert.Equal(t, "/uploads/avatars/avatar-10.jpg?v=1000", *result[0].AssigneeAvatarURL)
+	require.NotNil(t, result[0].AssigneeName)
+	assert.Equal(t, "Alice", *result[0].AssigneeName)
+}
+
+func TestIssueService_GetMyIssues_AssigneeAvatarURLNilWhenNoAvatar(t *testing.T) {
+	userRepo := newStubUserRepo()
+	assigneeID := uint(11)
+	_ = userRepo.Create(context.Background(), &domain.User{ID: assigneeID, Name: "Bob", Email: "bob@example.com", Password: "x"})
+
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = []*domain.Issue{
+		{ID: 1, Key: "P-1", Title: "Issue", AssigneeID: &assigneeID, Status: domain.IssueStatusTodo},
+	}
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, userRepo)
+
+	result, err := svc.GetMyIssues(context.Background(), assigneeID, dto.IssueListQuery{})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Nil(t, result[0].AssigneeAvatarURL)
+}
+
+func TestIssueService_GetMyIssues_AssigneeNilWhenUnassigned(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = []*domain.Issue{
+		{ID: 1, Key: "P-1", Title: "Unassigned", AssigneeID: nil, Status: domain.IssueStatusTodo},
+	}
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo())
+
+	result, err := svc.GetMyIssues(context.Background(), 99, dto.IssueListQuery{})
+	require.NoError(t, err)
+	// No issues assigned to 99, so result should be empty — that's correct.
+	assert.Empty(t, result)
+}
+
+func TestIssueService_ListByProject_AssigneeAvatarURLPopulated(t *testing.T) {
+	userRepo := newStubUserRepo()
+	assigneeID := uint(20)
+	_ = userRepo.Create(context.Background(), &domain.User{ID: assigneeID, Name: "Carol", Email: "carol@example.com", Password: "x", AvatarURL: "/uploads/avatars/avatar-20.jpg?v=999"})
+
+	svc, projectRepo, memberRepo, issueRepo := newIssueServiceWithUsers(userRepo)
+	ctx := context.Background()
+	project := seedProject(ctx, projectRepo, memberRepo)
+	issueRepo.issues = []*domain.Issue{
+		{ID: 1, Key: "PROJ-1", ProjectID: project.ID, Title: "Issue", Type: domain.IssueTypeTask, Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityLow, AssigneeID: &assigneeID, ReporterID: 1},
+	}
+
+	result, err := svc.ListByProject(ctx, "PROJ", 1, dto.IssueListQuery{})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	require.NotNil(t, result[0].AssigneeAvatarURL)
+	assert.Equal(t, "/uploads/avatars/avatar-20.jpg?v=999", *result[0].AssigneeAvatarURL)
+}

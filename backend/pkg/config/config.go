@@ -56,7 +56,7 @@ func Load() *Config {
 	viper.SetDefault("LOG_LEVEL", "debug")
 	viper.SetDefault("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
 	viper.SetDefault("SHUTDOWN_TIMEOUT", "30s")
-	viper.SetDefault("BODY_SIZE_LIMIT", "1M")
+	viper.SetDefault("BODY_SIZE_LIMIT", "4M")
 	viper.SetDefault("REQUEST_TIMEOUT", "30s")
 	viper.SetDefault("AUTH_RATE_LIMIT", 20)
 

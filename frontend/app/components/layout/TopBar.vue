@@ -25,10 +25,13 @@
 
     <!-- user menu -->
     <div class="dropdown dropdown-end">
-      <button tabindex="0" class="btn btn-ghost btn-sm btn-circle avatar placeholder">
-        <div class="bg-primary text-primary-content rounded-full w-8">
-          <span class="text-xs">{{ initials }}</span>
-        </div>
+      <button tabindex="0" class="btn btn-ghost btn-sm btn-circle">
+        <UserAvatar
+          :avatarUrl="authStore.profile?.avatar_url || undefined"
+          :name="displayName"
+          :userId="authStore.profile?.id || 0"
+          size="sm"
+        />
       </button>
       <ul tabindex="0" class="dropdown-content menu bg-base-100 border border-base-300 rounded-box z-20 w-44 p-1 shadow">
         <li class="menu-title text-xs">{{ displayName }}</li>
@@ -41,15 +44,13 @@
 
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth.store'
+import UserAvatar from '~/components/common/UserAvatar.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
 
 const q = ref('')
 const displayName = computed(() => authStore.profile?.name || authStore.user?.name || 'Account')
-const initials = computed(() =>
-  displayName.value.split(' ').map(s => s?.charAt(0) ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase() || '?',
-)
 
 function search() {
   const term = q.value.trim()

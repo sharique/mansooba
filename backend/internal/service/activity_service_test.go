@@ -117,3 +117,56 @@ func TestActivityService_GetMyActivity_ReturnsOnlyCallerEvents(t *testing.T) {
 	assert.Equal(t, "P-1", my[0].IssueKey)
 	assert.Equal(t, "T", my[0].IssueTitle)
 }
+
+// T027: actor_avatar_url enrichment tests
+
+func TestActivityService_ListByIssue_ActorAvatarURLPopulated(t *testing.T) {
+	repo := newStubActivityRepo()
+	userRepo := newStubUserRepo()
+	_ = userRepo.Create(context.Background(), &domain.User{ID: 3, Name: "Dave", Email: "dave@test.com", Password: "x", AvatarURL: "/uploads/avatars/avatar-3.jpg?v=500"})
+
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, Key: "P-1", Title: "Task"})
+
+	svc := service.NewActivityService(repo, userRepo, issueRepo)
+	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 1, ActorID: 3, Kind: domain.ActivityStatusChanged})
+
+	events, err := svc.ListByIssue(context.Background(), 1)
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, "/uploads/avatars/avatar-3.jpg?v=500", events[0].ActorAvatarURL)
+}
+
+func TestActivityService_ListByIssue_EmptyAvatarURLWhenNoAvatar(t *testing.T) {
+	repo := newStubActivityRepo()
+	userRepo := newStubUserRepo()
+	_ = userRepo.Create(context.Background(), &domain.User{ID: 4, Name: "Eve", Email: "eve@test.com", Password: "x"})
+
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, Key: "P-1", Title: "Task"})
+
+	svc := service.NewActivityService(repo, userRepo, issueRepo)
+	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 1, ActorID: 4, Kind: domain.ActivityStatusChanged})
+
+	events, err := svc.ListByIssue(context.Background(), 1)
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, "", events[0].ActorAvatarURL)
+}
+
+func TestActivityService_GetMyActivity_ActorAvatarURLPopulated(t *testing.T) {
+	repo := newStubActivityRepo()
+	userRepo := newStubUserRepo()
+	_ = userRepo.Create(context.Background(), &domain.User{ID: 6, Name: "Frank", Email: "frank@test.com", Password: "x", AvatarURL: "/uploads/avatars/avatar-6.jpg?v=777"})
+
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, Key: "P-1", Title: "Task"})
+
+	svc := service.NewActivityService(repo, userRepo, issueRepo)
+	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 1, ActorID: 6, Kind: domain.ActivityStatusChanged})
+
+	events, err := svc.GetMyActivity(context.Background(), 6, 20, 0)
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, "/uploads/avatars/avatar-6.jpg?v=777", events[0].ActorAvatarURL)
+}

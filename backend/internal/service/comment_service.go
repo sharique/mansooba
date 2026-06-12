@@ -89,21 +89,25 @@ func (s *commentService) List(ctx context.Context, issueID, callerID uint) ([]*d
 		return nil, err
 	}
 
+	type authorInfo struct{ Name, AvatarURL string }
+
 	// Collect unique author IDs to reduce repeated lookups (one call per unique ID).
-	idSet := make(map[uint]string)
+	idSet := make(map[uint]authorInfo)
 	for _, c := range comments {
-		idSet[c.AuthorID] = ""
+		idSet[c.AuthorID] = authorInfo{}
 	}
 	for id := range idSet {
 		if u, err := s.userRepo.FindByID(ctx, id); err == nil {
-			idSet[id] = u.Name
+			idSet[id] = authorInfo{Name: u.Name, AvatarURL: u.AvatarURL}
 		}
 	}
 
 	result := make([]*dto.CommentResponse, 0, len(comments))
 	for _, c := range comments {
 		r := toCommentResponse(c)
-		r.AuthorName = idSet[c.AuthorID]
+		info := idSet[c.AuthorID]
+		r.AuthorName = info.Name
+		r.AuthorAvatarURL = info.AvatarURL
 		result = append(result, r)
 	}
 	return result, nil

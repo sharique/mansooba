@@ -38,6 +38,8 @@ export interface Issue {
   status: 'todo' | 'in_progress' | 'in_review' | 'done' | 'backlog'
   priority: 'low' | 'medium' | 'high' | 'critical'
   assignee_id?: number
+  assignee_name?: string | null
+  assignee_avatar_url?: string | null
   reporter_id: number
   story_points?: number
   sprint_id?: number | null
@@ -141,6 +143,7 @@ export interface Comment {
   issue_id: number
   author_id: number
   author_name: string | null
+  author_avatar_url: string | null
   body: string
   created_at: string
   updated_at: string
@@ -153,6 +156,7 @@ export interface ActivityEvent {
   issue_id: number
   actor_id: number
   actor_name: string
+  actor_avatar_url: string | null
   issue_key: string
   issue_title: string
   kind: string
