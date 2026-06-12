@@ -50,4 +50,16 @@ export const authService = {
     const { $api } = useNuxtApp()
     return $api<Issue[]>('/auth/me/issues')
   },
+
+  async uploadAvatar(file: File): Promise<UserProfileResponse> {
+    const { $api } = useNuxtApp()
+    const body = new FormData()
+    body.append('avatar', file)
+    return $api<UserProfileResponse>('/auth/me/avatar', { method: 'POST', body })
+  },
+
+  async deleteAvatar(): Promise<UserProfileResponse> {
+    const { $api } = useNuxtApp()
+    return $api<UserProfileResponse>('/auth/me/avatar', { method: 'DELETE' })
+  },
 }

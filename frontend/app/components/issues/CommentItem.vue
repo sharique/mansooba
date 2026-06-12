@@ -1,10 +1,11 @@
 <template>
   <div class="flex gap-3 py-3 border-b border-base-200 last:border-0">
-    <div class="avatar placeholder">
-      <div class="bg-neutral text-neutral-content rounded-full w-8 h-8">
-        <span class="text-xs">{{ initials }}</span>
-      </div>
-    </div>
+    <UserAvatar
+      :avatarUrl="comment.author_avatar_url || undefined"
+      :name="comment.author_name || ''"
+      :userId="comment.author_id"
+      size="sm"
+    />
     <div class="flex-1 min-w-0">
       <div class="flex items-baseline gap-2 mb-1">
         <span class="font-medium text-sm">{{ comment.author_name }}</span>
@@ -28,6 +29,7 @@
 
 <script setup lang="ts">
 import type { Comment } from '~/types/domain.types'
+import UserAvatar from '~/components/common/UserAvatar.vue'
 
 const props = defineProps<{ comment: Comment; currentUserId: number }>()
 const emit = defineEmits<{ (e: 'update', id: number, body: string): void; (e: 'delete', id: number): void }>()
@@ -37,11 +39,6 @@ const editBody = ref(props.comment.body)
 
 const isOwn = computed(() => props.comment.author_id === props.currentUserId)
 const rendered = computed(() => useMarkdown(props.comment.body))
-const initials = computed(() =>
-  props.comment.author_name
-    ? props.comment.author_name.slice(0, 2).toUpperCase()
-    : String(props.comment.author_id)
-)
 const { formatDateTime } = useTimeFormatter()
 const relativeTime = computed(() => formatDateTime(props.comment.created_at))
 

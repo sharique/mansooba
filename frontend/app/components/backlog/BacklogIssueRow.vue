@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { SprintStatus } from "~/types/domain.types";
 import type { Issue, Sprint } from "~/types/domain.types";
+import UserAvatar from "~/components/common/UserAvatar.vue";
 
 const props = defineProps<{
     issue: Issue;
@@ -76,18 +77,16 @@ function onSprintChange(e: Event) {
             {{ issue.priority }}
         </span>
 
-        <!-- Assignee initials -->
-        <div
+        <!-- Assignee avatar -->
+        <UserAvatar
             v-if="issue.assignee_id"
-            class="avatar placeholder shrink-0"
+            :avatarUrl="issue.assignee_avatar_url || undefined"
+            :name="issue.assignee_name || ''"
+            :userId="issue.assignee_id"
+            size="sm"
+            class="shrink-0"
             title="Assigned"
-        >
-            <div class="bg-neutral text-neutral-content rounded-full w-6">
-                <span class="text-xs">{{
-                    String(issue.assignee_id).slice(0, 2)
-                }}</span>
-            </div>
-        </div>
+        />
 
         <!-- Add to sprint -->
         <select

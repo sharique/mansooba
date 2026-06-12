@@ -46,26 +46,51 @@
           </select>
         </div>
 
+        <!-- Avatar section -->
         <div class="form-control">
-          <label class="label"><span class="label-text">Avatar URL</span></label>
-          <input
-            v-model="form.avatarURL"
-            type="url"
-            class="input input-bordered"
-            placeholder="https://example.com/avatar.jpg"
-          />
-          <div v-if="form.avatarURL" class="mt-2">
-            <img :src="form.avatarURL" alt="Avatar preview" class="w-16 h-16 rounded-full object-cover" />
+          <label class="label"><span class="label-text">Profile Photo</span></label>
+          <div class="flex items-center gap-4">
+            <UserAvatar
+              :avatarUrl="authStore.profile?.avatar_url || undefined"
+              :name="authStore.profile?.name || authStore.user?.name || ''"
+              :userId="authStore.profile?.id || 0"
+              size="lg"
+            />
+            <div class="flex flex-col gap-2">
+              <input
+                ref="fileInput"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                class="hidden"
+                @change="onFileSelect"
+              />
+              <button class="btn btn-sm btn-outline" @click="fileInput?.click()">
+                Choose photo
+              </button>
+              <button
+                v-if="authStore.profile?.avatar_url"
+                class="btn btn-sm btn-ghost text-error"
+                :disabled="uploading"
+                @click="removeAvatar"
+              >
+                Remove photo
+              </button>
+            </div>
           </div>
+          <p v-if="avatarError" class="text-error text-sm mt-1">{{ avatarError }}</p>
+          <p v-if="selectedFile" class="text-sm text-base-content/70 mt-1">
+            Selected: {{ selectedFile.name }} ({{ (selectedFile.size / 1024).toFixed(1) }} KB)
+          </p>
         </div>
 
         <div class="card-actions justify-end">
           <button
             class="btn btn-primary"
-            :disabled="saving"
+            :disabled="saving || uploading"
             @click="saveProfile"
           >
-            {{ saving ? 'Saving…' : 'Save Changes' }}
+            <span v-if="saving || uploading" class="loading loading-spinner loading-xs" />
+            {{ saving ? 'Saving…' : uploading ? 'Uploading…' : 'Save Changes' }}
           </button>
         </div>
       </div>
@@ -88,19 +113,24 @@
 
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth.store'
+import { authService } from '~/services/auth.service'
+import UserAvatar from '~/components/common/UserAvatar.vue'
 
 const authStore = useAuthStore()
 const { showSuccess, showError } = useToast()
 
 const activeTab = ref<'profile' | 'activity'>('profile')
 const saving = ref(false)
+const uploading = ref(false)
 const loadingActivity = ref(false)
 const activityLoaded = ref(false)
+const selectedFile = ref<File | null>(null)
+const avatarError = ref('')
+const fileInput = ref<HTMLInputElement | null>(null)
 
 const form = reactive({
   fullName: authStore.profile?.name ?? authStore.user?.name ?? '',
   timezone: authStore.profile?.timezone ?? '',
-  avatarURL: authStore.profile?.avatar_url ?? '',
 })
 
 const commonTimezones = [
@@ -110,11 +140,13 @@ const commonTimezones = [
   'Australia/Sydney', 'Pacific/Auckland',
 ]
 
+const MAX_BYTES = 2 * 1024 * 1024
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+
 onMounted(async () => {
   await authStore.fetchMe()
   form.fullName = authStore.profile?.name ?? ''
   form.timezone = authStore.profile?.timezone ?? ''
-  form.avatarURL = authStore.profile?.avatar_url ?? ''
 })
 
 watch(activeTab, async (tab) => {
@@ -129,19 +161,62 @@ watch(activeTab, async (tab) => {
   }
 })
 
+function onFileSelect(e: Event) {
+  avatarError.value = ''
+  selectedFile.value = null
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+
+  if (file.size > MAX_BYTES) {
+    avatarError.value = 'File must be under 2 MB'
+    return
+  }
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    avatarError.value = 'Only JPEG, PNG, or WebP images are accepted'
+    return
+  }
+  selectedFile.value = file
+}
+
 async function saveProfile() {
   saving.value = true
   try {
+    if (selectedFile.value) {
+      await uploadAvatar(selectedFile.value)
+      selectedFile.value = null
+    }
     await authStore.updateProfile({
       full_name: form.fullName || undefined,
       timezone: form.timezone || undefined,
-      avatar_url: form.avatarURL || undefined,
     })
     showSuccess('Profile updated')
   } catch {
     showError('Failed to update profile')
   } finally {
     saving.value = false
+  }
+}
+
+async function uploadAvatar(file: File) {
+  uploading.value = true
+  try {
+    await authService.uploadAvatar(file)
+    await authStore.fetchMe()
+  } finally {
+    uploading.value = false
+  }
+}
+
+async function removeAvatar() {
+  uploading.value = true
+  try {
+    await authService.deleteAvatar()
+    await authStore.fetchMe()
+    showSuccess('Avatar removed')
+  } catch {
+    showError('Failed to remove avatar')
+  } finally {
+    uploading.value = false
   }
 }
 </script>

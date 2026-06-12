@@ -53,20 +53,25 @@ func (s *activityServiceImpl) GetMyActivity(ctx context.Context, actorID uint, l
 	return s.enrich(ctx, events), nil
 }
 
-// enrich resolves actor names and issue key/title for a slice of activity events.
+type actorInfo struct {
+	Name      string
+	AvatarURL string
+}
+
+// enrich resolves actor names/avatars and issue key/title for a slice of activity events.
 func (s *activityServiceImpl) enrich(ctx context.Context, events []*domain.ActivityEvent) []*dto.ActivityEventResponse {
-	// Resolve unique actor IDs → names (one repo call per distinct actor).
-	actorNames := make(map[uint]string)
+	// Resolve unique actor IDs → name + avatar (one repo call per distinct actor).
+	actors := make(map[uint]actorInfo)
 	issueKeys := make(map[uint]string)
 	issueTitles := make(map[uint]string)
 
 	for _, e := range events {
-		actorNames[e.ActorID] = ""
+		actors[e.ActorID] = actorInfo{}
 		issueKeys[e.IssueID] = ""
 	}
-	for id := range actorNames {
+	for id := range actors {
 		if u, err := s.userRepo.FindByID(ctx, id); err == nil {
-			actorNames[id] = u.Name
+			actors[id] = actorInfo{Name: u.Name, AvatarURL: u.AvatarURL}
 		}
 	}
 	// Resolve unique issue IDs → keys and titles (one repo call per distinct issue).
@@ -79,17 +84,19 @@ func (s *activityServiceImpl) enrich(ctx context.Context, events []*domain.Activ
 
 	result := make([]*dto.ActivityEventResponse, 0, len(events))
 	for _, e := range events {
+		actor := actors[e.ActorID]
 		result = append(result, &dto.ActivityEventResponse{
-			ID:         e.ID,
-			IssueID:    e.IssueID,
-			ActorID:    e.ActorID,
-			ActorName:  actorNames[e.ActorID],
-			IssueKey:   issueKeys[e.IssueID],
-			IssueTitle: issueTitles[e.IssueID],
-			Kind:       e.Kind,
-			OldValue:   e.OldValue,
-			NewValue:   e.NewValue,
-			CreatedAt:  e.CreatedAt,
+			ID:             e.ID,
+			IssueID:        e.IssueID,
+			ActorID:        e.ActorID,
+			ActorName:      actor.Name,
+			ActorAvatarURL: actor.AvatarURL,
+			IssueKey:       issueKeys[e.IssueID],
+			IssueTitle:     issueTitles[e.IssueID],
+			Kind:           e.Kind,
+			OldValue:       e.OldValue,
+			NewValue:       e.NewValue,
+			CreatedAt:      e.CreatedAt,
 		})
 	}
 	return result

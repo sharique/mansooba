@@ -87,7 +87,7 @@ func (s *issueService) Create(ctx context.Context, projectKey string, callerID u
 	if err := s.issueRepo.Create(ctx, issue); err != nil {
 		return nil, err
 	}
-	return toIssueResponse(issue), nil
+	return s.enrichIssueResponse(ctx, toIssueResponse(issue), issue), nil
 }
 
 func (s *issueService) ListByProject(ctx context.Context, projectKey string, callerID uint, q dto.IssueListQuery) ([]*dto.IssueResponse, error) {
@@ -170,7 +170,7 @@ func (s *issueService) ListByProject(ctx context.Context, projectKey string, cal
 
 	result := make([]*dto.IssueResponse, 0, end-start)
 	for _, i := range filtered[start:end] {
-		result = append(result, toIssueResponse(i))
+		result = append(result, s.enrichIssueResponse(ctx, toIssueResponse(i), i))
 	}
 	return result, nil
 }
@@ -192,7 +192,7 @@ func (s *issueService) FindByID(ctx context.Context, projectKey string, id uint,
 	if issue.ProjectID != project.ID {
 		return nil, domain.ErrNotFound
 	}
-	return toIssueResponse(issue), nil
+	return s.enrichIssueResponse(ctx, toIssueResponse(issue), issue), nil
 }
 
 func (s *issueService) Update(ctx context.Context, projectKey string, id uint, callerID uint, req dto.UpdateIssueRequest) (*dto.IssueResponse, error) {
@@ -264,7 +264,7 @@ func (s *issueService) Update(ctx context.Context, projectKey string, id uint, c
 
 	s.recordFieldChanges(ctx, issue.ID, callerID, oldStatus, oldPriority, oldAssigneeID, oldSprintID, oldPoints, issue)
 
-	return toIssueResponse(issue), nil
+	return s.enrichIssueResponse(ctx, toIssueResponse(issue), issue), nil
 }
 
 func (s *issueService) Delete(ctx context.Context, projectKey string, id uint, callerID uint) error {
@@ -308,12 +308,31 @@ func (s *issueService) GetMyIssues(ctx context.Context, callerID uint, q dto.Iss
 		if q.Status != "" && issue.Status != q.Status {
 			continue
 		}
-		resp = append(resp, toIssueResponse(issue))
+		resp = append(resp, s.enrichIssueResponse(ctx, toIssueResponse(issue), issue))
 	}
 	return resp, nil
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────
+
+// enrichIssueResponse populates AssigneeName and AssigneeAvatarURL from userRepo when
+// the issue has an assignee.
+func (s *issueService) enrichIssueResponse(ctx context.Context, r *dto.IssueResponse, i *domain.Issue) *dto.IssueResponse {
+	if i.AssigneeID == nil {
+		return r
+	}
+	u, err := s.userRepo.FindByID(ctx, *i.AssigneeID)
+	if err != nil {
+		return r
+	}
+	name := u.Name
+	r.AssigneeName = &name
+	if u.AvatarURL != "" {
+		url := u.AvatarURL
+		r.AssigneeAvatarURL = &url
+	}
+	return r
+}
 
 func (s *issueService) recordFieldChanges(
 	ctx context.Context,

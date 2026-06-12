@@ -1,12 +1,15 @@
 package handler
 
 import (
+	"io"
 	"net/http"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
+	"github.com/sharique/mansooba/pkg/logger"
+	"go.uber.org/zap"
 )
 
 // UserHandler exposes profile, my-activity, and my-issues endpoints for the current user.
@@ -98,6 +101,68 @@ func (h *UserHandler) GetMyActivity(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusOK, events)
+}
+
+// UploadAvatar godoc
+// @Summary      Upload current user's avatar
+// @Tags         users
+// @Accept       multipart/form-data
+// @Produce      json
+// @Security     BearerAuth
+// @Param        avatar formData file true "Avatar image (JPEG/PNG/WebP, max 2 MB)"
+// @Success      200 {object} dto.UserProfileResponse
+// @Failure      400 {object} apierror.APIError
+// @Failure      401 {object} apierror.APIError
+// @Failure      413 {object} apierror.APIError
+// @Router       /auth/me/avatar [post]
+func (h *UserHandler) UploadAvatar(c echo.Context) error {
+	callerID := c.Get("userID").(uint)
+
+	fileHeader, err := c.FormFile("avatar")
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "avatar file is required")
+	}
+
+	f, err := fileHeader.Open()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "could not read avatar file")
+	}
+	defer f.Close()
+
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "could not read avatar file")
+	}
+
+	contentType := fileHeader.Header.Get("Content-Type")
+	resp, err := h.userSvc.UploadAvatar(c.Request().Context(), callerID, fileHeader.Filename, data, contentType)
+	if err != nil {
+		logger.Logger.Info("avatar upload failed", zap.Uint("userID", callerID), zap.Error(err))
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	logger.Logger.Info("avatar uploaded", zap.Uint("userID", callerID), zap.Int("bytes", len(data)))
+	return c.JSON(http.StatusOK, resp)
+}
+
+// DeleteAvatar godoc
+// @Summary      Delete current user's avatar
+// @Tags         users
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} dto.UserProfileResponse
+// @Failure      401 {object} apierror.APIError
+// @Router       /auth/me/avatar [delete]
+func (h *UserHandler) DeleteAvatar(c echo.Context) error {
+	callerID := c.Get("userID").(uint)
+
+	resp, err := h.userSvc.DeleteAvatar(c.Request().Context(), callerID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	logger.Logger.Info("avatar deleted", zap.Uint("userID", callerID))
+	return c.JSON(http.StatusOK, resp)
 }
 
 // GetMyIssues godoc
