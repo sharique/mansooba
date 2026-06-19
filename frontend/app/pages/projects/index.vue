@@ -11,10 +11,19 @@
     </div>
 
     <!-- Empty state -->
-    <div v-else-if="!projectsStore.projects.length" class="text-center py-20 text-base-content/50">
-      <p class="text-lg">No projects yet.</p>
-      <p class="text-sm mt-1">Click "New Project" to create your first one.</p>
-    </div>
+    <UiEmptyState
+      v-else-if="!projectsStore.projects.length"
+      data-testid="empty-state"
+      icon="mdi:folder-open-outline"
+      title="No projects yet"
+      description="Create your first project to start tracking work."
+    >
+      <template #action>
+        <button class="btn btn-primary btn-sm" @click="createModal?.showModal()">
+          Create your first project
+        </button>
+      </template>
+    </UiEmptyState>
 
     <!-- Grid -->
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -200,6 +200,7 @@ export interface UserProfileResponse {
   email: string
   avatar_url: string
   timezone: string
+  is_admin: boolean
   created_at: string
 }
 
@@ -207,6 +208,44 @@ export interface UpdateProfilePatch {
   full_name?: string
   avatar_url?: string
   timezone?: string
+}
+
+// ── Global Settings ───────────────────────────────────────────────────────────
+
+export interface SettingsResponse {
+  organization_name: string
+  date_format: string
+  time_format: string
+  locale: string
+  week_start_day: string
+}
+
+export interface PatchSettingsRequest {
+  organization_name?: string
+  date_format?: string
+  time_format?: string
+  locale?: string
+  week_start_day?: string
+}
+
+// ── Issue Relations ───────────────────────────────────────────────────────────
+
+export interface RelatedIssueInfo {
+  id: number
+  key: string
+  title: string
+  status: string
+}
+
+export interface RelationResponse {
+  id: number
+  relation_type: string
+  related_issue: RelatedIssueInfo
+}
+
+export interface CreateRelationRequest {
+  target_issue_id: number
+  relation_type: string
 }
 
 // ── Search / Filters ──────────────────────────────────────────────────────────

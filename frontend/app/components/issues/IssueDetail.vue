@@ -43,6 +43,9 @@
         </div>
       </div>
 
+      <!-- Related tasks -->
+      <IssuesRelatedTasksSection :issue-id="issue.id" :project-key="projectKey" />
+
       <!-- Activity feed -->
       <div class="mt-6 border-t border-base-200 pt-4">
         <h3 class="font-semibold text-sm mb-3">Activity</h3>

@@ -22,40 +22,101 @@ docker compose version    # Docker Compose v2.x
 
 ---
 
-## Option A — Quick local run (SQLite, no database setup)
+## Option A — Quick local run (SQLite + MinIO)
 
-The backend supports SQLite out of the box. This is the fastest way to get the app running locally.
+The fastest way to run the full stack locally. Uses SQLite for the database and a local MinIO container for object storage — no Postgres setup required.
 
-```bash
-docker run --rm \
-  -e JWT_SECRET=dev-secret-change-me \
-  -e DB_DRIVER=sqlite \
-  -e DB_DSN=/data/dev.db \
-  -e CORS_ORIGINS=http://localhost:3000 \
-  -p 8080:8080 \
-  -v mansooba-data:/data \
-  ghcr.io/sharique/mansooba-backend:latest
+Create a `compose.quickstart.yml` anywhere:
+
+```yaml
+services:
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/mansooba &&
+      echo 'bucket ready'
+      "
+
+  backend:
+    image: ghcr.io/sharique/mansooba-backend:latest
+    ports:
+      - "8080:8080"
+    environment:
+      JWT_SECRET: dev-secret-change-me
+      DB_DRIVER: sqlite
+      DB_DSN: /data/dev.db
+      CORS_ORIGINS: http://localhost:3000
+      STORAGE_ENDPOINT: http://minio:9000
+      STORAGE_BUCKET: mansooba
+      STORAGE_ACCESS_KEY_ID: minioadmin
+      STORAGE_SECRET_ACCESS_KEY: minioadmin
+      STORAGE_USE_PATH_STYLE: "true"
+    volumes:
+      - sqlite_data:/data
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  frontend:
+    image: ghcr.io/sharique/mansooba-frontend:latest
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  sqlite_data:
+  minio_data:
 ```
 
-In a second terminal, start the frontend:
+Then:
+
 ```bash
-docker run --rm \
-  -e NUXT_PUBLIC_API_BASE_URL=http://localhost:8080/api/v1 \
-  -p 3000:3000 \
-  ghcr.io/sharique/mansooba-frontend:latest
+docker compose -f compose.quickstart.yml pull
+docker compose -f compose.quickstart.yml up -d
 ```
 
-App is at **http://localhost:3000** · API at **http://localhost:8080**
+App is at **http://localhost:3000** · API at **http://localhost:8080** · MinIO console at **http://localhost:9001**
 
-> Stop both containers with `Ctrl+C`. The SQLite database persists in the `mansooba-data` Docker volume between runs.
+> SQLite data persists in the `sqlite_data` volume. Stop with `docker compose -f compose.quickstart.yml down` (add `-v` to wipe data too).
 
 ---
 
 ## Option B — Full stack with PostgreSQL (compose.prod.yml)
 
-Uses the production compose file with a local Postgres container. Closest to the real production setup.
+Uses `compose.prod.yml` from the repo with a local Postgres and MinIO container alongside it. Closest to the real production setup.
 
-### Step 1 — Authenticate to GHCR
+### Step 1 — Authenticate to GHCR (if images are private)
 
 **If the packages are public** (check at `github.com/sharique` → Packages), skip this step.
 
@@ -70,7 +131,7 @@ Uses the production compose file with a local Postgres container. Closest to the
 
 ### Step 2 — Create a `.env` file
 
-Create `.env` in the repo root (next to `compose.prod.yml`). This file is gitignored — never commit real values.
+Create `.env` in the same directory as `compose.prod.yml`. This file is gitignored — never commit real values.
 
 ```bash
 # .env
@@ -79,18 +140,25 @@ DB_DSN=host=db port=5432 user=mansooba password=mansooba dbname=mansooba sslmode
 JWT_SECRET=change-me-use-a-long-random-string
 LOG_LEVEL=info
 CORS_ORIGINS=http://localhost
+STORAGE_ENDPOINT=http://minio:9000
+STORAGE_BUCKET=mansooba
+STORAGE_ACCESS_KEY_ID=minioadmin
+STORAGE_SECRET_ACCESS_KEY=minioadmin
+STORAGE_REGION=us-east-1
+STORAGE_USE_PATH_STYLE=true
+STORAGE_PRESIGN_TTL=1h
 DB_MAX_OPEN_CONNS=25
 DB_MAX_IDLE_CONNS=5
 DB_CONN_MAX_LIFETIME=5m
 ```
 
-> For production (EC2 deployment), `DB_DSN` points at the RDS endpoint and uses `sslmode=require`. Locally, `sslmode=disable` is fine.
+> The backend supports `DB_DRIVER=sqlite`, `postgres`, or `mysql` / `mariadb`. For local use, any of these work fine — swap the `DB_DRIVER` and `DB_DSN` values and add the matching database container to `compose.override.yml` if using MariaDB. For production (e.g. EC2 + RDS), set `DB_DSN` to the RDS endpoint with `sslmode=require` and replace the MinIO vars with real AWS S3 credentials (`STORAGE_ENDPOINT` empty, `STORAGE_USE_PATH_STYLE=false`).
 
-### Step 3 — Add a local Postgres service
+### Step 3 — Create a local override file
 
-`compose.prod.yml` connects to an external database. For local use, add Postgres alongside it with an override file:
+`compose.prod.yml` connects to an external database and storage. For local use, add Postgres and MinIO via an override file.
 
-Create `compose.override.yml` in the repo root:
+Create `compose.override.yml` in the same directory:
 
 ```yaml
 services:
@@ -109,13 +177,47 @@ services:
       timeout: 5s
       retries: 10
 
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioadmin minioadmin &&
+      mc mb --ignore-existing local/mansooba &&
+      echo 'bucket ready'
+      "
+
   backend:
     depends_on:
       db:
         condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
 
 volumes:
   pg_data:
+  minio_data:
 ```
 
 ### Step 4 — Pull and start
@@ -124,27 +226,27 @@ volumes:
 # Pull the latest images from GHCR
 docker compose -f compose.prod.yml -f compose.override.yml pull
 
-# Start all services (Postgres + backend + frontend)
+# Start all services
 docker compose -f compose.prod.yml -f compose.override.yml up -d
 ```
 
-App is at **http://localhost** (port 80) · API at **http://localhost:8080**
+App is at **http://localhost** (port 80) · API at **http://localhost:8080** · MinIO console at **http://localhost:9001**
 
 ### Step 5 — Verify
 
 ```bash
-# Check all three containers are running
+# Check all containers are running
 docker compose -f compose.prod.yml -f compose.override.yml ps
 
-# Check backend health
+# Check backend health (expect all green)
 curl http://localhost:8080/health
-# Expected: {"status":"ok","db":"ok","db_latency_ms":1}
+# Expected: {"status":"ok","db":"ok","db_latency_ms":1,"storage":"ok"}
 ```
 
 ### Stopping and cleanup
 
 ```bash
-# Stop containers (data is preserved in volumes)
+# Stop containers (data preserved in volumes)
 docker compose -f compose.prod.yml -f compose.override.yml down
 
 # Stop and remove all data volumes (full reset)
@@ -158,7 +260,7 @@ docker compose -f compose.prod.yml -f compose.override.yml down -v
 Every merge to `main` also tags images with a short SHA (`sha-abc1234`). Use a pinned tag for reproducible deployments:
 
 ```bash
-# List available tags at:
+# Browse available tags:
 # https://github.com/sharique/mansooba/pkgs/container/mansooba-backend
 
 # Pull a specific version
@@ -166,7 +268,7 @@ docker pull ghcr.io/sharique/mansooba-backend:sha-abc1234
 docker pull ghcr.io/sharique/mansooba-frontend:sha-abc1234
 ```
 
-To use a pinned tag in the compose file, set `BACKEND_TAG` and `FRONTEND_TAG` as environment variables before `docker compose up`:
+To use a pinned tag in the compose file, set env vars before `docker compose up`:
 
 ```bash
 BACKEND_TAG=sha-abc1234 FRONTEND_TAG=sha-abc1234 \
@@ -174,6 +276,7 @@ BACKEND_TAG=sha-abc1234 FRONTEND_TAG=sha-abc1234 \
 ```
 
 Then update `compose.prod.yml` image references to use the variable:
+
 ```yaml
 # compose.prod.yml
 services:
@@ -190,18 +293,32 @@ services:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `JWT_SECRET` | ✅ | — | Secret for signing JWTs. Use `openssl rand -hex 32`. |
-| `DB_DRIVER` | ✅ | — | `sqlite` or `postgres` |
-| `DB_DSN` | ✅ | — | SQLite path or Postgres connection string |
+| `DB_DRIVER` | ✅ | — | `sqlite`, `postgres` / `postgresql`, or `mysql` / `mariadb` |
+| `DB_DSN` | ✅ | — | SQLite path, Postgres DSN, or MySQL/MariaDB DSN |
 | `CORS_ORIGINS` | ✅ | — | Comma-separated allowed origins (e.g. `http://localhost`) |
+| `STORAGE_BUCKET` | ✅ | — | S3/MinIO bucket name |
+| `STORAGE_ACCESS_KEY_ID` | ✅ | — | S3/MinIO access key |
+| `STORAGE_SECRET_ACCESS_KEY` | ✅ | — | S3/MinIO secret key |
 | `LOG_LEVEL` | | `info` | `debug`, `info`, `warn`, `error` |
+| `SERVER_PORT` | | `8080` | Port the backend listens on |
+| `BODY_SIZE_LIMIT` | | `4M` | Max request body size (rejects with 413 when exceeded) |
+| `REQUEST_TIMEOUT` | | `30s` | Per-request timeout |
+| `SHUTDOWN_TIMEOUT` | | `30s` | Graceful shutdown window |
+| `STORAGE_ENDPOINT` | | *(AWS default)* | Leave empty for AWS S3; set to MinIO URL for self-hosted |
+| `STORAGE_REGION` | | `us-east-1` | AWS region (MinIO ignores this) |
+| `STORAGE_PRESIGN_TTL` | | `1h` | Pre-signed download URL expiry |
+| `STORAGE_USE_PATH_STYLE` | | `true` | Set `true` for MinIO; `false` for AWS S3 |
 | `DB_MAX_OPEN_CONNS` | | `25` | Max open DB connections |
 | `DB_MAX_IDLE_CONNS` | | `5` | Max idle DB connections |
 | `DB_CONN_MAX_LIFETIME` | | `5m` | Connection max lifetime |
-| `SERVER_PORT` | | `8080` | Port the backend listens on |
 
-**Postgres DSN format:**
+**Connection string formats:**
 ```
+# PostgreSQL
 host=<hostname> port=5432 user=<user> password=<pass> dbname=<db> sslmode=disable
+
+# MySQL / MariaDB
+<user>:<pass>@tcp(<host>:3306)/<db>?charset=utf8mb4&parseTime=True&loc=Local
 ```
 
 ---
@@ -212,23 +329,29 @@ host=<hostname> port=5432 user=<user> password=<pass> dbname=<db> sslmode=disabl
 The GHCR packages are private. Log in with a `read:packages` PAT (see Step 1 in Option B).
 
 **Backend container exits immediately**  
-`JWT_SECRET` is missing or empty. The backend panics without it. Check:
+`JWT_SECRET` is missing or empty. The backend refuses to start without it:
 ```bash
-docker logs mansooba-backend-1
+docker logs <container-name>
 ```
 
-**Backend returns `"db":"error"` in /health**  
-Database connection failed. For Option B, check that `db` container is healthy before `backend` starts:
+**Health endpoint shows `"storage":"error"`**  
+The backend can't reach the object storage endpoint. Verify:
+- The `minio` container is running and healthy: `docker compose ps minio`
+- `STORAGE_ENDPOINT` matches the hostname Docker can resolve (use the service name `minio` inside Compose networks, not `localhost`)
+- The bucket was created by `minio-init`: `docker compose logs minio-init`
+
+**Health endpoint shows `"db":"error"`**  
+Database connection failed. Check that the `db` container is healthy before the backend starts:
 ```bash
-docker compose -f compose.prod.yml -f compose.override.yml ps
-# db should show "healthy"
+docker compose ps db
+docker compose logs db
 ```
 
 **Frontend shows API errors / blank page**  
-`CORS_ORIGINS` doesn't match the origin you're accessing the app from. If accessing via `http://localhost`, set `CORS_ORIGINS=http://localhost`. If via `http://localhost:3000`, set accordingly.
+`CORS_ORIGINS` must exactly match the origin you're accessing from (scheme + host + port). If accessing via `http://localhost`, set `CORS_ORIGINS=http://localhost`. If via `http://localhost:3000`, set accordingly.
 
 **Port 80 already in use**  
-Another service is using port 80. Either stop it, or change the frontend port mapping in `compose.override.yml`:
+Change the frontend host port in `compose.override.yml`:
 ```yaml
 services:
   frontend:

@@ -50,7 +50,7 @@ describe('auth store', () => {
   it('fetchMe sets profile state', async () => {
     const mockProfile: UserProfileResponse = {
       id: 1, name: 'Alice', email: 'alice@example.com',
-      avatar_url: '', timezone: 'UTC', created_at: '',
+      avatar_url: '', timezone: 'UTC', is_admin: false, created_at: '',
     }
     vi.mocked(authService.getMe).mockResolvedValue(mockProfile)
 
@@ -62,7 +62,7 @@ describe('auth store', () => {
   it('updateProfile updates profile state', async () => {
     const updated: UserProfileResponse = {
       id: 1, name: 'Alice B', email: 'alice@example.com',
-      avatar_url: '', timezone: 'America/New_York', created_at: '',
+      avatar_url: '', timezone: 'America/New_York', is_admin: false, created_at: '',
     }
     vi.mocked(authService.updateMe).mockResolvedValue(updated)
 

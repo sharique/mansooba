@@ -31,6 +31,7 @@ type UserProfileResponse struct {
 	Email     string    `json:"email"`
 	AvatarURL string    `json:"avatar_url"`
 	Timezone  string    `json:"timezone"`
+	IsAdmin   bool      `json:"is_admin"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

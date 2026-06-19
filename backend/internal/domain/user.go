@@ -8,6 +8,7 @@ import (
 // User represents an authenticated account in the system.
 // Password stores a bcrypt hash — never the plaintext value.
 // AvatarURL and Timezone are optional profile fields.
+// IsAdmin grants platform-wide admin privileges (global settings, project creation).
 type User struct {
 	ID        uint      `gorm:"primaryKey"`
 	Name      string    `gorm:"not null"`
@@ -15,6 +16,7 @@ type User struct {
 	Password  string    `gorm:"not null"`
 	AvatarURL string    // optional; full URL or empty
 	Timezone  string    // IANA timezone name (e.g. "America/New_York"); empty = UTC
+	IsAdmin   bool      `gorm:"not null;default:false"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

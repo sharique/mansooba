@@ -238,6 +238,36 @@ func TestUserHandler_DeleteAvatar_Returns200WithEmptyAvatarURL(t *testing.T) {
 	assert.Empty(t, resp.AvatarURL)
 }
 
+// ── T004a: is_admin returned in /auth/me response ─────────────────────────────
+
+func TestUserHandler_GetProfile_ReturnsIsAdmin_TrueForAdmin(t *testing.T) {
+	profile := &dto.UserProfileResponse{ID: 1, Name: "Admin", Email: "admin@example.com", IsAdmin: true}
+	userSvc := &stubUserService{profile: profile}
+	h := handler.NewUserHandler(userSvc, &stubActivityServiceForUser{}, &stubIssueServiceForUser{})
+	c, rec := setupUserEcho(http.MethodGet, "/auth/me", "", 1)
+
+	require.NoError(t, h.GetProfile(c))
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp dto.UserProfileResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.True(t, resp.IsAdmin)
+}
+
+func TestUserHandler_GetProfile_ReturnsIsAdmin_FalseForRegularUser(t *testing.T) {
+	profile := &dto.UserProfileResponse{ID: 2, Name: "Alice", Email: "alice@example.com", IsAdmin: false}
+	userSvc := &stubUserService{profile: profile}
+	h := handler.NewUserHandler(userSvc, &stubActivityServiceForUser{}, &stubIssueServiceForUser{})
+	c, rec := setupUserEcho(http.MethodGet, "/auth/me", "", 2)
+
+	require.NoError(t, h.GetProfile(c))
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp dto.UserProfileResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.False(t, resp.IsAdmin)
+}
+
 func TestUserHandler_UploadAvatar_Returns401WhenNoUserID(t *testing.T) {
 	h, _ := newUserHandler()
 

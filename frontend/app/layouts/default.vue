@@ -14,14 +14,37 @@
       <LayoutSidebar />
     </div>
 
+    <!-- Global project creation modal, triggered by TopBar via provide/inject -->
+    <dialog ref="createProjectModal" class="modal">
+      <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">New Project</h3>
+        <ProjectsProjectForm @saved="onProjectCreated" @cancel="createProjectModal?.close()" />
+      </div>
+      <form method="dialog" class="modal-backdrop"><button>close</button></form>
+    </dialog>
+
     <ToastContainer />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useNotificationsStore } from '~/stores/notifications.store'
+import type { Project } from '~/types/domain.types'
 
 const notifStore = useNotificationsStore()
+const { showSuccess } = useToast()
+const createProjectModal = ref<HTMLDialogElement | null>(null)
+
+function triggerCreateProject() {
+  createProjectModal.value?.showModal()
+}
+
+function onProjectCreated(project: Project) {
+  createProjectModal.value?.close()
+  showSuccess(`Project "${project.name}" created`)
+}
+
+provide('triggerCreateProject', triggerCreateProject)
 
 onMounted(() => {
   notifStore.fetchUnread()
