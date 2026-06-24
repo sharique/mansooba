@@ -1,8 +1,13 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import SprintCard from './SprintCard.vue'
 import type { Sprint, Issue } from '~/types/domain.types'
+
+vi.stubGlobal('useTimeFormatter', () => ({
+  formatDate: (iso: string | null | undefined) => iso ?? '—',
+  formatDateTime: (iso: string) => iso,
+}))
 
 const base: Sprint = {
   id: 'sprint-1',

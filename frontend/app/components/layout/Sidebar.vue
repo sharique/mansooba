@@ -16,14 +16,20 @@ export function projectNavLinks(key: string): NavLink[] {
 
 <script setup lang="ts">
 import { useProjectsStore } from '~/stores/projects.store'
+import { useAuthStore } from '~/stores/auth.store'
 
 const route = useRoute()
 const projectsStore = useProjectsStore()
+const authStore = useAuthStore()
 
 const primary: NavLink[] = [
   { label: 'My Desk',  to: '/',         icon: 'mdi:monitor-dashboard' },
   { label: 'Projects', to: '/projects', icon: 'mdi:folder-multiple-outline' },
   { label: 'Reports',  to: '/reports',  icon: 'mdi:chart-box-outline' },
+]
+
+const adminLinks: NavLink[] = [
+  { label: 'System Settings', to: '/system/settings', icon: 'mdi:cog-outline' },
 ]
 
 const currentKey = computed(() =>
@@ -81,6 +87,20 @@ onMounted(async () => {
         <Icon :name="link.icon" class="w-5 h-5 opacity-90" />
         {{ link.label }}
       </NuxtLink>
+
+      <!-- admin-only links -->
+      <template v-if="authStore.isAdmin">
+        <NuxtLink
+          v-for="link in adminLinks"
+          :key="link.to"
+          :to="link.to"
+          class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors"
+          :class="isPrimaryActive(link.to) ? 'bg-primary text-primary-content font-semibold' : 'hover:bg-base-content/10'"
+        >
+          <Icon :name="link.icon" class="w-5 h-5 opacity-90" />
+          {{ link.label }}
+        </NuxtLink>
+      </template>
 
       <!-- contextual project section -->
       <template v-if="projectLinks.length">

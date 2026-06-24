@@ -10,13 +10,18 @@
       <div v-for="i in 6" :key="i" class="skeleton h-40 w-full rounded-xl" />
     </div>
 
+    <!-- Error state -->
+    <div v-else-if="hasError" class="text-center py-20 text-error">
+      Failed to load projects. Please refresh the page.
+    </div>
+
     <!-- Empty state -->
     <UiEmptyState
       v-else-if="!projectsStore.projects.length"
       data-testid="empty-state"
       icon="mdi:folder-open-outline"
       title="No projects yet"
-      description="Create your first project to start tracking work."
+      description="Get started by creating your first project."
     >
       <template #action>
         <button class="btn btn-primary btn-sm" @click="createModal?.showModal()">
@@ -53,12 +58,14 @@ const projectsStore = useProjectsStore()
 const { showSuccess, showError } = useToast()
 const createModal = ref<HTMLDialogElement | null>(null)
 const loading = ref(true)
+const hasError = ref(false)
 
 onMounted(async () => {
   try {
     await projectsStore.fetchAll()
   }
   catch {
+    hasError.value = true
     showError('Failed to load projects')
   }
   finally {

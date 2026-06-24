@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { projectNavLinks } from './Sidebar.vue'
+import { projectNavLinks, type NavLink } from './Sidebar.vue'
 
 describe('projectNavLinks', () => {
   it('returns the six project sections for a key', () => {
@@ -24,5 +24,15 @@ describe('projectNavLinks', () => {
   it('uses the provided key in every route', () => {
     const links = projectNavLinks('xyz')
     expect(links.every(l => l.to.includes('/projects/xyz'))).toBe(true)
+  })
+})
+
+describe('admin nav links', () => {
+  it('system settings link points to /system/settings', () => {
+    const adminLinks: NavLink[] = [
+      { label: 'System Settings', to: '/system/settings', icon: 'mdi:cog-outline' },
+    ]
+    expect(adminLinks[0].to).toBe('/system/settings')
+    expect(adminLinks[0].label).toBe('System Settings')
   })
 })

@@ -8,7 +8,7 @@
     </div>
 
     <!-- Relation list -->
-    <div v-if="store.relations.length" class="space-y-2">
+    <div v-if="store.relations.length" class="space-y-2 max-h-80 overflow-y-auto">
       <div
         v-for="rel in store.relations"
         :key="rel.id"
@@ -48,6 +48,7 @@
           placeholder="Type to search…"
           @input="onSearch"
         >
+        <p v-if="searchQuery.trim() && !searchResults.length" class="text-sm text-base-content/40 mt-1 px-1">No tasks found</p>
         <ul v-if="searchResults.length" class="menu bg-base-200 rounded-box mt-1 max-h-40 overflow-y-auto">
           <li v-for="issue in searchResults" :key="issue.id">
             <button class="text-sm text-left" @click="selectIssue(issue)">

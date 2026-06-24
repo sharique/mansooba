@@ -36,8 +36,5 @@ async function open(n: Notification) {
   router.push(`/projects/${n.project_key}/issues/${n.issue_id}`)
 }
 
-function formatDate(iso: string) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleDateString()
-}
+const { formatDate } = useTimeFormatter()
 </script>

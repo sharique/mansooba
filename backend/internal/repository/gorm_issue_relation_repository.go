@@ -26,6 +26,7 @@ func (r *issueRelationRepo) FindByIssueID(ctx context.Context, issueID uint) ([]
 	var direct []*domain.IssueRelation
 	if err := r.db.WithContext(ctx).
 		Where("issue_id = ?", issueID).
+		Order("created_at DESC").
 		Find(&direct).Error; err != nil {
 		return nil, err
 	}
@@ -35,6 +36,7 @@ func (r *issueRelationRepo) FindByIssueID(ctx context.Context, issueID uint) ([]
 	if err := r.db.WithContext(ctx).
 		Where("related_issue_id = ? AND relation_type IN (?, ?)", issueID,
 			domain.RelationTypeRelatesTo, domain.RelationTypeDuplicates).
+		Order("created_at DESC").
 		Find(&mirrored).Error; err != nil {
 		return nil, err
 	}

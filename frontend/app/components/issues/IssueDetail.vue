@@ -199,10 +199,7 @@ const sprintName = computed(() =>
   props.sprints?.find(s => Number(s.id) === props.issue.sprint_id)?.name ?? null
 )
 
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-}
+const { formatDate } = useTimeFormatter()
 
 const renderedDescription = computed(() => useMarkdown(props.issue.description ?? ''))
 

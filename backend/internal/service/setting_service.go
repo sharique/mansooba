@@ -27,7 +27,7 @@ var canonicalDefaults = map[string]string{
 	domain.SettingKeyWeekStartDay:     "monday",
 }
 
-var validDateFormats = map[string]bool{"YYYY-MM-DD": true, "DD/MM/YYYY": true, "MM/DD/YYYY": true}
+var validDateFormats = map[string]bool{"YYYY-MM-DD": true, "DD/MM/YYYY": true, "MM/DD/YYYY": true, "D-MMM-YYYY": true}
 var validTimeFormats = map[string]bool{"12h": true, "24h": true}
 var validWeekStartDays = map[string]bool{"monday": true, "sunday": true}
 
