@@ -50,7 +50,7 @@ func (s *projectService) List(ctx context.Context, callerID uint) ([]*dto.Projec
 	if err != nil {
 		return nil, err
 	}
-	var result []*dto.ProjectResponse
+	result := make([]*dto.ProjectResponse, 0)
 	for _, m := range memberships {
 		p, err := s.projectRepo.FindByID(ctx, m.ProjectID)
 		if err != nil {
@@ -159,7 +159,7 @@ func (s *projectService) ListMembers(ctx context.Context, key string, callerID u
 	if err != nil {
 		return nil, err
 	}
-	var result []*dto.MemberResponse
+	result := make([]*dto.MemberResponse, 0)
 	for _, m := range members {
 		user, err := s.userRepo.FindByID(ctx, m.UserID)
 		if err != nil {

@@ -9,7 +9,7 @@ export const useProjectsStore = defineStore('projects', {
   }),
   actions: {
     async fetchAll() {
-      this.projects = await projectsService.list()
+      this.projects = (await projectsService.list()) ?? []
     },
     async fetchOne(key: string) {
       this.current = await projectsService.get(key)
