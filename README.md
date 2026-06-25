@@ -1,11 +1,13 @@
 # Mansooba
 
+*Mansooba (منصوبہ) — Urdu for "plan" or "project" (German: Projekt)*
+
 A project management application built in Go and Nuxt.js as a learning and portfolio project.
 
 Built using a spec-driven approach where I worked as architect/manager and Claude worked as engineer.
 
 **Backend:** Go + Echo v4 · GORM · SQLite (local) / PostgreSQL (prod) · JWT auth  
-**Frontend:** Nuxt 4 (SPA) · Pinia · Tailwind CSS v4 · DaisyUI
+**Frontend:** Nuxt 4 (SPA) · Pinia · Tailwind CSS v4 · DaisyUI · OKLCH design system
 
 ---
 
@@ -14,6 +16,7 @@ Built using a spec-driven approach where I worked as architect/manager and Claud
 ### Authentication
 - JWT-based login and registration
 - User profile: view and update display name, email, timezone
+- Avatar upload — upload a profile picture (stored on disk); falls back to OKLCH-colored initials when no photo is set
 - My Activity feed — paginated list of your recent project events
 
 ### Projects
@@ -23,11 +26,13 @@ Built using a spec-driven approach where I worked as architect/manager and Claud
 
 ### Issues
 - Full CRUD with fields: title, description, type, status, priority, story points, reporter, assignee
+- Markdown-rendered descriptions
 - Type: `task`, `story`, `bug`, `epic`
 - Status workflow: `backlog → todo → in_progress → in_review → done`
 - Priority levels: `critical`, `high`, `medium`, `low`
 - Labels: create project labels, tag issues, filter by label
 - Issue search: text search across title/description + filter by type, status, priority, label
+- Related tasks: link issues via `blocks` / `is_blocked_by`, `relates_to`, or `duplicates`; reciprocal links maintained automatically; cascade-deleted with the parent issue
 
 ### Sprints
 - Sprint CRUD with lifecycle: `planning → active → completed`
@@ -46,10 +51,19 @@ Built using a spec-driven approach where I worked as architect/manager and Claud
 - Activity feed per issue: records status changes, assignments, comments
 - Notifications: unread badge count + mark-read
 
+### Dashboard
+- Landing page with key project metrics at a glance
+- My Desk — personal work hub: issues assigned to you, unread notifications, recent activity, pinned projects
+
 ### Reports
 - `/reports` page with project selector
 - Sprint velocity chart showing committed vs completed story points across all completed sprints
 - CSS-only bar chart — no external charting dependency
+
+### System Administration
+- Global platform settings (`/system/settings`) — admin-only: date format, time format, timezone, session timeout, max file upload size
+- Role-aware UI: admin users get a create dropdown; members get a single-action button; users with no project membership see neither
+- `User.IsAdmin` flag — promoted via direct DB update; surfaced in `/users/me` and gating all admin-only endpoints with a 403 on failure
 
 ---
 
