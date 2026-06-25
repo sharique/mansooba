@@ -15,11 +15,6 @@
 
     <div class="flex-1" />
 
-    <!-- quick create -->
-    <NuxtLink to="/projects" class="btn btn-primary btn-sm gap-1">
-      <Icon name="mdi:plus" class="w-4 h-4" /> Create
-    </NuxtLink>
-
     <LayoutNotificationBell />
     <LayoutThemeToggle />
 
@@ -50,6 +45,7 @@ const authStore = useAuthStore()
 const router = useRouter()
 
 const q = ref('')
+
 const displayName = computed(() => authStore.profile?.name || authStore.user?.name || 'Account')
 
 function search() {

@@ -12,12 +12,19 @@ import (
 
 // IssueHandler exposes issue CRUD endpoints nested under /projects/:key/issues.
 type IssueHandler struct {
-	svc service.IssueService
+	svc     service.IssueService
+	relRepo domain.IssueRelationRepository // optional; when set, cascades relation delete on issue delete
 }
 
 // NewIssueHandler creates an IssueHandler backed by the given service.
 func NewIssueHandler(svc service.IssueService) *IssueHandler {
 	return &IssueHandler{svc: svc}
+}
+
+// WithRelationRepo attaches an IssueRelationRepository for cascade-delete on issue removal.
+func (h *IssueHandler) WithRelationRepo(repo domain.IssueRelationRepository) *IssueHandler {
+	h.relRepo = repo
+	return h
 }
 
 // List godoc
@@ -154,6 +161,9 @@ func (h *IssueHandler) Delete(c echo.Context) error {
 	id, err := parseUintParam(c, "id")
 	if err != nil {
 		return echo.ErrBadRequest
+	}
+	if h.relRepo != nil {
+		_ = h.relRepo.DeleteByIssueID(c.Request().Context(), id)
 	}
 	if err := h.svc.Delete(c.Request().Context(), c.Param("key"), id, callerID); err != nil {
 		return mapIssueError(err)

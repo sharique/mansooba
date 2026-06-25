@@ -106,6 +106,7 @@ func toProfileResponse(u *domain.User) *dto.UserProfileResponse {
 		Email:     u.Email,
 		AvatarURL: u.AvatarURL,
 		Timezone:  u.Timezone,
+		IsAdmin:   u.IsAdmin,
 		CreatedAt: u.CreatedAt,
 	}
 }

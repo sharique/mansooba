@@ -70,6 +70,8 @@ func main() {
 	commentRepo := repository.NewCommentRepository(db)
 	activityRepo := repository.NewActivityRepository(db)
 	notifRepo := repository.NewNotificationRepository(db)
+	settingRepo := repository.NewSettingRepository(db)
+	issueRelationRepo := repository.NewIssueRelationRepository(db)
 
 	// Services
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
@@ -81,6 +83,8 @@ func main() {
 	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
 	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc, notifRepo, userRepo)
 	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
+	settingSvc := service.NewSettingService(settingRepo)
+	issueRelationSvc := service.NewIssueRelationService(issueRelationRepo, issueRepo)
 
 	// Handlers
 	healthHandler := handler.NewHealthHandler(sqlDB)
@@ -94,6 +98,9 @@ func main() {
 	activityHandler := handler.NewActivityHandler(activitySvc)
 	labelHandler := handler.NewLabelHandler(labelSvc)
 	notifHandler := handler.NewNotificationHandler(notifRepo)
+	settingHandler := handler.NewSettingHandler(settingSvc, userSvc)
+	issueRelationHandler := handler.NewIssueRelationHandler(issueRelationSvc)
+	issueHandler = issueHandler.WithRelationRepo(issueRelationRepo)
 
 	// Echo
 	e := echo.New()
@@ -208,6 +215,13 @@ func main() {
 	issueItems.GET("/labels", labelHandler.ListByIssue)
 	issueItems.POST("/labels/:lid", labelHandler.Attach)
 	issueItems.DELETE("/labels/:lid", labelHandler.Detach)
+	issueItems.GET("/relations", issueRelationHandler.List)
+	issueItems.POST("/relations", issueRelationHandler.Create)
+	issueItems.DELETE("/relations/:rid", issueRelationHandler.Delete)
+
+	settings := api.Group("/settings")
+	settings.GET("", settingHandler.GetAll)
+	settings.PATCH("", settingHandler.Patch)
 
 	notifs := api.Group("/notifications")
 	notifs.GET("", notifHandler.List)

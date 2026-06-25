@@ -28,10 +28,7 @@ function toggleExpand() {
     expanded.value = !expanded.value
 }
 
-function formatDate(iso: string | null | undefined): string {
-    if (!iso) return "?"
-    return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })
-}
+const { formatDate } = useTimeFormatter()
 
 const statusBadge: Record<string, string> = {
     [SprintStatus.Planning]:  "badge-neutral",

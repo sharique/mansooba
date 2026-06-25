@@ -375,7 +375,7 @@ func (s *sprintService) Velocity(ctx context.Context, projectKey string, callerI
 		return nil, err
 	}
 
-	var result []dto.VelocityDataPoint
+	result := make([]dto.VelocityDataPoint, 0)
 	for _, sprint := range completedSprints {
 		var committed, completed float64
 		for _, issue := range sprint.Issues {

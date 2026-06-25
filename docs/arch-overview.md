@@ -1,80 +1,136 @@
 # Architecture Overview
 
+## Tech stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend language | Go 1.25 |
+| Backend framework | Echo v4 |
+| ORM | GORM |
+| Databases | SQLite (dev default), PostgreSQL, MySQL / MariaDB |
+| Object storage | AWS S3 / MinIO (aws-sdk-go-v2) |
+| Auth | JWT (golang-jwt/jwt) |
+| Logging | Zap |
+| Config | Viper (env vars + `.env` file) |
+| Frontend framework | Nuxt 4 + Vue 3 |
+| State management | Pinia |
+| Testing (backend) | Go stdlib `testing` + `testify` |
+| Testing (frontend) | Vitest 4 |
+
+---
+
 ## Project structure
 
 ```
-backend/
-  cmd/server/           # Entry point — route wiring and server startup
-  internal/
-    domain/             # Entities + repository interfaces (zero external imports)
-    repository/         # GORM implementations of all repositories
-    service/            # Business logic layer
-    handler/            # Echo HTTP handlers + request/response DTOs
-    middleware/         # JWT auth middleware
-  pkg/
-    config/             # Env config (Viper)
-    database/           # GORM connection + auto-migrations
-    logger/             # Zap logger
-
-frontend/
-  app/
-    pages/              # Nuxt file-based routes
-    components/         # Vue SFCs (board/, backlog/, sprints/, issues/, labels/, reports/, ...)
-    stores/             # Pinia stores (auth, issues, sprints, labels, notifications, projects)
-    services/           # API layer wrapping $api ($fetch proxy)
-    types/              # TypeScript domain types (domain.types.ts)
-    layouts/            # Default layout with nav bar
+code/
+├── backend/
+│   ├── cmd/server/            # Entry point — route wiring and server startup
+│   ├── internal/
+│   │   ├── domain/            # Entities + repository interfaces (zero external imports)
+│   │   ├── dto/               # Request/response structs shared between handlers and services
+│   │   ├── repository/        # GORM implementations of all repository interfaces
+│   │   ├── service/           # Business logic; works only with domain types and DTOs
+│   │   ├── handler/           # Echo HTTP handlers; HTTP ↔ service translation only
+│   │   ├── middleware/        # JWT auth middleware
+│   │   └── pkg/
+│   │       └── avatarstorage/ # Local-disk storage for user avatar images
+│   └── pkg/
+│       ├── apierror/          # Centralised HTTP error mapping
+│       ├── config/            # Env config loader (Viper)
+│       ├── database/          # GORM connection + auto-migrations
+│       ├── logger/            # Zap logger initialisation
+│       └── storage/           # S3/MinIO client + FakeStorage for tests
+│
+├── frontend/
+│   └── app/
+│       ├── assets/css/        # OKLCH design tokens, global styles
+│       ├── components/        # Vue SFCs grouped by domain
+│       ├── composables/       # Shared composition functions
+│       ├── layouts/           # default.vue — Sidebar + TopBar shell
+│       ├── middleware/        # Route guards (auth, setup redirect)
+│       ├── pages/             # Nuxt file-based routes
+│       ├── plugins/           # $fetch proxy, auth init, theme init
+│       ├── services/          # API layer — one file per backend resource
+│       ├── stores/            # Pinia stores — one file per domain
+│       ├── types/             # TypeScript domain, API, auth, setup types
+│       └── utils/             # chart helpers, issue style maps
+│
+├── compose.yml                # Dev stack: SQLite + MinIO + backend + frontend
+├── compose.prod.yml           # Prod stack: pulls GHCR images, connects to external DB
+├── terraform/                 # AWS infra (EC2 + RDS)
+└── docs/                      # Architecture and operational guides
 ```
 
 ---
 
-## Architecture
+## How the layers connect
 
-**Backend** follows Clean Architecture:  
-`domain` → `repository` → `service` → `handler`
+```
+HTTP request
+     │
+     ▼  handler/       parse request → call service → map errors → HTTP response
+     │
+     ▼  service/       business logic; orchestrates repositories; enforces access rules
+     │
+     ▼  repository/    GORM queries; wraps DB errors into domain errors
+     │
+     ▼  domain/        pure Go structs (entities) + repository interfaces
+```
 
-- `domain/` defines entities and repository interfaces with zero external imports
-- `repository/` implements those interfaces using GORM
-- `service/` owns all business logic and works only with domain types + DTOs
-- `handler/` translates HTTP ↔ service calls; error mapping in `apierror/`
+The frontend mirrors this with its own layered stack:
 
-**Frontend** uses Options API Pinia stores + Composition API pages/components:
-
-- `services/` wraps `$api` (Nuxt server-side proxy to backend) — each service mirrors a backend resource
-- `stores/` hold fetched state and expose actions that call services
-- Component names are prefixed by their directory (e.g. `IssuesIssueCard`, `SprintsSprintList`)
-- Vue auto-imports for composables; TypeScript throughout
+```
+Browser
+   │
+   ▼  nginx           serves static Nuxt bundle; proxies /api/* to backend
+   │
+   ▼  pages/          Composition API; trigger store actions
+   │
+   ▼  stores/         Pinia; hold fetched state; call services for mutations
+   │
+   ▼  services/       thin $fetch wrappers — one file per backend resource
+   │
+   ▼  backend API
+```
 
 ---
 
-## API overview
+## Storage architecture
 
-All routes are prefixed with `/api/v1` and require a JWT `Authorization: Bearer <token>` header except `/auth/register` and `/auth/login`.
+The app uses two storage subsystems:
 
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/auth/register` | Register a new user |
-| POST | `/auth/login` | Login, returns JWT |
-| GET | `/auth/me` | Get current user profile |
-| PUT | `/auth/me` | Update profile (name, timezone) |
-| GET | `/auth/me/activity` | My recent activity (paginated) |
-| GET | `/projects` | List all projects |
-| POST | `/projects` | Create a project |
-| GET/PUT/DELETE | `/projects/:key` | Get, update, or delete a project |
-| GET/POST | `/projects/:key/members` | List or add project members |
-| GET | `/projects/:key/issues` | List issues (filters: q, type, status, priority, label_id) |
-| POST | `/projects/:key/issues` | Create an issue |
-| GET/PUT/DELETE | `/projects/:key/issues/:id` | Get, update, or delete an issue |
-| GET/POST | `/projects/:key/issues/:id/comments` | List or add comments |
-| PUT/DELETE | `/projects/:key/issues/:id/comments/:cid` | Update or delete a comment |
-| GET | `/projects/:key/issues/:id/activity` | Issue activity feed |
-| GET/POST | `/projects/:key/sprints` | List or create sprints |
-| POST | `/projects/:key/sprints/:id/start` | Start a sprint |
-| POST | `/projects/:key/sprints/:id/complete` | Complete a sprint |
-| GET | `/projects/:key/sprints/:id/burndown` | Burndown chart data |
-| GET | `/projects/:key/backlog` | Backlog issues |
-| GET | `/projects/:key/velocity` | Velocity chart data |
-| GET/POST | `/projects/:key/labels` | List or create labels |
-| DELETE | `/projects/:key/labels/:id` | Delete a label |
-| GET | `/notifications` | My unread notifications |
-| PUT | `/notifications/:id/read` | Mark a notification as read |
+| What | Where | Access pattern |
+|------|-------|---------------|
+| Attachments (files, images, docs) | S3 / MinIO | Pre-signed URLs (1 h TTL); never proxied through the backend |
+| User avatars | Local disk (`uploads/`) | Publicly served at `/uploads/*` without auth (ADR-026) |
+
+Attachment keys follow the pattern:
+```
+projects/<projectID>/tasks/<issueID>/attachments/<attachmentID>-<sanitised-filename>
+```
+
+---
+
+## CI/CD pipeline
+
+GitHub Actions (`ci.yml`) runs three jobs on every push to `main`, `develop`, and `feature/**`:
+
+| Job | Trigger | What |
+|-----|---------|------|
+| `test` | every push / PR | `go vet ./...` + `go test -race -count=1 ./...` (Go 1.25) |
+| `frontend` | every push / PR | `npm run typecheck` + `npm test` (Node 22) |
+| `build-and-push` | merge to `main` only | Docker Buildx → GHCR; tags `sha-<short>` + `latest` |
+
+Images published:
+- `ghcr.io/sharique/mansooba-backend`
+- `ghcr.io/sharique/mansooba-frontend`
+
+---
+
+## Further reading
+
+- [Backend detail](arch-backend.md) — layers, entities, services
+- [Frontend detail](arch-frontend.md) — pages, stores, components, routing
+- [API reference](arch-api.md) — all endpoints with methods and descriptions
+- [Running locally with Docker](running-locally-using-docker.md)
+- [Running from GHCR images](running-from-ghcr.md)

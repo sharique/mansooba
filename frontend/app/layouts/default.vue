@@ -20,10 +20,15 @@
 
 <script setup lang="ts">
 import { useNotificationsStore } from '~/stores/notifications.store'
+import { useGlobalSettingsStore } from '~/stores/global-settings.store'
 
 const notifStore = useNotificationsStore()
+const globalSettingsStore = useGlobalSettingsStore()
 
-onMounted(() => {
+onMounted(async () => {
+  if (!globalSettingsStore.loaded) {
+    await globalSettingsStore.fetch()
+  }
   notifStore.fetchUnread()
   const interval = setInterval(() => notifStore.fetchUnread(), 30_000)
   onUnmounted(() => clearInterval(interval))

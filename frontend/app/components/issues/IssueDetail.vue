@@ -43,6 +43,9 @@
         </div>
       </div>
 
+      <!-- Related tasks -->
+      <IssuesRelatedTasksSection :issue-id="issue.id" :project-key="projectKey" />
+
       <!-- Activity feed -->
       <div class="mt-6 border-t border-base-200 pt-4">
         <h3 class="font-semibold text-sm mb-3">Activity</h3>
@@ -196,10 +199,7 @@ const sprintName = computed(() =>
   props.sprints?.find(s => Number(s.id) === props.issue.sprint_id)?.name ?? null
 )
 
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-}
+const { formatDate } = useTimeFormatter()
 
 const renderedDescription = computed(() => useMarkdown(props.issue.description ?? ''))
 
