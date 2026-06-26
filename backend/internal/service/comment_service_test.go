@@ -320,6 +320,10 @@ func (r *stubUserRepoMention) Update(_ context.Context, u *domain.User) error {
 	return nil
 }
 
+func (r *stubUserRepoMention) HasAdmin(_ context.Context) (bool, error) {
+	return false, nil
+}
+
 func newCommentTestEnvWithNotifications() (service.CommentService, *stubCommentRepo, *stubActivityService, *stubNotificationRepo) {
 	issueRepo := newStubIssueRepo()
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10})

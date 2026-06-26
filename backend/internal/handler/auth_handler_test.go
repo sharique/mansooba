@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
@@ -31,9 +32,30 @@ func (s *stubAuthService) Refresh(ctx context.Context, token string) (string, er
 	return s.refreshFn(ctx, token)
 }
 
+type testValidator struct{ v *validator.Validate }
+
+func (tv *testValidator) Validate(i any) error { return tv.v.Struct(i) }
+
 func newEcho() *echo.Echo {
 	e := echo.New()
 	e.HideBanner = true
+	v := validator.New()
+	v.RegisterValidation("password_complexity", func(fl validator.FieldLevel) bool { //nolint:errcheck
+		pw := fl.Field().String()
+		var hasUpper, hasLower, hasDigit bool
+		for _, r := range pw {
+			switch {
+			case r >= 'A' && r <= 'Z':
+				hasUpper = true
+			case r >= 'a' && r <= 'z':
+				hasLower = true
+			case r >= '0' && r <= '9':
+				hasDigit = true
+			}
+		}
+		return len(pw) >= 8 && hasUpper && hasLower && hasDigit
+	})
+	e.Validator = &testValidator{v}
 	return e
 }
 
