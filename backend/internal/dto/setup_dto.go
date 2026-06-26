@@ -45,3 +45,10 @@ type SetupProjectResponse struct {
 	ProjectKey string `json:"project_key"`
 	Name       string `json:"name"`
 }
+
+// SetupSeedResponse is returned by POST /api/v1/setup/seed.
+type SetupSeedResponse struct {
+	Skipped     bool   `json:"skipped"`
+	ProjectKey  string `json:"project_key"`
+	ProjectName string `json:"project_name"`
+}

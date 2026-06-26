@@ -27,5 +27,16 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
+import { useAuthStore } from '~/stores/auth.store'
+
 definePageMeta({ layout: false })
+
+const authStore = useAuthStore()
+
+onMounted(async () => {
+  if (!authStore.isAdmin) {
+    await navigateTo('/')
+  }
+})
 </script>

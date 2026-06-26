@@ -68,10 +68,18 @@ func TestAuthHandler_Register_Returns201(t *testing.T) {
 			}, nil
 		},
 	}
+	adminUserSvc := &stubAuthUserService{
+		getProfileFn: func(_ context.Context, _ uint) (*dto.UserProfileResponse, error) {
+			return &dto.UserProfileResponse{ID: 1, IsAdmin: true}, nil
+		},
+	}
 
 	e := newEcho()
-	h := handler.NewAuthHandler(svc)
-	e.POST("/auth/register", h.Register)
+	h := handler.NewAuthHandler(svc, adminUserSvc)
+	e.POST("/auth/register", func(c echo.Context) error {
+		c.Set("userID", uint(1))
+		return h.Register(c)
+	})
 
 	body := `{"full_name":"Alice","email":"alice@example.com","password":"password123"}`
 	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(body))
@@ -103,7 +111,7 @@ func TestAuthHandler_Login_Returns200(t *testing.T) {
 	}
 
 	e := newEcho()
-	h := handler.NewAuthHandler(svc)
+	h := handler.NewAuthHandler(svc, nil)
 	e.POST("/auth/login", h.Login)
 
 	body := `{"email":"alice@example.com","password":"password123"}`
@@ -125,7 +133,7 @@ func TestAuthHandler_Refresh_Returns200(t *testing.T) {
 	}
 
 	e := newEcho()
-	h := handler.NewAuthHandler(svc)
+	h := handler.NewAuthHandler(svc, nil)
 	e.POST("/auth/refresh", h.Refresh)
 
 	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
@@ -144,16 +152,109 @@ func TestAuthHandler_Refresh_Returns200(t *testing.T) {
 	}
 }
 
+// stubAuthUserService satisfies service.UserService for admin check tests.
+type stubAuthUserService struct {
+	getProfileFn func(ctx context.Context, userID uint) (*dto.UserProfileResponse, error)
+}
+
+func (s *stubAuthUserService) GetProfile(ctx context.Context, userID uint) (*dto.UserProfileResponse, error) {
+	if s.getProfileFn != nil {
+		return s.getProfileFn(ctx, userID)
+	}
+	return &dto.UserProfileResponse{ID: userID, IsAdmin: false}, nil
+}
+func (s *stubAuthUserService) UpdateProfile(_ context.Context, _ uint, _ dto.UpdateProfileRequest) (*dto.UserProfileResponse, error) {
+	return nil, nil
+}
+func (s *stubAuthUserService) UploadAvatar(_ context.Context, _ uint, _ string, _ []byte, _ string) (*dto.UserProfileResponse, error) {
+	return nil, nil
+}
+func (s *stubAuthUserService) DeleteAvatar(_ context.Context, _ uint) (*dto.UserProfileResponse, error) {
+	return nil, nil
+}
+
+func TestAuthHandler_Register_Returns403_ForNonAdmin(t *testing.T) {
+	svc := &stubAuthService{
+		registerFn: func(_ context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error) {
+			t.Error("Register service should not be called for non-admin")
+			return nil, nil
+		},
+	}
+	userSvc := &stubAuthUserService{
+		getProfileFn: func(_ context.Context, _ uint) (*dto.UserProfileResponse, error) {
+			return &dto.UserProfileResponse{ID: 1, IsAdmin: false}, nil
+		},
+	}
+
+	e := newEcho()
+	h := handler.NewAuthHandler(svc, userSvc)
+	e.POST("/auth/register", func(c echo.Context) error {
+		c.Set("userID", uint(1))
+		return h.Register(c)
+	})
+
+	body := `{"full_name":"Bob","email":"bob@example.com","password":"Password1"}`
+	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAuthHandler_Register_Returns201_ForAdmin(t *testing.T) {
+	svc := &stubAuthService{
+		registerFn: func(_ context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error) {
+			return &dto.AuthResponse{
+				AccessToken: "admin.created.token",
+				User:        dto.UserDTO{ID: 2, Name: req.FullName, Email: req.Email},
+			}, nil
+		},
+	}
+	userSvc := &stubAuthUserService{
+		getProfileFn: func(_ context.Context, _ uint) (*dto.UserProfileResponse, error) {
+			return &dto.UserProfileResponse{ID: 1, IsAdmin: true}, nil
+		},
+	}
+
+	e := newEcho()
+	h := handler.NewAuthHandler(svc, userSvc)
+	e.POST("/auth/register", func(c echo.Context) error {
+		c.Set("userID", uint(1))
+		return h.Register(c)
+	})
+
+	body := `{"full_name":"Bob","email":"bob@example.com","password":"Password1"}`
+	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Errorf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestAuthHandler_Register_Returns409_OnDuplicate(t *testing.T) {
 	svc := &stubAuthService{
 		registerFn: func(_ context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error) {
 			return nil, domain.ErrConflict
 		},
 	}
+	adminUserSvc := &stubAuthUserService{
+		getProfileFn: func(_ context.Context, _ uint) (*dto.UserProfileResponse, error) {
+			return &dto.UserProfileResponse{ID: 1, IsAdmin: true}, nil
+		},
+	}
 
 	e := newEcho()
-	h := handler.NewAuthHandler(svc)
-	e.POST("/auth/register", h.Register)
+	h := handler.NewAuthHandler(svc, adminUserSvc)
+	e.POST("/auth/register", func(c echo.Context) error {
+		c.Set("userID", uint(1))
+		return h.Register(c)
+	})
 
 	body := `{"full_name":"Alice","email":"alice@example.com","password":"password123"}`
 	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(body))

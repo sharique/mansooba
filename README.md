@@ -65,13 +65,55 @@ Built using a spec-driven approach where I worked as architect/manager and Claud
 - Role-aware UI: admin users get a create dropdown; members get a single-action button; users with no project membership see neither
 - `User.IsAdmin` flag — promoted via direct DB update; surfaced in `/users/me` and gating all admin-only endpoints with a 403 on failure
 
+### First-Run Setup Wizard
+- On a fresh install (no admin account exists), all routes redirect to `/setup` automatically via a global Nuxt middleware
+- Five-step wizard: Welcome → Admin account → Optional team member → Optional project → Sample data → Summary screen
+- Admin creation uses a public, rate-limited endpoint (`POST /api/v1/setup/admin`); subsequent steps require the JWT issued at that step
+- Password complexity enforced in real time (per-rule pass/fail indicators on keystroke: length, uppercase, lowercase, digit)
+- Project step optionally adds the newly created team member as a project member in a single atomic request
+- Step 4 "Sample data" imports a demo project (key `DEMO`), an active sprint, 7 issues, 2 labels, and 2 comments in a single DB transaction
+- Setup endpoints self-deactivate once an admin exists (409 on subsequent calls); `/setup` redirects to login once setup is complete
+
+### Sample data CLI (dev/demo utility)
+
+If the wizard's Step 4 was skipped or failed, the same demo dataset can be imported from the command line:
+
+```sh
+cd backend
+go run ./cmd/seed
+```
+
+The command is idempotent — running it twice is safe. It requires the setup wizard to have been completed (admin account must exist). See [`docs/first-run-wizard.md`](docs/first-run-wizard.md) for full details.
+
+### User Management (admin-controlled registration)
+
+User account creation is admin-only — `POST /api/v1/auth/register` requires a valid admin JWT.
+
+- **Admins create accounts** by visiting `/register` while logged in as admin.
+- **Unauthenticated users** visiting `/register` are redirected to `/login`.
+- **Non-admin authenticated users** visiting `/register` are redirected to `/`.
+- Direct API calls without an admin JWT receive `401 Unauthorized` or `403 Forbidden`.
+
 ---
 
 ## Prerequisites
 
 - Go 1.21+
 - Node 22 + npm 10
-- SQLite development headers (`sqlite-devel` on Fedora / `libsqlite3-dev` on Debian/Ubuntu)
+- Database
+  - SQLite (for quick set or local experiment)
+  - Postgres or MariaDB
+
+---
+
+ ## Running locally
+
+It is recommended to use pre-build images for running app in local or on cloud.
+
+For running using pre-build images see [`docs/running-from-ghcr.md`](docs/running-from-ghcr.md).
+
+For API reference, project structure, and architecture details see [`docs/arch-overview.md`](docs/arch-overview.md).
+
 
 ---
 
@@ -101,9 +143,3 @@ npm install
 npm run dev
 # App at http://localhost:3000
 ```
-
----
-
-For running using pre-build images see [`docs/running-from-ghcr.md`](docs/running-from-ghcr.md).
-
-For API reference, project structure, and architecture details see [`docs/arch-overview.md`](docs/arch-overview.md).

@@ -3,6 +3,7 @@ package handler_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -21,6 +22,7 @@ type stubSetupService struct {
 	createAdminFn   func(ctx context.Context, req dto.SetupAdminRequest) (*dto.AuthResponse, error)
 	createUserFn    func(ctx context.Context, req dto.SetupUserRequest) (*dto.SetupUserResponse, error)
 	createProjectFn func(ctx context.Context, adminID uint, req dto.SetupProjectRequest) (*dto.SetupProjectResponse, error)
+	seedDataFn      func(ctx context.Context, adminID uint) (*dto.SetupSeedResponse, error)
 }
 
 func (s *stubSetupService) SetupRequired(ctx context.Context) (bool, error) {
@@ -34,6 +36,12 @@ func (s *stubSetupService) CreateUser(ctx context.Context, req dto.SetupUserRequ
 }
 func (s *stubSetupService) CreateProject(ctx context.Context, adminID uint, req dto.SetupProjectRequest) (*dto.SetupProjectResponse, error) {
 	return s.createProjectFn(ctx, adminID, req)
+}
+func (s *stubSetupService) SeedData(ctx context.Context, adminID uint) (*dto.SetupSeedResponse, error) {
+	if s.seedDataFn != nil {
+		return s.seedDataFn(ctx, adminID)
+	}
+	return nil, nil
 }
 
 // --- GET /setup/status ---
@@ -308,6 +316,89 @@ func TestSetupHandler_CreateProject_Returns404_WhenUserNotFound(t *testing.T) {
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// --- POST /setup/seed ---
+
+func TestSetupHandler_SeedData_Returns200OnSuccess(t *testing.T) {
+	svc := &stubSetupService{
+		seedDataFn: func(_ context.Context, _ uint) (*dto.SetupSeedResponse, error) {
+			return &dto.SetupSeedResponse{Skipped: false, ProjectKey: "DEMO", ProjectName: "Mansooba Demo"}, nil
+		},
+	}
+	e := newEcho()
+	h := handler.NewSetupHandler(svc)
+	e.POST("/setup/seed", func(c echo.Context) error {
+		c.Set("userID", uint(1))
+		return h.SeedData(c)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/setup/seed", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var resp dto.SetupSeedResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.Skipped {
+		t.Error("expected skipped=false")
+	}
+	if resp.ProjectKey != "DEMO" {
+		t.Errorf("expected project_key=DEMO, got %s", resp.ProjectKey)
+	}
+}
+
+func TestSetupHandler_SeedData_Returns200WhenSkipped(t *testing.T) {
+	svc := &stubSetupService{
+		seedDataFn: func(_ context.Context, _ uint) (*dto.SetupSeedResponse, error) {
+			return &dto.SetupSeedResponse{Skipped: true, ProjectKey: "DEMO", ProjectName: "Mansooba Demo"}, nil
+		},
+	}
+	e := newEcho()
+	h := handler.NewSetupHandler(svc)
+	e.POST("/setup/seed", func(c echo.Context) error {
+		c.Set("userID", uint(1))
+		return h.SeedData(c)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/setup/seed", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var resp dto.SetupSeedResponse
+	json.NewDecoder(rec.Body).Decode(&resp) //nolint:errcheck
+	if !resp.Skipped {
+		t.Error("expected skipped=true")
+	}
+}
+
+func TestSetupHandler_SeedData_Returns500OnError(t *testing.T) {
+	svc := &stubSetupService{
+		seedDataFn: func(_ context.Context, _ uint) (*dto.SetupSeedResponse, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	e := newEcho()
+	h := handler.NewSetupHandler(svc)
+	e.POST("/setup/seed", func(c echo.Context) error {
+		c.Set("userID", uint(1))
+		return h.SeedData(c)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/setup/seed", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
 

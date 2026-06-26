@@ -9,8 +9,10 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
+	"github.com/sharique/mansooba/internal/seed"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 // SetupService orchestrates the first-run wizard steps.
@@ -25,6 +27,9 @@ type SetupService interface {
 	// CreateProject creates an optional first project. If req.AddUserID > 0,
 	// adds that user as a "member" of the project (atomic — project not created on 404).
 	CreateProject(ctx context.Context, adminID uint, req dto.SetupProjectRequest) (*dto.SetupProjectResponse, error)
+	// SeedData populates the workspace with demo content. Delegates to the seed package.
+	// Returns Skipped=true if seed data already exists (idempotent).
+	SeedData(ctx context.Context, adminID uint) (*dto.SetupSeedResponse, error)
 }
 
 // ErrSetupComplete is returned when a wizard step is called after setup finished.
@@ -36,6 +41,7 @@ type setupService struct {
 	jwtSecret  string
 	accessTTL  time.Duration
 	log        *zap.Logger
+	db         *gorm.DB
 }
 
 // NewSetupService returns a SetupService implementation.
@@ -45,6 +51,7 @@ func NewSetupService(
 	jwtSecret string,
 	accessTTL time.Duration,
 	log *zap.Logger,
+	db *gorm.DB,
 ) SetupService {
 	return &setupService{
 		userRepo:   userRepo,
@@ -52,6 +59,7 @@ func NewSetupService(
 		jwtSecret:  jwtSecret,
 		accessTTL:  accessTTL,
 		log:        log,
+		db:         db,
 	}
 }
 
@@ -154,5 +162,18 @@ func (s *setupService) CreateProject(ctx context.Context, adminID uint, req dto.
 		ProjectID:  proj.ID,
 		ProjectKey: proj.Key,
 		Name:       proj.Name,
+	}, nil
+}
+
+func (s *setupService) SeedData(ctx context.Context, adminID uint) (*dto.SetupSeedResponse, error) {
+	result, err := seed.Seed(ctx, s.db, adminID)
+	if err != nil {
+		s.log.Error("seed failed", zap.Error(err))
+		return nil, err
+	}
+	return &dto.SetupSeedResponse{
+		Skipped:     result.Skipped,
+		ProjectKey:  result.ProjectKey,
+		ProjectName: result.ProjectName,
 	}, nil
 }

@@ -89,11 +89,11 @@ func main() {
 
 	// Setup service (wizard)
 	accessTTL, _ := time.ParseDuration(cfg.JWTAccessTTL)
-	setupSvc := service.NewSetupService(userRepo, projectSvc, cfg.JWTSecret, accessTTL, log)
+	setupSvc := service.NewSetupService(userRepo, projectSvc, cfg.JWTSecret, accessTTL, log, db)
 
 	// Handlers
 	healthHandler := handler.NewHealthHandler(sqlDB)
-	authHandler := handler.NewAuthHandler(authSvc)
+	authHandler := handler.NewAuthHandler(authSvc, userSvc)
 	setupHandler := handler.NewSetupHandler(setupSvc)
 	userHandler := handler.NewUserHandler(userSvc, activitySvc, issueSvc)
 	projectHandler := handler.NewProjectHandler(projectSvc)
@@ -173,7 +173,6 @@ func main() {
 			return context.JSON(http.StatusTooManyRequests, map[string]string{"error": "rate limit exceeded"})
 		},
 	}))
-	auth.POST("/register", authHandler.Register)
 	auth.POST("/login", authHandler.Login)
 	auth.POST("/refresh", authHandler.Refresh)
 
@@ -226,11 +225,13 @@ func main() {
 	}))
 	setupAuth.POST("/user", setupHandler.CreateUser)
 	setupAuth.POST("/project", setupHandler.CreateProject)
+	setupAuth.POST("/seed", setupHandler.SeedData)
 
 	// Protected routes
 	api := e.Group("/api/v1", apimw.JWTAuth(cfg.JWTSecret))
 
 	authMe := api.Group("/auth")
+	authMe.POST("/register", authHandler.Register)
 	authMe.GET("/me", userHandler.GetProfile)
 	authMe.PUT("/me", userHandler.UpdateProfile)
 	authMe.GET("/me/activity", userHandler.GetMyActivity)

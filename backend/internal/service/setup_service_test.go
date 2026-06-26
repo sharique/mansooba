@@ -3,13 +3,18 @@ package service_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
+	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
 	"go.uber.org/zap"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // stubProjectService satisfies service.ProjectService with controllable fns.
@@ -47,7 +52,7 @@ func (s *stubProjectService) RemoveMember(_ context.Context, _ string, _ uint, _
 const setupTestSecret = "test-setup-secret-long-enough-for-hmac"
 
 func newSetupSvc(repo domain.UserRepository, projSvc service.ProjectService) service.SetupService {
-	return service.NewSetupService(repo, projSvc, setupTestSecret, 15*time.Minute, zap.NewNop())
+	return service.NewSetupService(repo, projSvc, setupTestSecret, 15*time.Minute, zap.NewNop(), nil)
 }
 
 // --- SetupRequired ---
@@ -212,5 +217,81 @@ func TestSetupService_CreateProject_Returns_NotFound_WhenUserMissing(t *testing.
 	})
 	if err == nil {
 		t.Fatal("expected error when user not found")
+	}
+}
+
+// --- SeedData integration tests (real SQLite) ---
+
+var setupSvcDBCounter int
+
+func newSeedTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	setupSvcDBCounter++
+	dsn := fmt.Sprintf("file:setup_svc_test_%d?mode=memory&cache=shared", setupSvcDBCounter)
+	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Discard})
+	if err != nil {
+		t.Fatalf("open test db: %v", err)
+	}
+	if err := db.AutoMigrate(
+		&domain.User{},
+		&domain.Project{},
+		&domain.ProjectMember{},
+		&domain.Sprint{},
+		&domain.Issue{},
+		&domain.Label{},
+		&domain.IssueLabel{},
+		&domain.Comment{},
+	); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+	return db
+}
+
+func newSetupSvcWithDB(db *gorm.DB) service.SetupService {
+	userRepo := repository.NewUserRepository(db)
+	return service.NewSetupService(userRepo, &stubProjectService{}, setupTestSecret, 15*time.Minute, zap.NewNop(), db)
+}
+
+func TestSetupService_SeedData_SuccessMapsSeedResult(t *testing.T) {
+	db := newSeedTestDB(t)
+	admin := &domain.User{Name: "Admin", Email: "admin@example.com", Password: "hash", IsAdmin: true}
+	if err := db.Create(admin).Error; err != nil {
+		t.Fatalf("create admin: %v", err)
+	}
+
+	svc := newSetupSvcWithDB(db)
+	resp, err := svc.SeedData(context.Background(), admin.ID)
+	if err != nil {
+		t.Fatalf("SeedData: %v", err)
+	}
+	if resp.Skipped {
+		t.Error("expected skipped=false on first seed")
+	}
+	if resp.ProjectKey != "DEMO" {
+		t.Errorf("expected project_key=DEMO, got %s", resp.ProjectKey)
+	}
+	if resp.ProjectName != "Mansooba Demo" {
+		t.Errorf("expected project_name=Mansooba Demo, got %s", resp.ProjectName)
+	}
+}
+
+func TestSetupService_SeedData_SkippedOnSecondCall(t *testing.T) {
+	db := newSeedTestDB(t)
+	admin := &domain.User{Name: "Admin", Email: "admin@example.com", Password: "hash", IsAdmin: true}
+	if err := db.Create(admin).Error; err != nil {
+		t.Fatalf("create admin: %v", err)
+	}
+
+	svc := newSetupSvcWithDB(db)
+	if _, err := svc.SeedData(context.Background(), admin.ID); err != nil {
+		t.Fatalf("first SeedData: %v", err)
+	}
+
+	resp, err := svc.SeedData(context.Background(), admin.ID)
+	if err != nil {
+		t.Fatalf("second SeedData: %v", err)
+	}
+	if !resp.Skipped {
+		t.Error("expected skipped=true on second seed")
 	}
 }
