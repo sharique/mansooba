@@ -70,3 +70,10 @@ func (r *userRepo) FindByEmailPrefix(ctx context.Context, prefix string) (*domai
 func (r *userRepo) Update(ctx context.Context, user *domain.User) error {
 	return r.db.WithContext(ctx).Save(user).Error
 }
+
+// HasAdmin returns true if at least one user with is_admin=true exists.
+func (r *userRepo) HasAdmin(ctx context.Context) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&domain.User{}).Where("is_admin = ?", true).Count(&count).Error
+	return count > 0, err
+}

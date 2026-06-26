@@ -35,4 +35,7 @@ type UserRepository interface {
 	FindByEmailPrefix(ctx context.Context, prefix string) (*User, error)
 	// Update persists all writable fields of an existing user (name, avatar_url, timezone).
 	Update(ctx context.Context, user *User) error
+	// HasAdmin returns true if at least one user with IsAdmin=true exists.
+	// Used exclusively by the setup service to detect fresh-install state.
+	HasAdmin(ctx context.Context) (bool, error)
 }

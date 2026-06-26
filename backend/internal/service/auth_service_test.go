@@ -63,6 +63,15 @@ func (s *stubUserRepo) Update(_ context.Context, u *domain.User) error {
 	return domain.ErrNotFound
 }
 
+func (s *stubUserRepo) HasAdmin(_ context.Context) (bool, error) {
+	for _, u := range s.users {
+		if u.IsAdmin {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 const testSecret = "test-secret-key-that-is-long-enough"
 
 func newTestService(repo domain.UserRepository) service.AuthService {

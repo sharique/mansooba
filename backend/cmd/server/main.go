@@ -15,6 +15,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode"
 
 	"golang.org/x/time/rate"
 	"github.com/go-playground/validator/v10"
@@ -86,9 +87,14 @@ func main() {
 	settingSvc := service.NewSettingService(settingRepo)
 	issueRelationSvc := service.NewIssueRelationService(issueRelationRepo, issueRepo)
 
+	// Setup service (wizard)
+	accessTTL, _ := time.ParseDuration(cfg.JWTAccessTTL)
+	setupSvc := service.NewSetupService(userRepo, projectSvc, cfg.JWTSecret, accessTTL, log)
+
 	// Handlers
 	healthHandler := handler.NewHealthHandler(sqlDB)
 	authHandler := handler.NewAuthHandler(authSvc)
+	setupHandler := handler.NewSetupHandler(setupSvc)
 	userHandler := handler.NewUserHandler(userSvc, activitySvc, issueSvc)
 	projectHandler := handler.NewProjectHandler(projectSvc)
 	issueHandler := handler.NewIssueHandler(issueSvc)
@@ -106,7 +112,24 @@ func main() {
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
-	e.Validator = &customValidator{validator.New()}
+
+	v := validator.New()
+	v.RegisterValidation("password_complexity", func(fl validator.FieldLevel) bool { //nolint:errcheck
+		pw := fl.Field().String()
+		var hasUpper, hasLower, hasDigit bool
+		for _, r := range pw {
+			switch {
+			case unicode.IsUpper(r):
+				hasUpper = true
+			case unicode.IsLower(r):
+				hasLower = true
+			case unicode.IsDigit(r):
+				hasDigit = true
+			}
+		}
+		return len(pw) >= 8 && hasUpper && hasLower && hasDigit
+	})
+	e.Validator = &customValidator{v}
 	e.HTTPErrorHandler = apierror.HTTPErrorHandler
 
 	e.Use(echomw.Recover())
@@ -153,6 +176,56 @@ func main() {
 	auth.POST("/register", authHandler.Register)
 	auth.POST("/login", authHandler.Login)
 	auth.POST("/refresh", authHandler.Refresh)
+
+	// Setup wizard routes (public group — no JWT required)
+	setup := e.Group("/api/v1/setup")
+	setup.GET("/status", setupHandler.Status)
+
+	// Account-creation steps are rate-limited (same config as auth)
+	setupRateLimited := setup.Group("", echomw.RateLimiterWithConfig(echomw.RateLimiterConfig{
+		Skipper: echomw.DefaultSkipper,
+		Store: echomw.NewRateLimiterMemoryStoreWithConfig(
+			echomw.RateLimiterMemoryStoreConfig{
+				Rate:      rate.Limit(cfg.AuthRateLimit),
+				Burst:     cfg.AuthRateLimit,
+				ExpiresIn: 3 * time.Minute,
+			},
+		),
+		IdentifierExtractor: func(ctx echo.Context) (string, error) {
+			return ctx.RealIP(), nil
+		},
+		ErrorHandler: func(context echo.Context, err error) error {
+			return context.JSON(http.StatusForbidden, map[string]string{"error": "forbidden"})
+		},
+		DenyHandler: func(context echo.Context, identifier string, err error) error {
+			return context.JSON(http.StatusTooManyRequests, map[string]string{"error": "Too many attempts. Please wait a minute and try again."})
+		},
+	}))
+	setupRateLimited.POST("/admin", setupHandler.CreateAdmin)
+
+	// Authenticated setup steps (require JWT from step 1)
+	setupAuth := setup.Group("", apimw.JWTAuth(cfg.JWTSecret))
+	setupAuth.Use(echomw.RateLimiterWithConfig(echomw.RateLimiterConfig{
+		Skipper: echomw.DefaultSkipper,
+		Store: echomw.NewRateLimiterMemoryStoreWithConfig(
+			echomw.RateLimiterMemoryStoreConfig{
+				Rate:      rate.Limit(cfg.AuthRateLimit),
+				Burst:     cfg.AuthRateLimit,
+				ExpiresIn: 3 * time.Minute,
+			},
+		),
+		IdentifierExtractor: func(ctx echo.Context) (string, error) {
+			return ctx.RealIP(), nil
+		},
+		ErrorHandler: func(context echo.Context, err error) error {
+			return context.JSON(http.StatusForbidden, map[string]string{"error": "forbidden"})
+		},
+		DenyHandler: func(context echo.Context, identifier string, err error) error {
+			return context.JSON(http.StatusTooManyRequests, map[string]string{"error": "Too many attempts. Please wait a minute and try again."})
+		},
+	}))
+	setupAuth.POST("/user", setupHandler.CreateUser)
+	setupAuth.POST("/project", setupHandler.CreateProject)
 
 	// Protected routes
 	api := e.Group("/api/v1", apimw.JWTAuth(cfg.JWTSecret))
