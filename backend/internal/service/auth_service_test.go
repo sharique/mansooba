@@ -72,6 +72,10 @@ func (s *stubUserRepo) HasAdmin(_ context.Context) (bool, error) {
 	return false, nil
 }
 
+func (s *stubUserRepo) FindFirstAdmin(_ context.Context) (*domain.User, error) {
+	return nil, domain.ErrNotFound
+}
+
 const testSecret = "test-secret-key-that-is-long-enough"
 
 func newTestService(repo domain.UserRepository) service.AuthService {

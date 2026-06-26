@@ -77,3 +77,15 @@ func (r *userRepo) HasAdmin(ctx context.Context) (bool, error) {
 	err := r.db.WithContext(ctx).Model(&domain.User{}).Where("is_admin = ?", true).Count(&count).Error
 	return count > 0, err
 }
+
+// FindFirstAdmin returns the admin user with the lowest ID, or ErrNotFound when none exists.
+func (r *userRepo) FindFirstAdmin(ctx context.Context) (*domain.User, error) {
+	var user domain.User
+	if err := r.db.WithContext(ctx).Where("is_admin = ?", true).Order("id ASC").First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, err
+	}
+	return &user, nil
+}

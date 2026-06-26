@@ -8,6 +8,8 @@ interface SetupState {
   currentStep: number
   createdUser: { id: number; name: string; email: string } | null
   createdProject: { id: number; key: string; name: string } | null
+  seedImported: boolean | null
+  seedProjectKey: string | null
 }
 
 export const useSetupStore = defineStore('setup', {
@@ -16,13 +18,15 @@ export const useSetupStore = defineStore('setup', {
     currentStep: 0,
     createdUser: null,
     createdProject: null,
+    seedImported: null,
+    seedProjectKey: null,
   }),
 
   getters: {
     isSetupRequired: (state) => state.setupRequired === true,
     hasCreatedUser: (state) => state.createdUser !== null,
     summaryItems: (state): { label: string; value: string }[] => {
-      return [
+      const items: { label: string; value: string }[] = [
         {
           label: 'Team member',
           value: state.createdUser
@@ -36,6 +40,15 @@ export const useSetupStore = defineStore('setup', {
             : 'No project added',
         },
       ]
+      if (state.seedImported !== null) {
+        items.push({
+          label: 'Sample data',
+          value: state.seedImported
+            ? `Imported (project: ${state.seedProjectKey})`
+            : 'Skipped',
+        })
+      }
+      return items
     },
   },
 
@@ -82,11 +95,26 @@ export const useSetupStore = defineStore('setup', {
       this.currentStep = 4
     },
 
+    async completeSampleData(): Promise<void> {
+      const data = await setupService.seedData()
+      this.seedImported = !data.skipped
+      this.seedProjectKey = data.project_key
+      this.currentStep = 5
+    },
+
+    skipSampleData(): void {
+      this.seedImported = false
+      this.seedProjectKey = null
+      this.currentStep = 5
+    },
+
     finish(): void {
       this.setupRequired = false
       this.currentStep = 0
       this.createdUser = null
       this.createdProject = null
+      this.seedImported = null
+      this.seedProjectKey = null
       navigateTo('/')
     },
   },

@@ -13,6 +13,14 @@
       </div>
     </div>
 
+    <div
+      v-if="setupStore.seedProjectKey === 'SDEMO'"
+      class="alert alert-info text-left text-sm"
+      role="alert"
+    >
+      Your demo project was created as "Seed Demo Project" because a project named DEMO already exists in your workspace.
+    </div>
+
     <div class="flex justify-center">
       <button
         class="btn btn-primary btn-wide"

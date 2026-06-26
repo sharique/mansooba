@@ -13,12 +13,13 @@ import (
 
 // AuthHandler exposes register, login, and refresh endpoints.
 type AuthHandler struct {
-	svc service.AuthService
+	svc     service.AuthService
+	userSvc service.UserService
 }
 
-// NewAuthHandler creates an AuthHandler backed by the given service.
-func NewAuthHandler(svc service.AuthService) *AuthHandler {
-	return &AuthHandler{svc: svc}
+// NewAuthHandler creates an AuthHandler backed by the given services.
+func NewAuthHandler(svc service.AuthService, userSvc service.UserService) *AuthHandler {
+	return &AuthHandler{svc: svc, userSvc: userSvc}
 }
 
 // Register godoc
@@ -32,6 +33,12 @@ func NewAuthHandler(svc service.AuthService) *AuthHandler {
 // @Failure      409 {object} apierror.APIError "Email already registered"
 // @Router       /auth/register [post]
 func (h *AuthHandler) Register(c echo.Context) error {
+	callerID := c.Get("userID").(uint)
+	profile, err := h.userSvc.GetProfile(c.Request().Context(), callerID)
+	if err != nil || !profile.IsAdmin {
+		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
+	}
+
 	var req dto.RegisterRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest

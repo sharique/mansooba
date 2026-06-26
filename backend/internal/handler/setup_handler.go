@@ -102,6 +102,26 @@ func (h *SetupHandler) CreateUser(c echo.Context) error {
 	return c.JSON(http.StatusCreated, resp)
 }
 
+// SeedData godoc
+// @Summary      Import example seed data (wizard step 4)
+// @Description  Populates the workspace with a demo project, sprint, issues, and labels.
+// @Description  Idempotent — returns skipped:true if seed data already exists.
+// @Tags         setup
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} dto.SetupSeedResponse
+// @Failure      401 {object} apierror.APIError "Unauthorized"
+// @Failure      500 {object} apierror.APIError "Seed failed"
+// @Router       /setup/seed [post]
+func (h *SetupHandler) SeedData(c echo.Context) error {
+	callerID := c.Get("userID").(uint)
+	resp, err := h.svc.SeedData(c.Request().Context(), callerID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "seed failed: "+err.Error())
+	}
+	return c.JSON(http.StatusOK, resp)
+}
+
 // CreateProject godoc
 // @Summary      Create an optional first project during wizard step 3
 // @Description  Creates a project and optionally adds a team member. Requires the JWT from step 1.

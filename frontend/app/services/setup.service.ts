@@ -34,6 +34,12 @@ export interface SetupProjectResponse {
   name: string
 }
 
+export interface SetupSeedResponse {
+  skipped: boolean
+  project_key: string
+  project_name: string
+}
+
 export const setupService = {
   async getStatus(): Promise<SetupStatusResponse> {
     const { $api } = useNuxtApp()
@@ -62,5 +68,10 @@ export const setupService = {
       method: 'POST',
       body: req,
     })
+  },
+
+  async seedData(): Promise<SetupSeedResponse> {
+    const { $api } = useNuxtApp()
+    return $api<SetupSeedResponse>('/setup/seed', { method: 'POST' })
   },
 }

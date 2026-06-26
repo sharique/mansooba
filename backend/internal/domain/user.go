@@ -38,4 +38,7 @@ type UserRepository interface {
 	// HasAdmin returns true if at least one user with IsAdmin=true exists.
 	// Used exclusively by the setup service to detect fresh-install state.
 	HasAdmin(ctx context.Context) (bool, error)
+	// FindFirstAdmin returns the first user with IsAdmin=true, ordered by ID.
+	// Returns ErrNotFound when no admin exists.
+	FindFirstAdmin(ctx context.Context) (*User, error)
 }
