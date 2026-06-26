@@ -1,10 +1,7 @@
 <template>
   <div class="card bg-base-100 shadow border border-base-200">
     <div class="card-body">
-      <div class="flex items-center justify-between mb-2">
-        <h2 class="card-title text-base">Recent Activity</h2>
-        <NuxtLink to="/settings" class="text-sm text-primary hover:underline">View all activity →</NuxtLink>
-      </div>
+      <h2 class="card-title text-base mb-2">Recent Activity</h2>
 
       <!-- Skeleton -->
       <div v-if="loading" class="space-y-2">
