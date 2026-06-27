@@ -13,8 +13,11 @@ Built using a spec-driven approach where I worked as architect/manager and Claud
 
 ## Features
 
-### Authentication
-- JWT-based login and registration
+### Authentication & Security
+- JWT-based login with cookie-based refresh tokens (HttpOnly, SameSite=Strict, Secure in production)
+- Server-side logout — refresh token JTI stored in `revoked_tokens` table; checked fail-closed on every token refresh (store error → 503, not a silent grant)
+- Background goroutine purges expired revocation records on a configurable interval
+- Password reset — time-limited signed token flow; token displayed on screen for admin delivery
 - User profile: view and update display name, email, timezone
 - Avatar upload — upload a profile picture (stored on disk); falls back to OKLCH-colored initials when no photo is set
 - My Activity feed — paginated list of your recent project events
@@ -62,8 +65,10 @@ Built using a spec-driven approach where I worked as architect/manager and Claud
 
 ### System Administration
 - Global platform settings (`/system/settings`) — admin-only: date format, time format, timezone, session timeout, max file upload size
+- User management (`/system/users`) — paginated list of all users with role and status badges; promote/demote admin, enable/disable accounts; last-admin guard prevents removing the final active admin
+- Create user (`/system/createuser`) — admin-only form; new account credentials shared directly with the user
+- Sidebar **System** section visible only to admins, with links to all three admin pages
 - Role-aware UI: admin users get a create dropdown; members get a single-action button; users with no project membership see neither
-- `User.IsAdmin` flag — promoted via direct DB update; surfaced in `/users/me` and gating all admin-only endpoints with a 403 on failure
 
 ### First-Run Setup Wizard
 - On a fresh install (no admin account exists), all routes redirect to `/setup` automatically via a global Nuxt middleware
@@ -89,9 +94,8 @@ The command is idempotent — running it twice is safe. It requires the setup wi
 
 User account creation is admin-only — `POST /api/v1/auth/register` requires a valid admin JWT.
 
-- **Admins create accounts** by visiting `/register` while logged in as admin.
-- **Unauthenticated users** visiting `/register` are redirected to `/login`.
-- **Non-admin authenticated users** visiting `/register` are redirected to `/`.
+- **Admins create accounts** via `/system/createuser` in the sidebar System section.
+- **Unauthenticated users** are redirected to `/login`; non-admins are redirected to `/system/users`.
 - Direct API calls without an admin JWT receive `401 Unauthorized` or `403 Forbidden`.
 
 ---
