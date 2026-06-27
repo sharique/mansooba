@@ -30,6 +30,11 @@ type Config struct {
 	BodySizeLimit  string `mapstructure:"BODY_SIZE_LIMIT"`  // e.g. "1M"
 	RequestTimeout string `mapstructure:"REQUEST_TIMEOUT"`  // e.g. "30s"
 	AuthRateLimit  int    `mapstructure:"AUTH_RATE_LIMIT"`  // req/s per IP
+
+	// SMTP — leave SMTPHost empty to disable email delivery (NoopSender is used).
+	SMTPHost string `mapstructure:"SMTP_HOST"`
+	SMTPPort string `mapstructure:"SMTP_PORT"`
+	SMTPFrom string `mapstructure:"SMTP_FROM"`
 }
 
 // Load reads configuration from a .env file and environment variables.
@@ -59,6 +64,9 @@ func Load() *Config {
 	viper.SetDefault("BODY_SIZE_LIMIT", "4M")
 	viper.SetDefault("REQUEST_TIMEOUT", "30s")
 	viper.SetDefault("AUTH_RATE_LIMIT", 20)
+	viper.SetDefault("SMTP_HOST", "")
+	viper.SetDefault("SMTP_PORT", "1025")
+	viper.SetDefault("SMTP_FROM", "noreply@mansooba.local")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

@@ -89,8 +89,12 @@ func (s *passwordResetService) ForgotPassword(ctx context.Context, req dto.Forgo
 		return nil, fmt.Errorf("upsert reset token: %w", err)
 	}
 
-	// No-op in this iteration; 007-email-delivery wires a real sender.
-	_ = s.emailSender.SendPasswordReset(ctx, req.Email, token)
+	if err := s.emailSender.SendPasswordReset(ctx, req.Email, token); err != nil {
+		log.Warn("password reset email delivery failed",
+			zap.String("event", "password_reset_email_failed"),
+			zap.Error(err),
+		)
+	}
 
 	log.Info("password reset token issued",
 		zap.String("event", "password_reset_token_issued"),

@@ -22,6 +22,7 @@ import (
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
 	_ "github.com/sharique/mansooba/docs"
+	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/email"
 	"github.com/sharique/mansooba/internal/handler"
 	apimw "github.com/sharique/mansooba/internal/middleware"
@@ -88,8 +89,15 @@ func main() {
 	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
 	settingSvc := service.NewSettingService(settingRepo)
 	issueRelationSvc := service.NewIssueRelationService(issueRelationRepo, issueRepo)
-	noopSender := email.NoopSender{}
-	passwordResetSvc := service.NewPasswordResetService(userRepo, passwordResetRepo, noopSender)
+	var emailSender domain.EmailSender
+	if cfg.SMTPHost != "" {
+		emailSender = email.SMTPSender{Host: cfg.SMTPHost, Port: cfg.SMTPPort, From: cfg.SMTPFrom}
+		log.Info("email delivery enabled", zap.String("smtp_host", cfg.SMTPHost), zap.String("smtp_port", cfg.SMTPPort))
+	} else {
+		emailSender = email.NoopSender{}
+		log.Info("email delivery disabled — token returned in API response only")
+	}
+	passwordResetSvc := service.NewPasswordResetService(userRepo, passwordResetRepo, emailSender)
 
 	// Setup service (wizard)
 	accessTTL, _ := time.ParseDuration(cfg.JWTAccessTTL)
