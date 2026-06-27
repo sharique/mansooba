@@ -53,7 +53,8 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		return err
 	}
 
-	h.setRefreshCookie(c, resp.RefreshToken)
+	// Register is an admin-only action — do NOT set the refresh cookie.
+	// Setting it would overwrite the calling admin's own session cookie.
 	return c.JSON(http.StatusCreated, resp)
 }
 
