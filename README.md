@@ -14,7 +14,7 @@ Built using a spec-driven approach where I worked as architect/manager and Claud
 ## Features
 
 ### Authentication
-- JWT-based login and registration
+- JWT-based login; registration is admin-controlled (see **User Management** below)
 - Password reset — request a reset token at `/forgot-password`; the token is shown on screen and pre-fills the `/reset-password` page to set a new password
 - User profile: view and update display name, email, timezone
 - Avatar upload — upload a profile picture (stored on disk); falls back to OKLCH-colored initials when no photo is set
@@ -107,14 +107,22 @@ User account creation is admin-only — `POST /api/v1/auth/register` requires a 
 
 ---
 
- ## Running locally
+## Running locally
 
-It is recommended to use pre-build images for running app in local or on cloud.
+### Docker Compose (quickest)
 
-For running using pre-build images see [`docs/running-from-ghcr.md`](docs/running-from-ghcr.md).
+```sh
+docker compose up --build
+```
 
+- App at **http://localhost:3000** — on first visit, the setup wizard creates the admin account
+- API at **http://localhost:8080**
+- MinIO console at **http://localhost:9001** (user: `minioadmin`, password: `minioadmin`)
+- Mailpit inbox at **http://localhost:8025** — catches all password-reset emails in dev
+
+See [`docs/running-locally-using-docker.md`](docs/running-locally-using-docker.md) for PostgreSQL and hot-reload dev mode options.  
+For pre-built GHCR images (no Go toolchain needed) see [`docs/running-from-ghcr.md`](docs/running-from-ghcr.md).  
 For API reference, project structure, and architecture details see [`docs/arch-overview.md`](docs/arch-overview.md).
-
 
 ---
 
