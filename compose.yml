@@ -27,6 +27,9 @@ services:
       STORAGE_REGION: "us-east-1"
       STORAGE_PRESIGN_TTL: "1h"
       STORAGE_USE_PATH_STYLE: "true"
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_FROM: noreply@mansooba.local
     volumes:
       - sqlite_data:/data
     depends_on:
@@ -79,6 +82,13 @@ services:
       mc mb --ignore-existing local/mansooba &&
       echo 'bucket ready'
       "
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"   # SMTP — backend sends here when email is configured
+      - "8025:8025"   # Web inbox — http://localhost:8025
+    restart: unless-stopped
 
 volumes:
   sqlite_data:

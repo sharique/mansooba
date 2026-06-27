@@ -23,6 +23,7 @@ import (
 	echomw "github.com/labstack/echo/v4/middleware"
 	_ "github.com/sharique/mansooba/docs"
 	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/email"
 	"github.com/sharique/mansooba/internal/handler"
 	apimw "github.com/sharique/mansooba/internal/middleware"
 	"github.com/sharique/mansooba/internal/repository"
@@ -80,6 +81,7 @@ func main() {
 	notifRepo := repository.NewNotificationRepository(db)
 	settingRepo := repository.NewSettingRepository(db)
 	issueRelationRepo := repository.NewIssueRelationRepository(db)
+	passwordResetRepo := repository.NewPasswordResetRepository(db)
 
 	// Start background goroutine to purge expired revocation records.
 	cleanupInterval, err := time.ParseDuration(cfg.RevokedTokenCleanupInterval)
@@ -95,13 +97,22 @@ func main() {
 	userSvc := service.NewUserService(userRepo)
 	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo)
 	activitySvc := service.NewActivityService(activityRepo, userRepo, issueRepo)
-	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo)
+	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, sprintRepo)
 	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo)
 	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
 	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc, notifRepo, userRepo)
 	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
 	settingSvc := service.NewSettingService(settingRepo)
 	issueRelationSvc := service.NewIssueRelationService(issueRelationRepo, issueRepo)
+	var emailSender domain.EmailSender
+	if cfg.SMTPHost != "" {
+		emailSender = email.SMTPSender{Host: cfg.SMTPHost, Port: cfg.SMTPPort, From: cfg.SMTPFrom}
+		log.Info("email delivery enabled", zap.String("smtp_host", cfg.SMTPHost), zap.String("smtp_port", cfg.SMTPPort))
+	} else {
+		emailSender = email.NoopSender{}
+		log.Info("email delivery disabled — token returned in API response only")
+	}
+	passwordResetSvc := service.NewPasswordResetService(userRepo, passwordResetRepo, emailSender)
 
 	adminUserSvc := service.NewAdminUserService(userRepo)
 
@@ -126,6 +137,7 @@ func main() {
 	issueRelationHandler := handler.NewIssueRelationHandler(issueRelationSvc)
 	issueHandler = issueHandler.WithRelationRepo(issueRelationRepo)
 	adminUserHandler := handler.NewAdminUserHandler(adminUserSvc, userSvc)
+	passwordResetHandler := handler.NewPasswordResetHandler(passwordResetSvc)
 
 	// Echo
 	e := echo.New()
@@ -195,6 +207,8 @@ func main() {
 	auth.POST("/login", authHandler.Login)
 	auth.POST("/refresh", authHandler.Refresh)
 	auth.POST("/logout", authHandler.Logout)
+	auth.POST("/forgot-password", passwordResetHandler.ForgotPassword)
+	auth.POST("/reset-password", passwordResetHandler.ResetPassword)
 
 	// Setup wizard routes (public group — no JWT required)
 	setup := e.Group("/api/v1/setup")
@@ -333,6 +347,25 @@ func main() {
 		log.Info("starting server", zap.String("address", addr))
 		if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
 			log.Fatal("server error", zap.Error(err))
+		}
+	}()
+
+	// Purge unused password-reset tokens every 15 minutes.
+	go func() {
+		ticker := time.NewTicker(15 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				n, err := passwordResetRepo.PurgeExpired(ctx, time.Now().Add(-1*time.Hour))
+				if err != nil {
+					log.Warn("purge password reset tokens failed", zap.Error(err))
+				} else if n > 0 {
+					log.Info("purged expired password reset tokens", zap.Int64("count", n))
+				}
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 

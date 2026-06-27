@@ -38,6 +38,11 @@ type Config struct {
 	// RevokedTokenCleanupInterval is how often the background goroutine purges
 	// expired rows from the revoked_tokens table. Defaults to "15m".
 	RevokedTokenCleanupInterval string `mapstructure:"REVOKED_TOKEN_CLEANUP_INTERVAL"`
+
+	// SMTP — leave SMTPHost empty to disable email delivery (NoopSender is used).
+	SMTPHost string `mapstructure:"SMTP_HOST"`
+	SMTPPort string `mapstructure:"SMTP_PORT"`
+	SMTPFrom string `mapstructure:"SMTP_FROM"`
 }
 
 // Load reads configuration from a .env file and environment variables.
@@ -69,6 +74,9 @@ func Load() *Config {
 	viper.SetDefault("AUTH_RATE_LIMIT", 20)
 	viper.SetDefault("APP_ENV", "production")
 	viper.SetDefault("REVOKED_TOKEN_CLEANUP_INTERVAL", "15m")
+	viper.SetDefault("SMTP_HOST", "")
+	viper.SetDefault("SMTP_PORT", "1025")
+	viper.SetDefault("SMTP_FROM", "noreply@mansooba.local")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
