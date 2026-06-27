@@ -328,6 +328,16 @@ func (r *stubUserRepoMention) FindFirstAdmin(_ context.Context) (*domain.User, e
 	return nil, domain.ErrNotFound
 }
 
+func (r *stubUserRepoMention) ListAll(_ context.Context, _, _ int) ([]*domain.User, int64, error) {
+	return nil, 0, nil
+}
+
+func (r *stubUserRepoMention) CountActiveAdmins(_ context.Context) (int64, error) { return 0, nil }
+
+func (r *stubUserRepoMention) UpdateAdminFields(_ context.Context, _ *domain.User) error {
+	return nil
+}
+
 func newCommentTestEnvWithNotifications() (service.CommentService, *stubCommentRepo, *stubActivityService, *stubNotificationRepo) {
 	issueRepo := newStubIssueRepo()
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10})

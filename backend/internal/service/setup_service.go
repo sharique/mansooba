@@ -92,7 +92,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.SetupAdminReques
 		return nil, err
 	}
 
-	accessToken, err := generateToken(user.ID, s.jwtSecret, s.accessTTL)
+	accessToken, err := generateAccessToken(user.ID, s.jwtSecret, s.accessTTL)
 	if err != nil {
 		return nil, err
 	}

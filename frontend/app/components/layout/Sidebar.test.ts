@@ -27,12 +27,29 @@ describe('projectNavLinks', () => {
   })
 })
 
-describe('admin nav links', () => {
+describe('system nav links (admin only)', () => {
+  const systemLinks: NavLink[] = [
+    { label: 'System Settings', to: '/system/settings', icon: 'mdi:cog-outline' },
+    { label: 'User Management', to: '/system/users',    icon: 'mdi:account-group-outline' },
+    { label: 'Create User',     to: '/register',        icon: 'mdi:account-plus-outline' },
+  ]
+
+  it('contains three links', () => {
+    expect(systemLinks).toHaveLength(3)
+  })
+
   it('system settings link points to /system/settings', () => {
-    const adminLinks: NavLink[] = [
-      { label: 'System Settings', to: '/system/settings', icon: 'mdi:cog-outline' },
-    ]
-    expect(adminLinks[0].to).toBe('/system/settings')
-    expect(adminLinks[0].label).toBe('System Settings')
+    expect(systemLinks[0].to).toBe('/system/settings')
+    expect(systemLinks[0].label).toBe('System Settings')
+  })
+
+  it('user management link points to /system/users', () => {
+    expect(systemLinks[1].to).toBe('/system/users')
+    expect(systemLinks[1].label).toBe('User Management')
+  })
+
+  it('create user link points to /register', () => {
+    expect(systemLinks[2].to).toBe('/register')
+    expect(systemLinks[2].label).toBe('Create User')
   })
 })

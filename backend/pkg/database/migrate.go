@@ -11,6 +11,7 @@ import (
 func Migrate(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&domain.User{},
+		&domain.RevokedToken{},
 		&domain.Project{},
 		&domain.ProjectMember{},
 		&domain.Sprint{},

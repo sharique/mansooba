@@ -23,7 +23,15 @@ export const authService = {
     return data
   },
 
-  logout(): void {
+  async logout(): Promise<void> {
+    const { $api } = useNuxtApp()
+    // Best-effort server-side revocation: swallow all errors so the client
+    // always finishes the logout flow even if the server is unreachable.
+    try {
+      await $api('/auth/logout', { method: 'POST', credentials: 'include' })
+    } catch {
+      // intentionally ignored
+    }
     useAuthStore().clearAuth()
     navigateTo('/login')
   },

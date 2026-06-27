@@ -22,6 +22,7 @@ import (
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
 	_ "github.com/sharique/mansooba/docs"
+	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/handler"
 	apimw "github.com/sharique/mansooba/internal/middleware"
 	"github.com/sharique/mansooba/internal/repository"
@@ -45,6 +46,11 @@ func main() {
 	defer logger.Sync()
 	log := logger.Logger
 
+	// Create the application context early so long-running goroutines can stop
+	// cleanly when the server receives SIGTERM/SIGINT.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	db, err := database.Open(cfg)
 	if err != nil {
 		log.Fatal("failed to open database", zap.Error(err))
@@ -64,6 +70,7 @@ func main() {
 
 	// Repositories
 	userRepo := repository.NewUserRepository(db)
+	revokedTokenRepo := repository.NewRevokedTokenRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
 	projectMemberRepo := repository.NewProjectMemberRepository(db)
 	issueRepo := repository.NewIssueRepository(db)
@@ -74,8 +81,17 @@ func main() {
 	settingRepo := repository.NewSettingRepository(db)
 	issueRelationRepo := repository.NewIssueRelationRepository(db)
 
+	// Start background goroutine to purge expired revocation records.
+	cleanupInterval, err := time.ParseDuration(cfg.RevokedTokenCleanupInterval)
+	if err != nil {
+		log.Warn("invalid REVOKED_TOKEN_CLEANUP_INTERVAL, defaulting to 15m",
+			zap.String("value", cfg.RevokedTokenCleanupInterval), zap.Error(err))
+		cleanupInterval = 15 * time.Minute
+	}
+	startRevokedTokenCleanup(ctx, revokedTokenRepo, cleanupInterval, log)
+
 	// Services
-	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
+	authSvc := service.NewAuthService(userRepo, revokedTokenRepo, log, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	userSvc := service.NewUserService(userRepo)
 	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo)
 	activitySvc := service.NewActivityService(activityRepo, userRepo, issueRepo)
@@ -86,6 +102,8 @@ func main() {
 	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
 	settingSvc := service.NewSettingService(settingRepo)
 	issueRelationSvc := service.NewIssueRelationService(issueRelationRepo, issueRepo)
+
+	adminUserSvc := service.NewAdminUserService(userRepo)
 
 	// Setup service (wizard)
 	accessTTL, _ := time.ParseDuration(cfg.JWTAccessTTL)
@@ -107,6 +125,7 @@ func main() {
 	settingHandler := handler.NewSettingHandler(settingSvc, userSvc)
 	issueRelationHandler := handler.NewIssueRelationHandler(issueRelationSvc)
 	issueHandler = issueHandler.WithRelationRepo(issueRelationRepo)
+	adminUserHandler := handler.NewAdminUserHandler(adminUserSvc, userSvc)
 
 	// Echo
 	e := echo.New()
@@ -175,6 +194,7 @@ func main() {
 	}))
 	auth.POST("/login", authHandler.Login)
 	auth.POST("/refresh", authHandler.Refresh)
+	auth.POST("/logout", authHandler.Logout)
 
 	// Setup wizard routes (public group — no JWT required)
 	setup := e.Group("/api/v1/setup")
@@ -293,6 +313,10 @@ func main() {
 	issueItems.POST("/relations", issueRelationHandler.Create)
 	issueItems.DELETE("/relations/:rid", issueRelationHandler.Delete)
 
+	admin := api.Group("/admin")
+	admin.GET("/users", adminUserHandler.ListUsers)
+	admin.PATCH("/users/:id", adminUserHandler.PatchUser)
+
 	settings := api.Group("/settings")
 	settings.GET("", settingHandler.GetAll)
 	settings.PATCH("", settingHandler.Patch)
@@ -313,8 +337,6 @@ func main() {
 	}()
 
 	// Block until SIGTERM or SIGINT.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 	<-ctx.Done()
 
 	log.Info("shutdown signal received — draining requests")
@@ -332,4 +354,27 @@ func main() {
 	} else {
 		log.Info("server shutdown complete")
 	}
+}
+
+// startRevokedTokenCleanup launches a background goroutine that periodically
+// deletes expired rows from the revoked_tokens table.
+// The goroutine stops when ctx is cancelled (i.e., on SIGTERM/SIGINT).
+func startRevokedTokenCleanup(ctx context.Context, repo domain.RevokedTokenRepository, interval time.Duration, log *zap.Logger) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				n, err := repo.DeleteExpired(ctx)
+				if err != nil {
+					log.Warn("revoked_token_cleanup failed", zap.Error(err))
+				} else {
+					log.Info("revoked_token_cleanup", zap.Int64("deleted", n))
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }

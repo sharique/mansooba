@@ -28,8 +28,10 @@ const primary: NavLink[] = [
   { label: 'Reports',  to: '/reports',  icon: 'mdi:chart-box-outline' },
 ]
 
-const adminLinks: NavLink[] = [
+const systemLinks: NavLink[] = [
   { label: 'System Settings', to: '/system/settings', icon: 'mdi:cog-outline' },
+  { label: 'User Management', to: '/system/users',    icon: 'mdi:account-group-outline' },
+  { label: 'Create User',     to: '/register',        icon: 'mdi:account-plus-outline' },
 ]
 
 const currentKey = computed(() =>
@@ -88,10 +90,11 @@ onMounted(async () => {
         {{ link.label }}
       </NuxtLink>
 
-      <!-- admin-only links -->
+      <!-- system section (admin only) -->
       <template v-if="authStore.isAdmin">
+        <div class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-wide opacity-50">System</div>
         <NuxtLink
-          v-for="link in adminLinks"
+          v-for="link in systemLinks"
           :key="link.to"
           :to="link.to"
           class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors"

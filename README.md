@@ -126,6 +126,16 @@ cp backend/.env.example backend/.env
 # Edit backend/.env if needed — defaults work out of the box with SQLite
 ```
 
+Key authentication environment variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `JWT_SECRET` | *(required)* | HMAC secret used to sign all JWTs |
+| `JWT_ACCESS_TTL` | `15m` | Lifetime of access tokens |
+| `JWT_REFRESH_TTL` | `168h` | Lifetime of refresh tokens (7 days) |
+| `APP_ENV` | `production` | Set to `development` to omit the `Secure` flag on cookies (plain HTTP local dev) |
+| `REVOKED_TOKEN_CLEANUP_INTERVAL` | `15m` | How often the background goroutine purges expired revoked-token records |
+
 ### 2. Backend
 
 ```sh
