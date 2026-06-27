@@ -22,10 +22,6 @@
           <p class="text-sm text-center mt-2">
             <NuxtLink to="/forgot-password" class="link link-primary">Forgot your password?</NuxtLink>
           </p>
-          <p class="text-sm text-center mt-1">
-            No account?
-            <NuxtLink to="/register" class="link link-primary">Register</NuxtLink>
-          </p>
         </div>
       </div>
     </div>

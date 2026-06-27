@@ -163,7 +163,7 @@ Create `compose.override.yml` in the same directory:
 ```yaml
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: mansooba
@@ -208,6 +208,13 @@ services:
       echo 'bucket ready'
       "
 
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    restart: unless-stopped
+
   backend:
     depends_on:
       db:
@@ -230,7 +237,7 @@ docker compose -f compose.prod.yml -f compose.override.yml pull
 docker compose -f compose.prod.yml -f compose.override.yml up -d
 ```
 
-App is at **http://localhost** (port 80) · API at **http://localhost:8080** · MinIO console at **http://localhost:9001**
+App is at **http://localhost** (port 80) · API at **http://localhost:8080** · MinIO console at **http://localhost:9001** · Mail inbox at **http://localhost:8025**
 
 ### Step 5 — Verify
 
@@ -311,6 +318,9 @@ services:
 | `DB_MAX_OPEN_CONNS` | | `25` | Max open DB connections |
 | `DB_MAX_IDLE_CONNS` | | `5` | Max idle DB connections |
 | `DB_CONN_MAX_LIFETIME` | | `5m` | Connection max lifetime |
+| `SMTP_HOST` | | `mailpit` | SMTP server host — use `mailpit` in the local override |
+| `SMTP_PORT` | | `1025` | SMTP port |
+| `SMTP_FROM` | | `noreply@mansooba.local` | Sender address for outbound email |
 
 **Connection string formats:**
 ```

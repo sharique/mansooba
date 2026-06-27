@@ -32,6 +32,9 @@ The simplest path is **Docker Compose** with the bundled `compose.yml` — it st
 | `STORAGE_REGION` | `us-east-1` | AWS region (MinIO ignores this; any string works) |
 | `STORAGE_PRESIGN_TTL` | `1h` | How long pre-signed download URLs remain valid |
 | `STORAGE_USE_PATH_STYLE` | `true` | Must be `true` for MinIO and most self-hosted S3 alternatives |
+| `SMTP_HOST` | `mailpit` | SMTP server host — use `mailpit` when running with Compose |
+| `SMTP_PORT` | `1025` | SMTP port |
+| `SMTP_FROM` | `noreply@mansooba.local` | Sender address for outbound email |
 
 Connection string formats:
 
@@ -55,6 +58,7 @@ The `compose.yml` at the repo root starts the complete dev stack:
 | `frontend` | Static Nuxt app served by nginx, port 3000 |
 | `minio` | S3-compatible object store for file uploads, port 9000 (API) + 9001 (console) |
 | `minio-init` | One-shot job that creates the `mansooba` bucket before the backend starts |
+| `mailpit` | SMTP mail catcher — captures all outbound email; web inbox on port 8025 |
 
 The frontend nginx proxies `/api/` to the backend, so the browser only needs to talk to one origin (`localhost:3000`).
 
@@ -79,11 +83,27 @@ docker compose down
 docker compose down -v
 ```
 
-App is at **http://localhost:3000** · API at **http://localhost:8080** · MinIO console at **http://localhost:9001** (user: `minioadmin`, password: `minioadmin`)
+App is at **http://localhost:3000** · API at **http://localhost:8080** · MinIO console at **http://localhost:9001** (user: `minioadmin`, password: `minioadmin`) · Mail inbox at **http://localhost:8025**
 
 ### First run
 
 When the app starts for the first time there are no users. Navigate to **http://localhost:3000/setup** to run the superadmin setup wizard — it creates the first account and seeds initial organisation settings.
+
+### Catching outbound emails (Mailpit)
+
+Compose starts a [Mailpit](https://mailpit.axllent.org) container that captures every outbound SMTP message — nothing reaches real inboxes.
+
+Open **http://localhost:8025** to browse the captured inbox after triggering any email flow (e.g. password reset).
+
+When the backend is configured for email delivery, set these env vars to point at Mailpit:
+
+```bash
+SMTP_HOST=mailpit
+SMTP_PORT=1025
+SMTP_FROM=noreply@mansooba.local
+```
+
+In `compose.yml` the Mailpit container is already present; just add the three vars to the `backend` environment block when implementing email delivery (007-email-delivery).
 
 ### Rebuilding after code changes
 
@@ -161,7 +181,7 @@ docker run --rm --name pg-local \
   -e POSTGRES_PASSWORD=mansooba \
   -e POSTGRES_DB=mansooba \
   -p 5432:5432 \
-  postgres:16-alpine
+  postgres:17-alpine
 ```
 
 **MariaDB 11**
@@ -206,7 +226,7 @@ If you want Docker Compose to manage the database too, create a `compose.overrid
 ```yaml
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: mansooba

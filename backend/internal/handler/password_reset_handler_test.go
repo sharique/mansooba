@@ -73,14 +73,10 @@ func TestPasswordResetHandler_ForgotPassword_KnownEmail_Returns200WithToken(t *t
 	}
 }
 
-func TestPasswordResetHandler_ForgotPassword_UnknownEmail_Returns200WithEmptyToken(t *testing.T) {
+func TestPasswordResetHandler_ForgotPassword_UnknownEmail_Returns404(t *testing.T) {
 	svc := &stubPasswordResetService{
 		forgotPasswordFn: func(_ context.Context, _ dto.ForgotPasswordRequest) (*dto.ForgotPasswordResponse, error) {
-			return &dto.ForgotPasswordResponse{
-				Token:     "",
-				ExpiresAt: "",
-				Message:   "If that email is registered, a reset token has been generated.",
-			}, nil
+			return nil, domain.ErrNotFound
 		},
 	}
 	e := newEcho()
@@ -92,13 +88,13 @@ func TestPasswordResetHandler_ForgotPassword_UnknownEmail_Returns200WithEmptyTok
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected 200 even for unknown email, got %d", rec.Code)
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("expected 404 for unknown email, got %d: %s", rec.Code, rec.Body.String())
 	}
-	var resp dto.ForgotPasswordResponse
+	var resp map[string]string
 	json.NewDecoder(rec.Body).Decode(&resp)
-	if resp.Token != "" {
-		t.Error("token must be empty for unknown email")
+	if resp["message"] != "No account found with that email address." {
+		t.Errorf("unexpected error message: %v", resp)
 	}
 }
 
