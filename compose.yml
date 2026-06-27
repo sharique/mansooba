@@ -80,6 +80,13 @@ services:
       echo 'bucket ready'
       "
 
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"   # SMTP — backend sends here when email is configured
+      - "8025:8025"   # Web inbox — http://localhost:8025
+    restart: unless-stopped
+
 volumes:
   sqlite_data:
   minio_data:

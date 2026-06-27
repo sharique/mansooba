@@ -15,9 +15,10 @@ Built using a spec-driven approach where I worked as architect/manager and Claud
 
 ### Authentication
 - JWT-based login and registration
+- Password reset — request a reset token at `/forgot-password`; the token is shown on screen and pre-fills the `/reset-password` page to set a new password
 - User profile: view and update display name, email, timezone
 - Avatar upload — upload a profile picture (stored on disk); falls back to OKLCH-colored initials when no photo is set
-- My Activity feed — paginated list of your recent project events
+- My Activity feed — paginated list of your recent project events; sprint assignment entries display real sprint names (e.g. "Sprint Alpha") captured at the time of the move
 
 ### Projects
 - Create, read, update, delete projects
