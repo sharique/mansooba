@@ -22,5 +22,6 @@ func Migrate(db *gorm.DB) error {
 		&domain.Notification{},
 		&domain.GlobalSetting{},
 		&domain.IssueRelation{},
+		&domain.PasswordResetToken{},
 	)
 }
