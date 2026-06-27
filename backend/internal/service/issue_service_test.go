@@ -125,7 +125,7 @@ func newIssueService() (service.IssueService, *stubProjectRepo, *stubProjectMemb
 	issueRepo := newStubIssueRepo()
 	activitySvc := &stubActivitySvc{}
 	userRepo := newStubUserRepo()
-	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo)
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo, newStubSprintRepo())
 	return svc, projectRepo, memberRepo, issueRepo
 }
 
@@ -325,7 +325,7 @@ func TestIssueService_Update_RecordsStatusChangeActivity(t *testing.T) {
 	})
 
 	newStatus := domain.IssueStatusInProgress
-	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo)
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo, newStubSprintRepo())
 	_, err := svc.Update(context.Background(), "PROJ", 1, 1, dto.UpdateIssueRequest{Status: &newStatus})
 	require.NoError(t, err)
 
@@ -351,7 +351,7 @@ func TestIssueService_Update_RecordsPriorityChangeActivity(t *testing.T) {
 	})
 
 	newPriority := domain.IssuePriorityHigh
-	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo)
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo, newStubSprintRepo())
 	_, err := svc.Update(context.Background(), "PROJ", 1, 1, dto.UpdateIssueRequest{Priority: &newPriority})
 	require.NoError(t, err)
 
@@ -375,7 +375,7 @@ func TestIssueService_Update_NoActivityWhenNothingChanges(t *testing.T) {
 	})
 
 	sameStatus := domain.IssueStatusTodo
-	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo)
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo, newStubSprintRepo())
 	_, err := svc.Update(context.Background(), "PROJ", 1, 1, dto.UpdateIssueRequest{Status: &sameStatus})
 	require.NoError(t, err)
 	assert.Empty(t, activitySvc.recorded)
@@ -398,7 +398,7 @@ func TestIssueService_Update_RecordsAssigneeChangeActivity(t *testing.T) {
 	})
 
 	aliceID := uint(10)
-	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo)
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo, newStubSprintRepo())
 	_, err := svc.Update(context.Background(), "PROJ", 1, 1, dto.UpdateIssueRequest{AssigneeID: &aliceID})
 	require.NoError(t, err)
 
@@ -445,7 +445,7 @@ func TestIssueService_ListByProject_SearchByText(t *testing.T) {
 		&domain.Issue{ID: 2, ProjectID: 10, Key: "SRCH-2", Title: "Signup flow", Description: "registration"},
 	)
 
-	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, &stubActivitySvc{}, userRepo)
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, &stubActivitySvc{}, userRepo, newStubSprintRepo())
 
 	result, err := svc.ListByProject(context.Background(), "SRCH", 1, dto.IssueListQuery{Q: "login"})
 	require.NoError(t, err)
@@ -467,7 +467,7 @@ func TestIssueService_ListByProject_FilterByPriority(t *testing.T) {
 		&domain.Issue{ID: 4, ProjectID: 11, Key: "PRI-2", Title: "B", Priority: domain.IssuePriorityLow},
 	)
 
-	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, &stubActivitySvc{}, userRepo)
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, &stubActivitySvc{}, userRepo, newStubSprintRepo())
 
 	result, err := svc.ListByProject(context.Background(), "PRI", 1, dto.IssueListQuery{Priority: "high"})
 	require.NoError(t, err)
@@ -491,7 +491,7 @@ func TestIssueService_ListByProject_FilterByLabelID(t *testing.T) {
 	// Stub FindIssueIDsByLabelID to return only issue 5 for label 7.
 	issueRepo.labelIDToIssueIDs = map[uint][]uint{7: {5}}
 
-	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, &stubActivitySvc{}, userRepo)
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, &stubActivitySvc{}, userRepo, newStubSprintRepo())
 
 	result, err := svc.ListByProject(context.Background(), "LBL", 1, dto.IssueListQuery{LabelID: 7})
 	require.NoError(t, err)
@@ -521,7 +521,7 @@ func TestIssueService_GetMyIssues_returns_assigned_issues(t *testing.T) {
 		{ID: 3, Key: "A-3", Title: "Unassigned", AssigneeID: nil, Status: domain.IssueStatusTodo},
 	}
 
-	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo())
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo())
 
 	result, err := svc.GetMyIssues(context.Background(), uid, dto.IssueListQuery{})
 	require.NoError(t, err)
@@ -537,7 +537,7 @@ func TestIssueService_GetMyIssues_filters_by_status(t *testing.T) {
 		{ID: 2, Key: "B-2", Title: "Done", AssigneeID: &uid, Status: domain.IssueStatusDone},
 	}
 
-	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo())
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo())
 
 	result, err := svc.GetMyIssues(context.Background(), uid, dto.IssueListQuery{Status: domain.IssueStatusInProgress})
 	require.NoError(t, err)
@@ -552,7 +552,7 @@ func TestIssueService_GetMyIssues_empty_when_none_assigned(t *testing.T) {
 		{ID: 1, Key: "C-1", AssigneeID: &other, Status: domain.IssueStatusTodo},
 	}
 
-	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo())
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo())
 
 	result, err := svc.GetMyIssues(context.Background(), 999, dto.IssueListQuery{})
 	require.NoError(t, err)
@@ -566,7 +566,7 @@ func newIssueServiceWithUsers(userRepo domain.UserRepository) (service.IssueServ
 	memberRepo := newStubProjectMemberRepo()
 	issueRepo := newStubIssueRepo()
 	activitySvc := &stubActivitySvc{}
-	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo)
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo, newStubSprintRepo())
 	return svc, projectRepo, memberRepo, issueRepo
 }
 
@@ -579,7 +579,7 @@ func TestIssueService_GetMyIssues_AssigneeAvatarURLPopulated(t *testing.T) {
 	issueRepo.issues = []*domain.Issue{
 		{ID: 1, Key: "P-1", Title: "Issue", AssigneeID: &assigneeID, Status: domain.IssueStatusTodo},
 	}
-	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, userRepo)
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, userRepo, newStubSprintRepo())
 
 	result, err := svc.GetMyIssues(context.Background(), assigneeID, dto.IssueListQuery{})
 	require.NoError(t, err)
@@ -599,7 +599,7 @@ func TestIssueService_GetMyIssues_AssigneeAvatarURLNilWhenNoAvatar(t *testing.T)
 	issueRepo.issues = []*domain.Issue{
 		{ID: 1, Key: "P-1", Title: "Issue", AssigneeID: &assigneeID, Status: domain.IssueStatusTodo},
 	}
-	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, userRepo)
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, userRepo, newStubSprintRepo())
 
 	result, err := svc.GetMyIssues(context.Background(), assigneeID, dto.IssueListQuery{})
 	require.NoError(t, err)
@@ -612,7 +612,7 @@ func TestIssueService_GetMyIssues_AssigneeNilWhenUnassigned(t *testing.T) {
 	issueRepo.issues = []*domain.Issue{
 		{ID: 1, Key: "P-1", Title: "Unassigned", AssigneeID: nil, Status: domain.IssueStatusTodo},
 	}
-	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo())
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo())
 
 	result, err := svc.GetMyIssues(context.Background(), 99, dto.IssueListQuery{})
 	require.NoError(t, err)
@@ -637,4 +637,112 @@ func TestIssueService_ListByProject_AssigneeAvatarURLPopulated(t *testing.T) {
 	require.Len(t, result, 1)
 	require.NotNil(t, result[0].AssigneeAvatarURL)
 	assert.Equal(t, "/uploads/avatars/avatar-20.jpg?v=999", *result[0].AssigneeAvatarURL)
+}
+
+// ── TestSprintActivityName ───────────────────────────────────────────────────
+// stubSprintRepo is defined in sprint_service_test.go (same package).
+
+func TestSprintActivityName_UsesSprintName(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	activitySvc := &stubActivitySvc{}
+	userRepo := newStubUserRepo()
+	sprintRepo := newStubSprintRepo()
+	ctx := context.Background()
+	_ = sprintRepo.Create(ctx, &domain.Sprint{Name: "Sprint Alpha"}) // gets ID 1
+
+	projectRepo.projects["PROJ"] = &domain.Project{ID: 1, Key: "PROJ"}
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 1, UserID: 1, Role: "member"})
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{
+		ID: 1, ProjectID: 1, Key: "PROJ-1",
+		Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityMedium,
+		ReporterID: 1,
+	})
+
+	sprintID := uint(1)
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo, sprintRepo)
+	_, err := svc.Update(ctx, "PROJ", 1, 1, dto.UpdateIssueRequest{SprintID: &sprintID})
+	require.NoError(t, err)
+
+	var sprintEvent *domain.ActivityEvent
+	for _, e := range activitySvc.recorded {
+		if e.Kind == domain.ActivitySprintChanged {
+			sprintEvent = e
+			break
+		}
+	}
+	require.NotNil(t, sprintEvent, "expected an ActivitySprintChanged event")
+	assert.Equal(t, "backlog", sprintEvent.OldValue)
+	assert.Equal(t, "Sprint Alpha", sprintEvent.NewValue)
+}
+
+func TestSprintActivityName_NilSprintReturnsBacklog(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	activitySvc := &stubActivitySvc{}
+	userRepo := newStubUserRepo()
+	sprintRepo := newStubSprintRepo()
+	ctx := context.Background()
+	_ = sprintRepo.Create(ctx, &domain.Sprint{Name: "Sprint One"})   // ID 1
+	_ = sprintRepo.Create(ctx, &domain.Sprint{Name: "Sprint Two"})   // ID 2
+	_ = sprintRepo.Create(ctx, &domain.Sprint{Name: "Sprint Gamma"}) // ID 3
+
+	projectRepo.projects["PROJ"] = &domain.Project{ID: 1, Key: "PROJ"}
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 1, UserID: 1, Role: "member"})
+	sprintID := uint(3)
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{
+		ID: 1, ProjectID: 1, Key: "PROJ-1",
+		Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityMedium,
+		SprintID: &sprintID, ReporterID: 1,
+	})
+
+	zero := uint(0)
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo, sprintRepo)
+	_, err := svc.Update(ctx, "PROJ", 1, 1, dto.UpdateIssueRequest{SprintID: &zero})
+	require.NoError(t, err)
+
+	var sprintEvent *domain.ActivityEvent
+	for _, e := range activitySvc.recorded {
+		if e.Kind == domain.ActivitySprintChanged {
+			sprintEvent = e
+			break
+		}
+	}
+	require.NotNil(t, sprintEvent, "expected an ActivitySprintChanged event")
+	assert.Equal(t, "Sprint Gamma", sprintEvent.OldValue)
+	assert.Equal(t, "backlog", sprintEvent.NewValue)
+}
+
+func TestSprintActivityName_UnknownSprintFallsBackToID(t *testing.T) {
+	issueRepo := newStubIssueRepo()
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	activitySvc := &stubActivitySvc{}
+	userRepo := newStubUserRepo()
+	sprintRepo := newStubSprintRepo() // empty — sprint 99 does not exist
+
+	projectRepo.projects["PROJ"] = &domain.Project{ID: 1, Key: "PROJ"}
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 1, UserID: 1, Role: "member"})
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{
+		ID: 1, ProjectID: 1, Key: "PROJ-1",
+		Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityMedium,
+		ReporterID: 1,
+	})
+
+	sprintID := uint(99)
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo, sprintRepo)
+	_, err := svc.Update(context.Background(), "PROJ", 1, 1, dto.UpdateIssueRequest{SprintID: &sprintID})
+	require.NoError(t, err)
+
+	var sprintEvent *domain.ActivityEvent
+	for _, e := range activitySvc.recorded {
+		if e.Kind == domain.ActivitySprintChanged {
+			sprintEvent = e
+			break
+		}
+	}
+	require.NotNil(t, sprintEvent, "expected an ActivitySprintChanged event")
+	assert.Contains(t, sprintEvent.NewValue, "99", "fallback must contain the sprint ID")
 }

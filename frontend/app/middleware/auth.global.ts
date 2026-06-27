@@ -5,7 +5,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const authStore = useAuthStore()
   const setupStore = useSetupStore()
 
-  const publicRoutes = ['/login', '/setup']
+  const publicRoutes = ['/login', '/setup', '/forgot-password', '/reset-password']
 
   // On every navigation, check setup status (cached after first call).
   // Must complete before any route guard logic runs per CHK028.

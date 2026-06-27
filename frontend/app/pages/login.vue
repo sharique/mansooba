@@ -15,8 +15,14 @@
       <div class="card w-full max-w-sm bg-base-100 shadow-xl border border-base-300">
         <div class="card-body">
           <h2 class="card-title">Sign in</h2>
+          <div v-if="resetSuccess" class="alert alert-success py-2 text-sm mb-2">
+            Password reset successful. Please sign in with your new password.
+          </div>
           <AuthLoginForm @success="navigateTo('/')" />
           <p class="text-sm text-center mt-2">
+            <NuxtLink to="/forgot-password" class="link link-primary">Forgot your password?</NuxtLink>
+          </p>
+          <p class="text-sm text-center mt-1">
             No account?
             <NuxtLink to="/register" class="link link-primary">Register</NuxtLink>
           </p>
@@ -28,4 +34,7 @@
 
 <script setup lang="ts">
 definePageMeta({ layout: false })
+
+const route = useRoute()
+const resetSuccess = computed(() => route.query.reset === 'success')
 </script>

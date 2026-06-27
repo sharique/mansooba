@@ -62,4 +62,14 @@ export const authService = {
     const { $api } = useNuxtApp()
     return $api<UserProfileResponse>('/auth/me/avatar', { method: 'DELETE' })
   },
+
+  async forgotPassword(email: string): Promise<{ token: string; expires_at: string; message: string }> {
+    const { $api } = useNuxtApp()
+    return $api('/auth/forgot-password', { method: 'POST', body: { email } })
+  },
+
+  async resetPassword(token: string, password: string): Promise<{ message: string }> {
+    const { $api } = useNuxtApp()
+    return $api('/auth/reset-password', { method: 'POST', body: { token, password } })
+  },
 }
