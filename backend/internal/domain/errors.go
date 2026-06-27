@@ -15,4 +15,12 @@ var (
 	ErrSprintNotEditable       = errors.New("completed sprints cannot be modified")
 	ErrSprintInvalidTransition = errors.New("invalid sprint state transition")
 	ErrSprintNotStarted        = errors.New("sprint has not been started yet")
+
+	// Auth / revocation errors (feature 007).
+	ErrTokenRevoked               = errors.New("token revoked")
+	ErrRevocationStoreUnavailable = errors.New("revocation store unavailable")
+	ErrAccountDisabled            = errors.New("account disabled")
+
+	// Admin user management errors (feature 007).
+	ErrLastAdmin = errors.New("last admin")
 )

@@ -13,9 +13,11 @@ Built using a spec-driven approach where I worked as architect/manager and Claud
 
 ## Features
 
-### Authentication
-- JWT-based login; registration is admin-controlled (see **User Management** below)
-- Password reset — request a reset token at `/forgot-password`; the token is shown on screen and pre-fills the `/reset-password` page to set a new password
+### Authentication & Security
+- JWT-based login with cookie-based refresh tokens (HttpOnly, SameSite=Strict, Secure in production); registration is admin-controlled (see **User Management** below)
+- Server-side logout — refresh token JTI stored in `revoked_tokens` table; checked fail-closed on every token refresh (store error → 503, not a silent grant)
+- Background goroutine purges expired revocation records on a configurable interval
+- Password reset — request a reset token at `/forgot-password`; token shown on screen and pre-fills the `/reset-password` page
 - User profile: view and update display name, email, timezone
 - Avatar upload — upload a profile picture (stored on disk); falls back to OKLCH-colored initials when no photo is set
 - My Activity feed — paginated list of your recent project events; sprint assignment entries display real sprint names (e.g. "Sprint Alpha") captured at the time of the move
@@ -63,8 +65,10 @@ Built using a spec-driven approach where I worked as architect/manager and Claud
 
 ### System Administration
 - Global platform settings (`/system/settings`) — admin-only: date format, time format, timezone, session timeout, max file upload size
+- User management (`/system/users`) — paginated list of all users with role and status badges; promote/demote admin, enable/disable accounts; last-admin guard prevents removing the final active admin
+- Create user (`/system/createuser`) — admin-only form; new account credentials shared directly with the user
+- Sidebar **System** section visible only to admins, with links to all three admin pages
 - Role-aware UI: admin users get a create dropdown; members get a single-action button; users with no project membership see neither
-- `User.IsAdmin` flag — promoted via direct DB update; surfaced in `/users/me` and gating all admin-only endpoints with a 403 on failure
 
 ### First-Run Setup Wizard
 - On a fresh install (no admin account exists), all routes redirect to `/setup` automatically via a global Nuxt middleware
@@ -90,9 +94,8 @@ The command is idempotent — running it twice is safe. It requires the setup wi
 
 User account creation is admin-only — `POST /api/v1/auth/register` requires a valid admin JWT.
 
-- **Admins create accounts** by visiting `/register` while logged in as admin.
-- **Unauthenticated users** visiting `/register` are redirected to `/login`.
-- **Non-admin authenticated users** visiting `/register` are redirected to `/`.
+- **Admins create accounts** via `/system/createuser` in the sidebar System section.
+- **Unauthenticated users** are redirected to `/login`; non-admins are redirected to `/system/users`.
 - Direct API calls without an admin JWT receive `401 Unauthorized` or `403 Forbidden`.
 
 ---
@@ -134,6 +137,16 @@ For API reference, project structure, and architecture details see [`docs/arch-o
 cp backend/.env.example backend/.env
 # Edit backend/.env if needed — defaults work out of the box with SQLite
 ```
+
+Key authentication environment variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `JWT_SECRET` | *(required)* | HMAC secret used to sign all JWTs |
+| `JWT_ACCESS_TTL` | `15m` | Lifetime of access tokens |
+| `JWT_REFRESH_TTL` | `168h` | Lifetime of refresh tokens (7 days) |
+| `APP_ENV` | `production` | Set to `development` to omit the `Secure` flag on cookies (plain HTTP local dev) |
+| `REVOKED_TOKEN_CLEANUP_INTERVAL` | `15m` | How often the background goroutine purges expired revoked-token records |
 
 ### 2. Backend
 

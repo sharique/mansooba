@@ -20,6 +20,7 @@ type stubAuthService struct {
 	registerFn func(ctx context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error)
 	loginFn    func(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, error)
 	refreshFn  func(ctx context.Context, token string) (string, error)
+	logoutFn   func(ctx context.Context, token string) error
 }
 
 func (s *stubAuthService) Register(ctx context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error) {
@@ -30,6 +31,12 @@ func (s *stubAuthService) Login(ctx context.Context, req dto.LoginRequest) (*dto
 }
 func (s *stubAuthService) Refresh(ctx context.Context, token string) (string, error) {
 	return s.refreshFn(ctx, token)
+}
+func (s *stubAuthService) Logout(ctx context.Context, token string) error {
+	if s.logoutFn != nil {
+		return s.logoutFn(ctx, token)
+	}
+	return nil
 }
 
 type testValidator struct{ v *validator.Validate }
@@ -264,5 +271,131 @@ func TestAuthHandler_Register_Returns409_OnDuplicate(t *testing.T) {
 
 	if rec.Code != http.StatusConflict {
 		t.Errorf("expected 409, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// T016: Logout handler and Refresh error-mapping tests
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestAuthHandler_Logout_Returns200_WithCookie(t *testing.T) {
+	svc := &stubAuthService{}
+	e := newEcho()
+	h := handler.NewAuthHandler(svc, nil)
+	e.POST("/auth/logout", h.Logout)
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
+	req.AddCookie(&http.Cookie{Name: "refresh_token", Value: "some.refresh.token"})
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	// Cookie should be cleared (MaxAge=-1)
+	var cleared bool
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == "refresh_token" && c.MaxAge < 0 {
+			cleared = true
+		}
+	}
+	if !cleared {
+		t.Error("expected refresh_token cookie to be cleared with MaxAge<0")
+	}
+}
+
+func TestAuthHandler_Logout_Returns200_MissingCookie(t *testing.T) {
+	svc := &stubAuthService{}
+	e := newEcho()
+	h := handler.NewAuthHandler(svc, nil)
+	e.POST("/auth/logout", h.Logout)
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 even when cookie absent, got %d", rec.Code)
+	}
+}
+
+func TestAuthHandler_Logout_Returns200_OnAlreadyRevokedToken(t *testing.T) {
+	svc := &stubAuthService{
+		logoutFn: func(_ context.Context, _ string) error {
+			// Simulates already-revoked (idempotent) — service returns nil.
+			return nil
+		},
+	}
+	e := newEcho()
+	h := handler.NewAuthHandler(svc, nil)
+	e.POST("/auth/logout", h.Logout)
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/logout", nil)
+	req.AddCookie(&http.Cookie{Name: "refresh_token", Value: "already.revoked.token"})
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200 for already-revoked token, got %d", rec.Code)
+	}
+}
+
+func TestAuthHandler_Refresh_Returns503_OnRevocationStoreError(t *testing.T) {
+	svc := &stubAuthService{
+		refreshFn: func(_ context.Context, _ string) (string, error) {
+			return "", domain.ErrRevocationStoreUnavailable
+		},
+	}
+	e := newEcho()
+	h := handler.NewAuthHandler(svc, nil)
+	e.POST("/auth/refresh", h.Refresh)
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	req.AddCookie(&http.Cookie{Name: "refresh_token", Value: "some.token"})
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("expected 503, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAuthHandler_Refresh_Returns401_OnRevokedToken(t *testing.T) {
+	svc := &stubAuthService{
+		refreshFn: func(_ context.Context, _ string) (string, error) {
+			return "", domain.ErrTokenRevoked
+		},
+	}
+	e := newEcho()
+	h := handler.NewAuthHandler(svc, nil)
+	e.POST("/auth/refresh", h.Refresh)
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	req.AddCookie(&http.Cookie{Name: "refresh_token", Value: "revoked.token"})
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestAuthHandler_Refresh_Returns401_OnDisabledAccount(t *testing.T) {
+	svc := &stubAuthService{
+		refreshFn: func(_ context.Context, _ string) (string, error) {
+			return "", domain.ErrAccountDisabled
+		},
+	}
+	e := newEcho()
+	h := handler.NewAuthHandler(svc, nil)
+	e.POST("/auth/refresh", h.Refresh)
+
+	req := httptest.NewRequest(http.MethodPost, "/auth/refresh", nil)
+	req.AddCookie(&http.Cookie{Name: "refresh_token", Value: "disabled.user.token"})
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d: %s", rec.Code, rec.Body.String())
 	}
 }

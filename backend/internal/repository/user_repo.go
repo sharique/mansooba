@@ -89,3 +89,39 @@ func (r *userRepo) FindFirstAdmin(ctx context.Context) (*domain.User, error) {
 	}
 	return &user, nil
 }
+
+// ListAll returns a page of all users sorted by created_at DESC plus the total count.
+// Page is 1-based; out-of-range pages return an empty slice and the total count.
+func (r *userRepo) ListAll(ctx context.Context, page, size int) ([]*domain.User, int64, error) {
+	var total int64
+	if err := r.db.WithContext(ctx).Model(&domain.User{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if page < 1 {
+		page = 1
+	}
+	offset := (page - 1) * size
+	var users []*domain.User
+	if err := r.db.WithContext(ctx).Order("created_at DESC").Offset(offset).Limit(size).Find(&users).Error; err != nil {
+		return nil, total, err
+	}
+	return users, total, nil
+}
+
+// CountActiveAdmins returns the number of users where is_admin=true AND is_active=true.
+func (r *userRepo) CountActiveAdmins(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&domain.User{}).
+		Where("is_admin = ? AND is_active = ?", true, true).Count(&count).Error
+	return count, err
+}
+
+// UpdateAdminFields writes only the is_admin and is_active columns for the given user.
+func (r *userRepo) UpdateAdminFields(ctx context.Context, user *domain.User) error {
+	return r.db.WithContext(ctx).Model(user).
+		Select("is_admin", "is_active").
+		Updates(map[string]any{
+			"is_admin":  user.IsAdmin,
+			"is_active": user.IsActive,
+		}).Error
+}

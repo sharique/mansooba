@@ -31,6 +31,14 @@ type Config struct {
 	RequestTimeout string `mapstructure:"REQUEST_TIMEOUT"`  // e.g. "30s"
 	AuthRateLimit  int    `mapstructure:"AUTH_RATE_LIMIT"`  // req/s per IP
 
+	// AppEnv controls security-sensitive defaults (e.g., Secure cookie flag).
+	// Set to "development" in local dev; omit or set to "production" in deployed environments.
+	AppEnv string `mapstructure:"APP_ENV"`
+
+	// RevokedTokenCleanupInterval is how often the background goroutine purges
+	// expired rows from the revoked_tokens table. Defaults to "15m".
+	RevokedTokenCleanupInterval string `mapstructure:"REVOKED_TOKEN_CLEANUP_INTERVAL"`
+
 	// SMTP — leave SMTPHost empty to disable email delivery (NoopSender is used).
 	SMTPHost string `mapstructure:"SMTP_HOST"`
 	SMTPPort string `mapstructure:"SMTP_PORT"`
@@ -64,6 +72,8 @@ func Load() *Config {
 	viper.SetDefault("BODY_SIZE_LIMIT", "4M")
 	viper.SetDefault("REQUEST_TIMEOUT", "30s")
 	viper.SetDefault("AUTH_RATE_LIMIT", 20)
+	viper.SetDefault("APP_ENV", "production")
+	viper.SetDefault("REVOKED_TOKEN_CLEANUP_INTERVAL", "15m")
 	viper.SetDefault("SMTP_HOST", "")
 	viper.SetDefault("SMTP_PORT", "1025")
 	viper.SetDefault("SMTP_FROM", "noreply@mansooba.local")

@@ -53,7 +53,7 @@
 <script setup lang="ts">
 import { authService } from '~/services/auth.service'
 
-const emit = defineEmits<{ success: [] }>()
+const emit = defineEmits<{ success: [name: string] }>()
 
 const fullName = ref('')
 const email = ref('')
@@ -81,7 +81,7 @@ async function submit() {
   errorMessage.value = ''
   try {
     await authService.register(email.value, password.value, fullName.value)
-    emit('success')
+    emit('success', fullName.value)
   }
   catch (err: unknown) {
     errorMessage.value = (err as { data?: { message?: string } })?.data?.message ?? 'Registration failed'

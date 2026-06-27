@@ -47,6 +47,11 @@ func main() {
 	defer logger.Sync()
 	log := logger.Logger
 
+	// Create the application context early so long-running goroutines can stop
+	// cleanly when the server receives SIGTERM/SIGINT.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	db, err := database.Open(cfg)
 	if err != nil {
 		log.Fatal("failed to open database", zap.Error(err))
@@ -66,6 +71,7 @@ func main() {
 
 	// Repositories
 	userRepo := repository.NewUserRepository(db)
+	revokedTokenRepo := repository.NewRevokedTokenRepository(db)
 	projectRepo := repository.NewProjectRepository(db)
 	projectMemberRepo := repository.NewProjectMemberRepository(db)
 	issueRepo := repository.NewIssueRepository(db)
@@ -77,8 +83,17 @@ func main() {
 	issueRelationRepo := repository.NewIssueRelationRepository(db)
 	passwordResetRepo := repository.NewPasswordResetRepository(db)
 
+	// Start background goroutine to purge expired revocation records.
+	cleanupInterval, err := time.ParseDuration(cfg.RevokedTokenCleanupInterval)
+	if err != nil {
+		log.Warn("invalid REVOKED_TOKEN_CLEANUP_INTERVAL, defaulting to 15m",
+			zap.String("value", cfg.RevokedTokenCleanupInterval), zap.Error(err))
+		cleanupInterval = 15 * time.Minute
+	}
+	startRevokedTokenCleanup(ctx, revokedTokenRepo, cleanupInterval, log)
+
 	// Services
-	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
+	authSvc := service.NewAuthService(userRepo, revokedTokenRepo, log, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	userSvc := service.NewUserService(userRepo)
 	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo)
 	activitySvc := service.NewActivityService(activityRepo, userRepo, issueRepo)
@@ -98,6 +113,8 @@ func main() {
 		log.Info("email delivery disabled — token returned in API response only")
 	}
 	passwordResetSvc := service.NewPasswordResetService(userRepo, passwordResetRepo, emailSender)
+
+	adminUserSvc := service.NewAdminUserService(userRepo)
 
 	// Setup service (wizard)
 	accessTTL, _ := time.ParseDuration(cfg.JWTAccessTTL)
@@ -119,6 +136,7 @@ func main() {
 	settingHandler := handler.NewSettingHandler(settingSvc, userSvc)
 	issueRelationHandler := handler.NewIssueRelationHandler(issueRelationSvc)
 	issueHandler = issueHandler.WithRelationRepo(issueRelationRepo)
+	adminUserHandler := handler.NewAdminUserHandler(adminUserSvc, userSvc)
 	passwordResetHandler := handler.NewPasswordResetHandler(passwordResetSvc)
 
 	// Echo
@@ -188,6 +206,7 @@ func main() {
 	}))
 	auth.POST("/login", authHandler.Login)
 	auth.POST("/refresh", authHandler.Refresh)
+	auth.POST("/logout", authHandler.Logout)
 	auth.POST("/forgot-password", passwordResetHandler.ForgotPassword)
 	auth.POST("/reset-password", passwordResetHandler.ResetPassword)
 
@@ -308,6 +327,10 @@ func main() {
 	issueItems.POST("/relations", issueRelationHandler.Create)
 	issueItems.DELETE("/relations/:rid", issueRelationHandler.Delete)
 
+	admin := api.Group("/admin")
+	admin.GET("/users", adminUserHandler.ListUsers)
+	admin.PATCH("/users/:id", adminUserHandler.PatchUser)
+
 	settings := api.Group("/settings")
 	settings.GET("", settingHandler.GetAll)
 	settings.PATCH("", settingHandler.Patch)
@@ -317,10 +340,6 @@ func main() {
 	notifs.PUT("/:id/read", notifHandler.MarkRead)
 
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
-
-	// Block until SIGTERM or SIGINT.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	// Start the server in a goroutine so main() can wait for OS signals.
 	go func() {
@@ -332,7 +351,6 @@ func main() {
 	}()
 
 	// Purge unused password-reset tokens every 15 minutes.
-	// Tokens older than 1 hour are removed regardless of expires_at.
 	go func() {
 		ticker := time.NewTicker(15 * time.Minute)
 		defer ticker.Stop()
@@ -351,6 +369,7 @@ func main() {
 		}
 	}()
 
+	// Block until SIGTERM or SIGINT.
 	<-ctx.Done()
 
 	log.Info("shutdown signal received — draining requests")
@@ -368,4 +387,27 @@ func main() {
 	} else {
 		log.Info("server shutdown complete")
 	}
+}
+
+// startRevokedTokenCleanup launches a background goroutine that periodically
+// deletes expired rows from the revoked_tokens table.
+// The goroutine stops when ctx is cancelled (i.e., on SIGTERM/SIGINT).
+func startRevokedTokenCleanup(ctx context.Context, repo domain.RevokedTokenRepository, interval time.Duration, log *zap.Logger) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				n, err := repo.DeleteExpired(ctx)
+				if err != nil {
+					log.Warn("revoked_token_cleanup failed", zap.Error(err))
+				} else {
+					log.Info("revoked_token_cleanup", zap.Int64("deleted", n))
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }

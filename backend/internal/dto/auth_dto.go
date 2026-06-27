@@ -14,8 +14,9 @@ type LoginRequest struct {
 }
 
 type AuthResponse struct {
-	AccessToken string  `json:"access_token"`
-	User        UserDTO `json:"user"`
+	AccessToken  string  `json:"access_token"`
+	RefreshToken string  `json:"refresh_token"`
+	User         UserDTO `json:"user"`
 }
 
 type UserDTO struct {
@@ -32,6 +33,7 @@ type UserProfileResponse struct {
 	AvatarURL string    `json:"avatar_url"`
 	Timezone  string    `json:"timezone"`
 	IsAdmin   bool      `json:"is_admin"`
+	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
