@@ -32,10 +32,7 @@ type PasswordResetService interface {
 	ResetPassword(ctx context.Context, req dto.ResetPasswordRequest) error
 }
 
-const (
-	resetTokenTTL    = 15 * time.Minute
-	neutralMessage   = "If that email is registered, a reset token has been generated."
-)
+const resetTokenTTL = 15 * time.Minute
 
 type passwordResetService struct {
 	userRepo    domain.UserRepository
@@ -63,13 +60,8 @@ func (s *passwordResetService) ForgotPassword(ctx context.Context, req dto.Forgo
 
 	user, err := s.userRepo.FindByEmail(ctx, req.Email)
 	if err != nil {
-		// Unknown email — return neutral response, no error, do not log email.
 		log.Warn("password reset for unknown email", zap.String("event", "password_reset_unknown_email"))
-		return &dto.ForgotPasswordResponse{
-			Token:     "",
-			ExpiresAt: "",
-			Message:   neutralMessage,
-		}, nil
+		return nil, domain.ErrNotFound
 	}
 
 	// Generate 32 cryptographically random bytes → 64-char hex token.
@@ -105,7 +97,7 @@ func (s *passwordResetService) ForgotPassword(ctx context.Context, req dto.Forgo
 	return &dto.ForgotPasswordResponse{
 		Token:     token,
 		ExpiresAt: expiresAt.UTC().Format(time.RFC3339),
-		Message:   neutralMessage,
+		Message:   "A password reset token has been generated.",
 	}, nil
 }
 

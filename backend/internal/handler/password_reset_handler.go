@@ -40,6 +40,9 @@ func (h *PasswordResetHandler) ForgotPassword(c echo.Context) error {
 
 	resp, err := h.svc.ForgotPassword(c.Request().Context(), req)
 	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return echo.NewHTTPError(http.StatusNotFound, "No account found with that email address.")
+		}
 		return err
 	}
 	return c.JSON(http.StatusOK, resp)

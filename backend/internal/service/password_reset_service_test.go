@@ -113,32 +113,16 @@ func TestForgotPassword_KnownEmail_ReturnsToken(t *testing.T) {
 	}
 }
 
-func TestForgotPassword_UnknownEmail_ReturnsNeutralResponse(t *testing.T) {
+func TestForgotPassword_UnknownEmail_ReturnsErrNotFound(t *testing.T) {
 	svc := newPRSvc(newStubUserRepo(), newStubPasswordResetRepo())
 
 	resp, err := svc.ForgotPassword(context.Background(), dto.ForgotPasswordRequest{Email: "nobody@example.com"})
 
-	if err != nil {
-		t.Fatalf("no error expected for unknown email, got %v", err)
+	if !errors.Is(err, domain.ErrNotFound) {
+		t.Errorf("expected ErrNotFound for unknown email, got %v", err)
 	}
-	if resp.Token != "" {
-		t.Error("token must be empty for unknown email (enumeration protection)")
-	}
-	if resp.Message == "" {
-		t.Error("message must be non-empty even for unknown email")
-	}
-}
-
-func TestForgotPassword_NeutralMessageIsIdentical(t *testing.T) {
-	users := newStubUserRepo()
-	seedUser(t, users, "alice@example.com")
-	svc := newPRSvc(users, newStubPasswordResetRepo())
-
-	known, _ := svc.ForgotPassword(context.Background(), dto.ForgotPasswordRequest{Email: "alice@example.com"})
-	unknown, _ := svc.ForgotPassword(context.Background(), dto.ForgotPasswordRequest{Email: "nobody@example.com"})
-
-	if known.Message != unknown.Message {
-		t.Errorf("message must be identical for known and unknown emails; known=%q unknown=%q", known.Message, unknown.Message)
+	if resp != nil {
+		t.Error("response must be nil when email is not found")
 	}
 }
 
