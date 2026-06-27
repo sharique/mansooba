@@ -22,6 +22,7 @@ import (
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
 	_ "github.com/sharique/mansooba/docs"
+	"github.com/sharique/mansooba/internal/email"
 	"github.com/sharique/mansooba/internal/handler"
 	apimw "github.com/sharique/mansooba/internal/middleware"
 	"github.com/sharique/mansooba/internal/repository"
@@ -73,19 +74,22 @@ func main() {
 	notifRepo := repository.NewNotificationRepository(db)
 	settingRepo := repository.NewSettingRepository(db)
 	issueRelationRepo := repository.NewIssueRelationRepository(db)
+	passwordResetRepo := repository.NewPasswordResetRepository(db)
 
 	// Services
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	userSvc := service.NewUserService(userRepo)
 	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo)
 	activitySvc := service.NewActivityService(activityRepo, userRepo, issueRepo)
-	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo)
+	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, sprintRepo)
 	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo)
 	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
 	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc, notifRepo, userRepo)
 	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
 	settingSvc := service.NewSettingService(settingRepo)
 	issueRelationSvc := service.NewIssueRelationService(issueRelationRepo, issueRepo)
+	noopSender := email.NoopSender{}
+	passwordResetSvc := service.NewPasswordResetService(userRepo, passwordResetRepo, noopSender)
 
 	// Setup service (wizard)
 	accessTTL, _ := time.ParseDuration(cfg.JWTAccessTTL)
@@ -107,6 +111,7 @@ func main() {
 	settingHandler := handler.NewSettingHandler(settingSvc, userSvc)
 	issueRelationHandler := handler.NewIssueRelationHandler(issueRelationSvc)
 	issueHandler = issueHandler.WithRelationRepo(issueRelationRepo)
+	passwordResetHandler := handler.NewPasswordResetHandler(passwordResetSvc)
 
 	// Echo
 	e := echo.New()
@@ -175,6 +180,8 @@ func main() {
 	}))
 	auth.POST("/login", authHandler.Login)
 	auth.POST("/refresh", authHandler.Refresh)
+	auth.POST("/forgot-password", passwordResetHandler.ForgotPassword)
+	auth.POST("/reset-password", passwordResetHandler.ResetPassword)
 
 	// Setup wizard routes (public group — no JWT required)
 	setup := e.Group("/api/v1/setup")
@@ -303,6 +310,10 @@ func main() {
 
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
+	// Block until SIGTERM or SIGINT.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	// Start the server in a goroutine so main() can wait for OS signals.
 	go func() {
 		addr := ":" + cfg.ServerPort
@@ -312,9 +323,26 @@ func main() {
 		}
 	}()
 
-	// Block until SIGTERM or SIGINT.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	// Purge unused password-reset tokens every 15 minutes.
+	// Tokens older than 1 hour are removed regardless of expires_at.
+	go func() {
+		ticker := time.NewTicker(15 * time.Minute)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				n, err := passwordResetRepo.PurgeExpired(ctx, time.Now().Add(-1*time.Hour))
+				if err != nil {
+					log.Warn("purge password reset tokens failed", zap.Error(err))
+				} else if n > 0 {
+					log.Info("purged expired password reset tokens", zap.Int64("count", n))
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	<-ctx.Done()
 
 	log.Info("shutdown signal received — draining requests")

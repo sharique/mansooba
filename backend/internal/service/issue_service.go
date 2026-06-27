@@ -29,6 +29,7 @@ type issueService struct {
 	memberRepo  domain.ProjectMemberRepository
 	activitySvc ActivityService
 	userRepo    domain.UserRepository
+	sprintRepo  domain.SprintRepository
 }
 
 // NewIssueService returns an IssueService backed by the given repositories.
@@ -38,6 +39,7 @@ func NewIssueService(
 	memberRepo domain.ProjectMemberRepository,
 	activitySvc ActivityService,
 	userRepo domain.UserRepository,
+	sprintRepo domain.SprintRepository,
 ) IssueService {
 	return &issueService{
 		issueRepo:   issueRepo,
@@ -45,6 +47,7 @@ func NewIssueService(
 		memberRepo:  memberRepo,
 		activitySvc: activitySvc,
 		userRepo:    userRepo,
+		sprintRepo:  sprintRepo,
 	}
 }
 
@@ -366,8 +369,8 @@ func (s *issueService) recordFieldChanges(
 		_ = s.activitySvc.Record(ctx, &domain.ActivityEvent{
 			IssueID: issueID, ActorID: actorID,
 			Kind:     domain.ActivitySprintChanged,
-			OldValue: sprintLabel(oldSprintID),
-			NewValue: sprintLabel(issue.SprintID),
+			OldValue: s.resolveSprintName(ctx, oldSprintID),
+			NewValue: s.resolveSprintName(ctx, issue.SprintID),
 		})
 	}
 	if ptrIntChanged(oldPoints, issue.StoryPoints) {
@@ -411,13 +414,15 @@ func ptrIntChanged(a, b *int) bool {
 	return *a != *b
 }
 
-// sprintLabel returns the sprint ID as a label string.
-// TODO(task-34): replace with sprint name lookup once SprintRepository is wired in.
-func sprintLabel(id *uint) string {
+func (s *issueService) resolveSprintName(ctx context.Context, id *uint) string {
 	if id == nil {
 		return "backlog"
 	}
-	return fmt.Sprintf("sprint %d", *id)
+	sprint, err := s.sprintRepo.FindByID(ctx, *id)
+	if err != nil {
+		return fmt.Sprintf("sprint %d", *id)
+	}
+	return sprint.Name
 }
 
 func pointsLabel(pts *int) string {
