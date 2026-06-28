@@ -120,48 +120,9 @@ docker compose up --build
 
 - App at **http://localhost:3000** — on first visit, the setup wizard creates the admin account
 - API at **http://localhost:8080**
-- MinIO console at **http://localhost:9001** (user: `minioadmin`, password: `minioadmin`)
 - Mailpit inbox at **http://localhost:8025** — catches all password-reset emails in dev
 
 See [`docs/running-locally-using-docker.md`](docs/running-locally-using-docker.md) for PostgreSQL and hot-reload dev mode options.  
 For pre-built GHCR images (no Go toolchain needed) see [`docs/running-from-ghcr.md`](docs/running-from-ghcr.md).  
+For running the backend and frontend natively (Go + Node, no Docker images) see [`docs/running-from-source.md`](docs/running-from-source.md).  
 For API reference, project structure, and architecture details see [`docs/arch-overview.md`](docs/arch-overview.md).
-
----
-
-## Running locally from source
-
-### 1. Environment
-
-```sh
-cp backend/.env.example backend/.env
-# Edit backend/.env if needed — defaults work out of the box with SQLite
-```
-
-Key authentication environment variables:
-
-| Variable | Default | Description |
-|---|---|---|
-| `JWT_SECRET` | *(required)* | HMAC secret used to sign all JWTs |
-| `JWT_ACCESS_TTL` | `15m` | Lifetime of access tokens |
-| `JWT_REFRESH_TTL` | `168h` | Lifetime of refresh tokens (7 days) |
-| `APP_ENV` | `production` | Set to `development` to omit the `Secure` flag on cookies (plain HTTP local dev) |
-| `REVOKED_TOKEN_CLEANUP_INTERVAL` | `15m` | How often the background goroutine purges expired revoked-token records |
-
-### 2. Backend
-
-```sh
-cd backend
-go run ./cmd/server
-# API at http://localhost:8080
-# Health check: GET http://localhost:8080/health
-```
-
-### 3. Frontend
-
-```sh
-cd frontend
-npm install
-npm run dev
-# App at http://localhost:3000
-```
