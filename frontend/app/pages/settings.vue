@@ -23,7 +23,7 @@
           <input
             v-model="form.fullName"
             type="text"
-            class="input input-bordered"
+            class="input input-bordered w-full"
             placeholder="Your full name"
           />
         </div>
@@ -33,14 +33,14 @@
           <input
             :value="authStore.profile?.email ?? authStore.user?.email"
             type="email"
-            class="input input-bordered input-disabled"
+            class="input input-bordered input-disabled w-full"
             disabled
           />
         </div>
 
         <div class="form-control">
           <label class="label"><span class="label-text">Timezone</span></label>
-          <select v-model="form.timezone" class="select select-bordered">
+          <select v-model="form.timezone" class="select select-bordered w-full">
             <option value="">UTC (default)</option>
             <option v-for="tz in commonTimezones" :key="tz" :value="tz">{{ tz }}</option>
           </select>

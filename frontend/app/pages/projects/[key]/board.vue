@@ -53,7 +53,6 @@
         :key="col.status"
         :column="col"
         :project-key="key"
-        @issue-status-changed="onStatusChange"
         @create-issue="openCreateModal"
       />
     </div>
@@ -75,7 +74,6 @@ import type { Issue } from '~/types/domain.types'
 
 const route = useRoute()
 const key = route.params.key as string
-const issuesStore = useIssuesStore()
 const sprintsStore = useSprintsStore()
 const { showSuccess, showError } = useToast()
 
@@ -122,16 +120,6 @@ watch(
 function openCreateModal(status: string) {
   selectedStatus.value = status
   modalOpen.value = true
-}
-
-async function onStatusChange(issueId: number, newStatus: string) {
-  try {
-    await issuesStore.update(key, issueId, { status: newStatus } as never)
-    boardData.value = await boardService.getBoard(key)
-  }
-  catch {
-    showError('Failed to update status')
-  }
 }
 
 async function onIssueCreated(_issue: Issue) {

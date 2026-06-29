@@ -122,7 +122,7 @@ onMounted(async () => {
             to="/"
             class="flex items-center gap-2 px-4 h-14 font-bold text-lg shrink-0"
         >
-            <span class="inline-block w-6 h-6 rounded-md bg-primary" />
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-primary text-primary-content text-xs font-black select-none">M</span>
             Mansooba
         </NuxtLink>
 
@@ -145,7 +145,7 @@ onMounted(async () => {
             <!-- system section (admin only) -->
             <template v-if="authStore.isAdmin">
                 <div
-                    class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-wide opacity-50"
+                    class="px-3 pt-3 pb-1 mt-2 text-[10px] uppercase tracking-wide opacity-50 border-t border-neutral-content/10"
                 >
                     System
                 </div>
@@ -168,7 +168,7 @@ onMounted(async () => {
             <!-- contextual project section -->
             <template v-if="projectLinks.length">
                 <div
-                    class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-wide opacity-50"
+                    class="px-3 pt-3 pb-1 mt-2 text-[10px] uppercase tracking-wide opacity-50 border-t border-neutral-content/10"
                 >
                     {{ currentKey }}
                 </div>
@@ -191,7 +191,7 @@ onMounted(async () => {
             <!-- recent projects -->
             <template v-if="recentProjects.length">
                 <div
-                    class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-wide opacity-50"
+                    class="px-3 pt-3 pb-1 mt-2 text-[10px] uppercase tracking-wide opacity-50 border-t border-neutral-content/10"
                 >
                     Recent projects
                 </div>

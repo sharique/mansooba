@@ -65,7 +65,7 @@
         <label class="label py-1"><span class="label-text font-medium">Status</span></label>
         <select
           :value="issue.status"
-          class="select select-bordered select-sm"
+          class="select select-bordered select-sm w-full"
           @change="onFieldChange('status', ($event.target as HTMLSelectElement).value)"
         >
           <option value="backlog">Backlog</option>
@@ -87,7 +87,7 @@
         <label class="label py-1"><span class="label-text font-medium">Priority</span></label>
         <select
           :value="issue.priority"
-          class="select select-bordered select-sm"
+          class="select select-bordered select-sm w-full"
           @change="onFieldChange('priority', ($event.target as HTMLSelectElement).value)"
         >
           <option value="low">Low</option>
@@ -102,7 +102,7 @@
         <label class="label py-1"><span class="label-text font-medium">Assignee</span></label>
         <select
           :value="issue.assignee_id ?? ''"
-          class="select select-bordered select-sm"
+          class="select select-bordered select-sm w-full"
           @change="onFieldChange('assignee_id', ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)"
         >
           <option value="">Unassigned</option>
@@ -118,7 +118,7 @@
           type="number"
           min="0"
           max="100"
-          class="input input-bordered input-sm"
+          class="input input-bordered input-sm w-full"
           placeholder="—"
           @change="onFieldChange('story_points', Number(($event.target as HTMLInputElement).value) || null)"
           @blur="onFieldChange('story_points', Number(($event.target as HTMLInputElement).value) || null)"

@@ -1,29 +1,22 @@
 <template>
     <form class="space-y-4" @submit.prevent="save">
         <div class="form-control">
-            <label class="label"
-                ><span class="label-text">Organization Name</span></label
-            >
+            <label class="label"><span class="label-text">Organization Name</span></label>
             <input
                 v-model="form.organization_name"
                 type="text"
-                class="input input-bordered"
+                class="input input-bordered w-full"
                 maxlength="100"
                 required
             />
-            <span
-                v-if="errors.organization_name"
-                class="label-text-alt text-error mt-1"
-            >
-                {{ errors.organization_name }}
-            </span>
+            <label v-if="errors.organization_name" class="label">
+                <span class="label-text-alt text-error">{{ errors.organization_name }}</span>
+            </label>
         </div>
 
         <div class="form-control">
-            <label class="label"
-                ><span class="label-text">Date Format</span></label
-            >
-            <select v-model="form.date_format" class="select select-bordered">
+            <label class="label"><span class="label-text">Date Format</span></label>
+            <select v-model="form.date_format" class="select select-bordered w-full">
                 <option value="YYYY-MM-DD">YYYY-MM-DD (e.g. 2026-07-07)</option>
                 <option value="DD/MM/YYYY">DD/MM/YYYY (e.g. 07/07/2026)</option>
                 <option value="MM/DD/YYYY">MM/DD/YYYY (e.g. 07/07/2026)</option>
@@ -32,39 +25,30 @@
         </div>
 
         <div class="form-control">
-            <label class="label"
-                ><span class="label-text">Time Format</span></label
-            >
-            <select v-model="form.time_format" class="select select-bordered">
+            <label class="label"><span class="label-text">Time Format</span></label>
+            <select v-model="form.time_format" class="select select-bordered w-full">
                 <option value="24h">24-hour</option>
                 <option value="12h">12-hour</option>
             </select>
         </div>
 
         <div class="form-control">
-            <label class="label"
-                ><span class="label-text">Locale (BCP-47)</span></label
-            >
+            <label class="label"><span class="label-text">Locale (BCP-47)</span></label>
             <input
                 v-model="form.locale"
                 type="text"
-                class="input input-bordered"
+                class="input input-bordered w-full"
                 placeholder="e.g. en-US"
                 pattern="[a-zA-Z]{2,3}(-[a-zA-Z]{2,3})?"
             />
-            <span v-if="errors.locale" class="label-text-alt text-error mt-1">
-                {{ errors.locale }}
-            </span>
+            <label v-if="errors.locale" class="label">
+                <span class="label-text-alt text-error">{{ errors.locale }}</span>
+            </label>
         </div>
 
         <div class="form-control">
-            <label class="label"
-                ><span class="label-text">Week Starts On</span></label
-            >
-            <select
-                v-model="form.week_start_day"
-                class="select select-bordered"
-            >
+            <label class="label"><span class="label-text">Week Starts On</span></label>
+            <select v-model="form.week_start_day" class="select select-bordered w-full">
                 <option value="monday">Monday</option>
                 <option value="sunday">Sunday</option>
             </select>

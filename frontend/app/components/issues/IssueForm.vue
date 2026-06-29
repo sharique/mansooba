@@ -7,11 +7,13 @@
         v-model="form.title"
         data-testid="title"
         type="text"
-        class="input input-bordered"
+        class="input input-bordered w-full"
         :class="{ 'input-error': titleError }"
         placeholder="Issue title"
       />
-      <span v-if="titleError" class="label-text-alt text-error mt-1">Title is required</span>
+      <label v-if="titleError" class="label">
+        <span class="label-text-alt text-error">Title is required</span>
+      </label>
     </div>
 
     <!-- Description -->
@@ -19,7 +21,7 @@
       <label class="label"><span class="label-text">Description</span></label>
       <textarea
         v-model="form.description"
-        class="textarea textarea-bordered"
+        class="textarea textarea-bordered w-full"
         rows="3"
         placeholder="Optional description"
       />
@@ -29,7 +31,7 @@
     <div class="grid grid-cols-2 gap-3 mb-4">
       <div class="form-control">
         <label class="label"><span class="label-text">Type</span></label>
-        <select v-model="form.type" class="select select-bordered">
+        <select v-model="form.type" class="select select-bordered w-full">
           <option value="task">Task</option>
           <option value="story">Story</option>
           <option value="bug">Bug</option>
@@ -38,7 +40,7 @@
       </div>
       <div class="form-control">
         <label class="label"><span class="label-text">Priority</span></label>
-        <select v-model="form.priority" class="select select-bordered">
+        <select v-model="form.priority" class="select select-bordered w-full">
           <option value="low">Low</option>
           <option value="medium">Medium</option>
           <option value="high">High</option>
@@ -55,7 +57,7 @@
         type="number"
         min="0"
         max="100"
-        class="input input-bordered"
+        class="input input-bordered w-full"
         placeholder="Leave blank if unestimated"
       />
     </div>
@@ -63,7 +65,7 @@
     <!-- Assignee -->
     <div class="form-control mb-4">
       <label class="label"><span class="label-text">Assignee</span></label>
-      <select v-model="form.assignee_id" class="select select-bordered">
+      <select v-model="form.assignee_id" class="select select-bordered w-full">
         <option :value="undefined">Unassigned</option>
         <option v-for="m in members" :key="m.user_id" :value="m.user_id">{{ m.name }}</option>
       </select>

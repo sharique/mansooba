@@ -2,6 +2,7 @@
 import { SprintStatus } from "~/types/domain.types";
 import type { Issue, Sprint } from "~/types/domain.types";
 import UserAvatar from "~/components/common/UserAvatar.vue";
+import { priorityBadgeClass, typeIconName, typeIconClass } from "~/utils/issueStyles";
 
 const props = defineProps<{
     issue: Issue;
@@ -13,20 +14,6 @@ const props = defineProps<{
 const emit = defineEmits<{
     "sprint-assign": [{ issueId: number; sprintId: number }];
 }>();
-
-const priorityBadge: Record<string, string> = {
-    critical: "badge-error",
-    high: "badge-warning",
-    medium: "badge-info",
-    low: "badge-ghost",
-};
-
-const typeIcon: Record<string, string> = {
-    epic: "⚡",
-    story: "📖",
-    task: "✓",
-    bug: "🐛",
-};
 
 const openSprints = computed(() =>
     (props.sprints ?? []).filter((s) => s.status !== SprintStatus.Completed),
@@ -44,11 +31,11 @@ function onSprintChange(e: Event) {
     >
         <!-- Issue type icon -->
         <span
-            class="text-base w-5 text-center shrink-0 cursor-pointer"
+            class="w-4 h-4 shrink-0 cursor-pointer flex items-center"
             :title="issue.type"
             @click="navigateTo(`/projects/${projectKey}/issues/${issue.id}`)"
         >
-            {{ typeIcon[issue.type] ?? "·" }}
+            <Icon :name="typeIconName(issue.type)" class="w-4 h-4" :class="typeIconClass(issue.type)" />
         </span>
 
         <!-- Title -->
@@ -68,12 +55,7 @@ function onSprintChange(e: Event) {
         </span>
 
         <!-- Priority badge -->
-        <span
-            :class="[
-                'badge badge-sm shrink-0',
-                priorityBadge[issue.priority] ?? 'badge-ghost',
-            ]"
-        >
+        <span :class="['badge badge-sm shrink-0', priorityBadgeClass(issue.priority)]">
             {{ issue.priority }}
         </span>
 

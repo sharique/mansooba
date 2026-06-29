@@ -44,3 +44,45 @@ export function priorityDotClass(priority: Priority): string {
     default:         return 'bg-base-300'
   }
 }
+
+// Left-border accent on board cards — lets users scan priority without reading text
+export function priorityBorderClass(priority: Priority): string {
+  switch (priority) {
+    case 'critical': return 'border-l-error'
+    case 'high':     return 'border-l-warning'
+    case 'medium':   return 'border-l-info'
+    case 'low':      return 'border-l-base-300'
+    default:         return 'border-l-base-300'
+  }
+}
+
+export function typeIconName(type: string): string {
+  switch (type) {
+    case 'epic':  return 'mdi:lightning-bolt'
+    case 'story': return 'mdi:book-open-page-variant-outline'
+    case 'task':  return 'mdi:check-circle-outline'
+    case 'bug':   return 'mdi:bug-outline'
+    default:      return 'mdi:circle-outline'
+  }
+}
+
+export function typeIconClass(type: string): string {
+  switch (type) {
+    case 'epic':  return 'text-accent'
+    case 'story': return 'text-success'
+    case 'task':  return 'text-primary'
+    case 'bug':   return 'text-error'
+    default:      return 'text-base-content/40'
+  }
+}
+
+export function statusColumnBorderClass(status: string): string {
+  switch (status) {
+    case 'in_progress': return 'border-t-primary'
+    case 'in_review':   return 'border-t-secondary'
+    case 'done':        return 'border-t-success'
+    case 'todo':        return 'border-t-base-content/30'
+    case 'backlog':     return 'border-t-base-content/15'
+    default:            return 'border-t-base-300'
+  }
+}
