@@ -106,7 +106,7 @@ func main() {
 	issueRelationSvc := service.NewIssueRelationService(issueRelationRepo, issueRepo)
 	var emailSender domain.EmailSender
 	if cfg.SMTPHost != "" {
-		emailSender = email.SMTPSender{Host: cfg.SMTPHost, Port: cfg.SMTPPort, From: cfg.SMTPFrom}
+		emailSender = email.SMTPSender{Host: cfg.SMTPHost, Port: cfg.SMTPPort, From: cfg.SMTPFrom, AppBaseURL: cfg.AppBaseURL}
 		log.Info("email delivery enabled", zap.String("smtp_host", cfg.SMTPHost), zap.String("smtp_port", cfg.SMTPPort))
 	} else {
 		emailSender = email.NoopSender{}

@@ -1,6 +1,6 @@
 <template>
   <form @submit.prevent="submit">
-    <div class="form-control w-full">
+    <div class="form-control w-full mb-4">
       <label class="label"><span class="label-text">Name <span class="text-error">*</span></span></label>
       <input
         v-model="form.name"
@@ -12,7 +12,7 @@
       />
     </div>
 
-    <div class="form-control w-full mt-3">
+    <div class="form-control w-full mb-4">
       <label class="label"><span class="label-text">Key</span></label>
       <input
         v-model="form.key"
@@ -25,7 +25,7 @@
       <label class="label"><span class="label-text-alt text-base-content/60">Auto-generated from name, max 10 chars</span></label>
     </div>
 
-    <div class="form-control w-full mt-3">
+    <div class="form-control w-full mb-4">
       <label class="label"><span class="label-text">Description</span></label>
       <textarea
         v-model="form.description"

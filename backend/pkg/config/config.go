@@ -43,6 +43,11 @@ type Config struct {
 	SMTPHost string `mapstructure:"SMTP_HOST"`
 	SMTPPort string `mapstructure:"SMTP_PORT"`
 	SMTPFrom string `mapstructure:"SMTP_FROM"`
+
+	// AppBaseURL is the public-facing base URL of the frontend application
+	// (e.g., "https://app.example.com"). Used only for magic-link construction in
+	// password-reset emails. Empty string disables magic links (raw token only).
+	AppBaseURL string `mapstructure:"APP_BASE_URL"`
 }
 
 // Load reads configuration from a .env file and environment variables.

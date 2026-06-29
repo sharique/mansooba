@@ -1,7 +1,7 @@
 <template>
   <form @submit.prevent="submit">
     <!-- Title -->
-    <div class="form-control mb-3">
+    <div class="form-control mb-4">
       <label class="label"><span class="label-text">Title <span class="text-error">*</span></span></label>
       <input
         v-model="form.title"
@@ -15,7 +15,7 @@
     </div>
 
     <!-- Description -->
-    <div class="form-control mb-3">
+    <div class="form-control mb-4">
       <label class="label"><span class="label-text">Description</span></label>
       <textarea
         v-model="form.description"
@@ -26,7 +26,7 @@
     </div>
 
     <!-- Type & Priority -->
-    <div class="grid grid-cols-2 gap-3 mb-3">
+    <div class="grid grid-cols-2 gap-3 mb-4">
       <div class="form-control">
         <label class="label"><span class="label-text">Type</span></label>
         <select v-model="form.type" class="select select-bordered">
@@ -48,7 +48,7 @@
     </div>
 
     <!-- Story Points -->
-    <div class="form-control mb-3">
+    <div class="form-control mb-4">
       <label class="label"><span class="label-text">Story Points</span></label>
       <input
         v-model.number="form.story_points"
