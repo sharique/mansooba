@@ -1,6 +1,13 @@
 import { useAuthStore } from '~/stores/auth.store'
+import { useProjectsStore } from '~/stores/projects.store'
+import { useNotificationsStore } from '~/stores/notifications.store'
 import type { AuthResponse } from '~/types/auth.types'
 import type { UserProfileResponse, UpdateProfilePatch, ActivityEvent, Issue } from '~/types/domain.types'
+
+function resetDomainStores() {
+  useProjectsStore().$reset()
+  useNotificationsStore().$reset()
+}
 
 export const authService = {
   async login(email: string, password: string): Promise<AuthResponse> {
@@ -9,7 +16,9 @@ export const authService = {
       method: 'POST',
       body: { email, password },
     })
-    useAuthStore().setAuth(data.user, data.access_token)
+    const authStore = useAuthStore()
+    authStore.setAuth(data.user, data.access_token)
+    await authStore.fetchMe()
     return data
   },
 
@@ -32,6 +41,7 @@ export const authService = {
     } catch {
       // intentionally ignored
     }
+    resetDomainStores()
     useAuthStore().clearAuth()
     navigateTo('/login')
   },

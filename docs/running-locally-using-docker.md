@@ -8,23 +8,40 @@ The simplest path is **Docker Compose** with the bundled `compose.yml` — it st
 
 ## Environment variables reference
 
+### Server
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SERVER_PORT` | `8080` | Port the Go API listens on |
-| `DB_DRIVER` | `sqlite` | `sqlite`, `postgres` / `postgresql`, `mysql` / `mariadb` |
-| `DB_DSN` | `./dev.db` | SQLite path **or** database connection string |
-| `DB_MAX_OPEN_CONNS` | `0` | Max open DB connections (`0` = unlimited; SQLite is always capped at 1) |
-| `DB_MAX_IDLE_CONNS` | `2` | Max idle DB connections |
-| `DB_CONN_MAX_LIFETIME` | `0` | Max connection lifetime (e.g. `5m`; `0` = never expire) |
-| `JWT_SECRET` | *(required)* | Secret used to sign JWTs — use a long random string |
-| `JWT_ACCESS_TTL` | `15m` | Access token lifetime |
-| `JWT_REFRESH_TTL` | `168h` | Refresh token lifetime |
 | `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated allowed origins |
 | `LOG_LEVEL` | `debug` | `debug`, `info`, `warn`, `error` |
 | `BODY_SIZE_LIMIT` | `4M` | Max request body size (rejects larger payloads with 413) |
 | `REQUEST_TIMEOUT` | `30s` | Per-request timeout (returns 503 when exceeded) |
 | `AUTH_RATE_LIMIT` | `20` | Max login/register requests per second per IP |
 | `SHUTDOWN_TIMEOUT` | `30s` | Graceful shutdown window |
+
+### JWT / Authentication
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_SECRET` | *(required)* | Secret used to sign JWTs — use a long random string |
+| `JWT_ACCESS_TTL` | `15m` | Access token lifetime |
+| `JWT_REFRESH_TTL` | `168h` | Refresh token lifetime |
+
+### Database
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_DRIVER` | `sqlite` | `sqlite`, `postgres` / `postgresql`, `mysql` / `mariadb` |
+| `DB_DSN` | `./dev.db` | SQLite path **or** database connection string |
+| `DB_MAX_OPEN_CONNS` | `0` | Max open DB connections (`0` = unlimited; SQLite is always capped at 1) |
+| `DB_MAX_IDLE_CONNS` | `2` | Max idle DB connections |
+| `DB_CONN_MAX_LIFETIME` | `0` | Max connection lifetime (e.g. `5m`; `0` = never expire) |
+
+### S3 / Object storage
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `STORAGE_ENDPOINT` | `http://localhost:9000` | S3-compatible endpoint URL (leave empty for AWS S3) |
 | `STORAGE_BUCKET` | `mansooba` | Bucket name |
 | `STORAGE_ACCESS_KEY_ID` | `minioadmin` | Access key (MinIO root user in dev) |
@@ -32,6 +49,11 @@ The simplest path is **Docker Compose** with the bundled `compose.yml` — it st
 | `STORAGE_REGION` | `us-east-1` | AWS region (MinIO ignores this; any string works) |
 | `STORAGE_PRESIGN_TTL` | `1h` | How long pre-signed download URLs remain valid |
 | `STORAGE_USE_PATH_STYLE` | `true` | Must be `true` for MinIO and most self-hosted S3 alternatives |
+
+### SMTP / Email (Mailpit)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `SMTP_HOST` | `mailpit` | SMTP server host — use `mailpit` when running with Compose |
 | `SMTP_PORT` | `1025` | SMTP port |
 | `SMTP_FROM` | `noreply@mansooba.local` | Sender address for outbound email |

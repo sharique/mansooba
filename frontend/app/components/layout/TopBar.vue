@@ -39,6 +39,7 @@
 
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth.store'
+import { authService } from '~/services/auth.service'
 import UserAvatar from '~/components/common/UserAvatar.vue'
 
 const authStore = useAuthStore()
@@ -54,7 +55,6 @@ function search() {
 }
 
 async function logout() {
-  authStore.clearAuth()
-  await router.push('/login')
+  await authService.logout()
 }
 </script>
