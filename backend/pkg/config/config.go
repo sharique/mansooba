@@ -82,6 +82,7 @@ func Load() *Config {
 	viper.SetDefault("SMTP_HOST", "")
 	viper.SetDefault("SMTP_PORT", "1025")
 	viper.SetDefault("SMTP_FROM", "noreply@mansooba.local")
+	viper.SetDefault("APP_BASE_URL", "")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

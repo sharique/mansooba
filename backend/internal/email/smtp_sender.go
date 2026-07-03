@@ -59,14 +59,45 @@ func (s SMTPSender) SendPasswordReset(_ context.Context, to, token string) error
 	magicLink := strings.TrimRight(s.AppBaseURL, "/") +
 		"/reset-password?token=" + url.QueryEscape(token)
 
-	htmlBody := fmt.Sprintf(
-		"<p>You requested a password reset for your Mansooba account.</p>"+
-			"<p>Your reset token is: %s</p>"+
-			`<p><a href="%s">Reset my password</a></p>`+
-			"<p>This token expires in 15 minutes.</p>"+
-			"<p>If you did not request this, you can safely ignore this message.</p>",
-		token, magicLink,
-	)
+	htmlBody := fmt.Sprintf(`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /></head>
+<body style="margin:0;padding:0;background-color:#f0f4f4;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0f4f4;">
+  <tr><td align="center" style="padding:40px 16px;">
+    <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%%;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+      <tr>
+        <td style="background-color:#2a8080;padding:24px 40px;">
+          <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.3px;">Mansooba</span>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:40px 40px 32px;">
+          <p style="margin:0 0 16px;font-size:16px;color:#2d3a40;line-height:1.6;">Hi there,</p>
+          <p style="margin:0 0 28px;font-size:16px;color:#2d3a40;line-height:1.6;">We received a request to reset the password for your Mansooba account. Click the button below to choose a new password.</p>
+          <table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 32px;">
+            <tr>
+              <td style="background-color:#2a8080;border-radius:6px;">
+                <a href="%s" style="display:inline-block;padding:14px 32px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">Reset my password</a>
+              </td>
+            </tr>
+          </table>
+          <p style="margin:0 0 6px;font-size:13px;color:#6b7b80;line-height:1.5;">This link expires in <strong>15 minutes</strong>. If the button doesn't work, copy and paste this URL into your browser:</p>
+          <p style="margin:0 0 32px;font-size:12px;color:#2a8080;word-break:break-all;">%s</p>
+          <hr style="border:none;border-top:1px solid #e8eeee;margin:0 0 24px;" />
+          <p style="margin:0;font-size:13px;color:#9aabaf;line-height:1.5;">If you didn't request a password reset, you can safely ignore this email — your password will remain unchanged.</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:14px 40px;background:#f8fbfb;border-top:1px solid #e8eeee;">
+          <p style="margin:0;font-size:12px;color:#b0bec5;text-align:center;">Mansooba &middot; Project Management</p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`, magicLink, magicLink)
 
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)

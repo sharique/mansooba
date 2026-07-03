@@ -5,7 +5,7 @@ import { useAuthStore } from '~/stores/auth.store'
 export default defineNuxtPlugin(() => {
   const authStore = useAuthStore()
   const route = useRoute()
-  const publicRoutes = ['/login', '/register']
+  const publicRoutes = ['/login', '/register', '/setup', '/forgot-password', '/reset-password']
 
   if (route.path === '/') {
     navigateTo(authStore.isAuthenticated ? '/projects' : '/login', { replace: true })

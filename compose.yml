@@ -30,6 +30,7 @@ services:
       SMTP_HOST: mailpit
       SMTP_PORT: "1025"
       SMTP_FROM: noreply@mansooba.local
+      APP_BASE_URL: "http://localhost:3000"
     volumes:
       - sqlite_data:/data
     depends_on:
@@ -86,8 +87,8 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - "1025:1025"   # SMTP — backend sends here when email is configured
-      - "8025:8025"   # Web inbox — http://localhost:8025
+      - "1025:1025" # SMTP — backend sends here when email is configured
+      - "8025:8025" # Web inbox — http://localhost:8025
     restart: unless-stopped
 
 volumes:
