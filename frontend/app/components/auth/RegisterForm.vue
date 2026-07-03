@@ -1,42 +1,44 @@
 <template>
   <form @submit.prevent="submit">
-    <div class="form-control w-full">
-      <label class="label"><span class="label-text">Full Name</span></label>
-      <input
-        v-model="fullName"
-        type="text"
-        class="input input-bordered w-full"
-        placeholder="Alice Smith"
-        required
-      />
-    </div>
+    <div class="space-y-4">
+      <div class="form-control w-full">
+        <label class="label"><span class="label-text">Full Name</span></label>
+        <input
+          v-model="fullName"
+          type="text"
+          class="input input-bordered w-full"
+          placeholder="Alice Smith"
+          required
+        />
+      </div>
 
-    <div class="form-control w-full mt-3">
-      <label class="label"><span class="label-text">Email</span></label>
-      <input
-        v-model="email"
-        type="email"
-        class="input input-bordered w-full"
-        :class="{ 'input-error': emailError }"
-        placeholder="you@example.com"
-      />
-      <label v-if="emailError" class="label">
-        <span class="label-text-alt text-error">{{ emailError }}</span>
-      </label>
-    </div>
+      <div class="form-control w-full">
+        <label class="label"><span class="label-text">Email</span></label>
+        <input
+          v-model="email"
+          type="email"
+          class="input input-bordered w-full"
+          :class="{ 'input-error': emailError }"
+          placeholder="you@example.com"
+        />
+        <label v-if="emailError" class="label">
+          <span class="label-text-alt text-error">{{ emailError }}</span>
+        </label>
+      </div>
 
-    <div class="form-control w-full mt-3">
-      <label class="label"><span class="label-text">Password</span></label>
-      <input
-        v-model="password"
-        type="password"
-        class="input input-bordered w-full"
-        :class="{ 'input-error': passwordError }"
-        placeholder="••••••••"
-      />
-      <label v-if="passwordError" class="label">
-        <span class="label-text-alt text-error">{{ passwordError }}</span>
-      </label>
+      <div class="form-control w-full">
+        <label class="label"><span class="label-text">Password</span></label>
+        <input
+          v-model="password"
+          type="password"
+          class="input input-bordered w-full"
+          :class="{ 'input-error': passwordError }"
+          placeholder="••••••••"
+        />
+        <label v-if="passwordError" class="label">
+          <span class="label-text-alt text-error">{{ passwordError }}</span>
+        </label>
+      </div>
     </div>
 
     <div v-if="errorMessage" class="alert alert-error mt-4 py-2 text-sm">

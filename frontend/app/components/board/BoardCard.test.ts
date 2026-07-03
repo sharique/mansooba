@@ -24,10 +24,14 @@ describe('BoardCard', () => {
     expect(wrapper.find('.badge').classes()).toContain('badge-error')
   })
 
-  test('changing status select emits statusChanged with id and new status', async () => {
+  test('card has priority border class for critical', () => {
     const wrapper = mount(BoardCard, { props: { issue, projectKey: 'PROJ' } })
-    await wrapper.find('select').setValue('done')
-    expect(wrapper.emitted('statusChanged')).toBeTruthy()
-    expect(wrapper.emitted('statusChanged')![0]).toEqual([1, 'done'])
+    expect(wrapper.find('.card').classes()).toContain('border-l-error')
   })
+
+  test('card does not render a status select', () => {
+    const wrapper = mount(BoardCard, { props: { issue, projectKey: 'PROJ' } })
+    expect(wrapper.find('select').exists()).toBe(false)
+  })
+
 })

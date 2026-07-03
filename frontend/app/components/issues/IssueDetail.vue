@@ -65,7 +65,7 @@
         <label class="label py-1"><span class="label-text font-medium">Status</span></label>
         <select
           :value="issue.status"
-          class="select select-bordered select-sm"
+          class="select select-bordered select-sm w-full"
           @change="onFieldChange('status', ($event.target as HTMLSelectElement).value)"
         >
           <option value="backlog">Backlog</option>
@@ -77,8 +77,8 @@
       </div>
 
       <!-- Type -->
-      <div>
-        <span class="text-sm font-medium block mb-1">Type</span>
+      <div class="form-control">
+        <label class="label py-1"><span class="label-text font-medium">Type</span></label>
         <span class="badge badge-outline capitalize">{{ issue.type }}</span>
       </div>
 
@@ -87,7 +87,7 @@
         <label class="label py-1"><span class="label-text font-medium">Priority</span></label>
         <select
           :value="issue.priority"
-          class="select select-bordered select-sm"
+          class="select select-bordered select-sm w-full"
           @change="onFieldChange('priority', ($event.target as HTMLSelectElement).value)"
         >
           <option value="low">Low</option>
@@ -102,7 +102,7 @@
         <label class="label py-1"><span class="label-text font-medium">Assignee</span></label>
         <select
           :value="issue.assignee_id ?? ''"
-          class="select select-bordered select-sm"
+          class="select select-bordered select-sm w-full"
           @change="onFieldChange('assignee_id', ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)"
         >
           <option value="">Unassigned</option>
@@ -118,7 +118,7 @@
           type="number"
           min="0"
           max="100"
-          class="input input-bordered input-sm"
+          class="input input-bordered input-sm w-full"
           placeholder="—"
           @change="onFieldChange('story_points', Number(($event.target as HTMLInputElement).value) || null)"
           @blur="onFieldChange('story_points', Number(($event.target as HTMLInputElement).value) || null)"
@@ -126,8 +126,8 @@
       </div>
 
       <!-- Sprint -->
-      <div v-if="sprintName">
-        <span class="text-sm font-medium block mb-1">Sprint</span>
+      <div v-if="sprintName" class="form-control">
+        <label class="label py-1"><span class="label-text font-medium">Sprint</span></label>
         <span class="text-sm">{{ sprintName }}</span>
       </div>
 
@@ -138,20 +138,20 @@
       </div>
 
       <!-- Created -->
-      <div>
-        <span class="text-sm font-medium block mb-1">Created</span>
+      <div class="form-control">
+        <label class="label py-1"><span class="label-text font-medium">Created</span></label>
         <span class="text-sm text-base-content/60">{{ formatDate(issue.created_at) }}</span>
       </div>
 
       <!-- Completed -->
-      <div v-if="issue.completed_at">
-        <span class="text-sm font-medium block mb-1">Completed</span>
+      <div v-if="issue.completed_at" class="form-control">
+        <label class="label py-1"><span class="label-text font-medium">Completed</span></label>
         <span class="text-sm text-base-content/60">{{ formatDate(issue.completed_at) }}</span>
       </div>
 
       <!-- Reporter -->
-      <div>
-        <span class="text-sm font-medium block mb-1">Reporter</span>
+      <div class="form-control">
+        <label class="label py-1"><span class="label-text font-medium">Reporter</span></label>
         <span class="text-sm">User #{{ issue.reporter_id }}</span>
       </div>
 
