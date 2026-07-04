@@ -101,7 +101,7 @@ function convertToRFC3339Date(mdate: string) {
                         v-model="form.name"
                         type="text"
                         placeholder="Sprint 1"
-                        class="input input-bordered"
+                        class="input input-bordered w-full"
                         required
                     />
                 </label>
@@ -112,7 +112,7 @@ function convertToRFC3339Date(mdate: string) {
                     </div>
                     <textarea
                         v-model="form.goal"
-                        class="textarea textarea-bordered"
+                        class="textarea textarea-bordered w-full"
                         placeholder="What does this sprint aim to achieve?"
                         rows="2"
                     />
@@ -126,7 +126,7 @@ function convertToRFC3339Date(mdate: string) {
                         <input
                             v-model="form.start_date"
                             type="date"
-                            class="input input-bordered"
+                            class="input input-bordered w-full"
                         />
                     </label>
                     <label class="form-control">
@@ -136,7 +136,7 @@ function convertToRFC3339Date(mdate: string) {
                         <input
                             v-model="form.end_date"
                             type="date"
-                            class="input input-bordered"
+                            class="input input-bordered w-full"
                         />
                     </label>
                 </div>
