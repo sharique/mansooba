@@ -9,6 +9,10 @@ Built using a spec-driven approach where I worked as architect/manager and Claud
 **Backend:** Go + Echo v4 · GORM · SQLite (local) / PostgreSQL (prod) · JWT auth  
 **Frontend:** Nuxt 4 (SPA) · Pinia · Tailwind CSS v4 · DaisyUI · OKLCH design system
 
+### Demo
+
+[![Initial Setup Walkthrough](https://cdn.loom.com/sessions/thumbnails/61ce0f47d5f14ecbb51c7a314fa0a107-with-play.gif)](https://www.loom.com/share/61ce0f47d5f14ecbb51c7a314fa0a107)
+
 ---
 
 ## Features
