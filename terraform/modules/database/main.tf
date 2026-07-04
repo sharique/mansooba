@@ -1,8 +1,29 @@
+# ── RDS Subnet Group ──────────────────────────────────────────────────────────
+# AWS requires a subnet group (at least 2 AZs) for RDS even when running a
+# single-AZ instance. This gives RDS the option to failover to the second AZ
+# during maintenance or an AZ outage.
+
 resource "aws_db_subnet_group" "main" {
   name       = "${var.name_prefix}-db"
   subnet_ids = var.private_subnet_ids
   tags       = { Name = "${var.name_prefix}-db-subnet-group" }
 }
+
+# ── RDS PostgreSQL Instance ───────────────────────────────────────────────────
+# db.t3.micro with 20 GB gp2 storage is within the free tier
+# (750 hours/month and 20 GB for 12 months on a new account).
+#
+# Security:
+#   publicly_accessible = false — no internet-facing endpoint; only reachable
+#     from within the VPC via the RDS security group (EC2 → port 5432).
+#   sslmode=require in the DB_DSN enforces TLS in transit.
+#
+# Lifecycle:
+#   skip_final_snapshot = true — no snapshot on deletion (saves storage cost
+#     for dev/staging; set to false and provide final_snapshot_identifier
+#     for production databases you care about recovering).
+#   deletion_protection = false — allows `terraform destroy` to clean up.
+#     Set to true on production to prevent accidental deletion.
 
 resource "aws_db_instance" "postgres" {
   identifier             = "${var.name_prefix}-db"
