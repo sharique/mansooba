@@ -1,0 +1,62 @@
+# Feature: Authentication & Security
+
+## Overview
+
+Mansooba uses a JWT-based authentication system with HttpOnly cookie refresh tokens.
+Registration is admin-controlled — new accounts are created by admins, not via
+self-service signup. Password resets are delivered by email. User profiles include
+display name, email, timezone, and an optional avatar photo.
+
+## Implementation details
+
+### Token strategy
+
+- Access tokens: short-lived JWT, signed and verified on every API request
+- Refresh tokens: stored in HttpOnly, SameSite=Strict cookies (Secure flag enabled in
+  production)
+- On refresh: the backend validates the refresh token JTI against the `revoked_tokens`
+  table; if the DB lookup fails, the request is rejected with 503 (fail-closed — no
+  silent grants)
+
+### Server-side logout / token revocation
+
+- On logout, the refresh token's JTI is inserted into `revoked_tokens`
+- Every token refresh checks this table; a hit means the session is revoked
+- A background goroutine runs on a configurable interval to purge expired revocation
+  records from the table
+
+### Password reset flow
+
+1. User submits their email at `POST /api/v1/auth/forgot-password`
+2. A reset token is generated and emailed (caught by Mailpit in dev)
+3. The token pre-fills the `/reset-password` page
+4. On submit, `POST /api/v1/auth/reset-password` validates the token and updates the
+   password
+
+### Avatar storage
+
+- Uploaded via `POST /api/v1/users/me/avatar`
+- Stored on local disk under `uploads/`
+- Served publicly at `/uploads/*` without auth (ADR-026)
+- Falls back to OKLCH-coloured initials when no photo is set (see `UserAvatar` component)
+
+### Admin-controlled registration
+
+- `POST /api/v1/auth/register` requires a valid admin JWT — self-service signup is
+  disabled
+- Admins create accounts via `/system/createuser`
+- Unauthenticated requests → 401; non-admin requests → 403
+- New account credentials are shared directly with the user by the admin
+
+## API endpoints
+
+See [arch-api.md](arch-api.md) for the full endpoint list. Key auth routes:
+
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/logout`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/register` (admin JWT required)
+- `POST /api/v1/auth/forgot-password`
+- `POST /api/v1/auth/reset-password`
+- `GET/PUT /api/v1/users/me`
+- `POST /api/v1/users/me/avatar`
