@@ -10,8 +10,12 @@ one place. Built as a learning and portfolio project using a spec-driven approac
 
 ### Demo
 
+#### First run wizard
 [![Initial Setup Walkthrough](https://cdn.loom.com/sessions/thumbnails/61ce0f47d5f14ecbb51c7a314fa0a107-93b2fe3c8eaa3262-full-play.gif)](https://www.loom.com/share/61ce0f47d5f14ecbb51c7a314fa0a107)
 
+#### Sprint and task management
+
+[![Users, Tasks and Sprints](https://cdn.loom.com/sessions/thumbnails/6ba0573bd31d41738e8fc6b2add7fd6e-b2b4a189c87bf9de-full-play.gif)](https://www.loom.com/share/6ba0573bd31d41738e8fc6b2add7fd6e)
 ---
 
 ## Features

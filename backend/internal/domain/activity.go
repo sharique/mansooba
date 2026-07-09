@@ -8,10 +8,10 @@ import (
 // ActivityEvent is an immutable record of a change to an issue.
 // OldValue and NewValue are human-readable strings (e.g. "todo", "in_progress").
 type ActivityEvent struct {
-	ID        uint      `gorm:"primaryKey"`
-	IssueID   uint      `gorm:"not null;index"`
-	ActorID   uint      `gorm:"not null"`
-	Kind      string    `gorm:"not null"`
+	ID        uint   `gorm:"primaryKey"`
+	IssueID   uint   `gorm:"not null;index"`
+	ActorID   uint   `gorm:"not null"`
+	Kind      string `gorm:"not null"`
 	OldValue  string
 	NewValue  string
 	CreatedAt time.Time
@@ -27,6 +27,8 @@ const (
 	ActivityCommentAdded       = "comment_added"
 	ActivityLabelAdded         = "label_added"
 	ActivityLabelRemoved       = "label_removed"
+	ActivityAttachmentAdded    = "attachment_added"
+	ActivityAttachmentRemoved  = "attachment_removed"
 )
 
 // ActivityRepository defines persistence for ActivityEvent.

@@ -17,9 +17,15 @@
       <!-- Title -->
       <p class="text-sm font-medium line-clamp-2">{{ issue.title }}</p>
 
-      <!-- Footer: assignee -->
-      <div v-if="issue.assignee_id" class="flex justify-end mt-0.5">
+      <!-- Footer: attachment count + assignee -->
+      <div v-if="issue.attachment_count > 0 || issue.assignee_id" class="flex items-center justify-between mt-0.5">
+        <div v-if="issue.attachment_count > 0" class="flex items-center gap-1 text-xs text-base-content/45">
+          <Icon name="mdi:paperclip" class="w-3.5 h-3.5" />
+          {{ issue.attachment_count }}
+        </div>
+        <div v-else />
         <UserAvatar
+          v-if="issue.assignee_id"
           :avatarUrl="issue.assignee_avatar_url || undefined"
           :name="issue.assignee_name || ''"
           :userId="issue.assignee_id"

@@ -179,6 +179,8 @@ func mapIssueError(err error) error {
 		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
 	case errors.Is(err, domain.ErrConflict):
 		return echo.NewHTTPError(http.StatusConflict, "conflict")
+	case errors.Is(err, domain.ErrAttachmentStorageUnavailable):
+		return echo.NewHTTPError(http.StatusBadGateway, "storage temporarily unavailable, please try again")
 	}
 	return err
 }

@@ -41,15 +41,30 @@ module "security" {
   allowed_ssh_cidr = var.allowed_ssh_cidr
 }
 
+# ── Attachment Storage (S3) ────────────────────────────────────────────────────
+# Creates the S3 bucket that issue attachments are stored in — private,
+# encrypted at rest (SSE-S3), no versioning. The backend authenticates against
+# it via the EC2 instance's IAM role (see module "iam" below), never a static
+# access key.
+
+module "storage" {
+  source     = "./modules/storage"
+  aws_region = var.aws_region
+}
+
 # ── IAM ───────────────────────────────────────────────────────────────────────
-# Creates an EC2 instance role + instance profile with one inline policy:
-#   ssm:GetParameter / ssm:GetParametersByPath on /mansooba/* (read-only).
-# This is how the EC2 boot script fetches secrets without hardcoding them.
+# Creates an EC2 instance role + instance profile with two inline policies:
+#   • ssm:GetParameter / ssm:GetParametersByPath on /mansooba/* (read-only)
+#   • s3:PutObject / GetObject / DeleteObject / DeleteObjects on the
+#     attachments bucket only
+# This is how the EC2 boot script fetches secrets, and how the backend
+# accesses S3, without hardcoding any credentials.
 
 module "iam" {
-  source          = "./modules/iam"
-  aws_region      = var.aws_region
-  ssm_path_prefix = "/mansooba"
+  source                 = "./modules/iam"
+  aws_region             = var.aws_region
+  ssm_path_prefix        = "/mansooba"
+  attachments_bucket_arn = module.storage.bucket_arn
 }
 
 # ── Email (SES) ───────────────────────────────────────────────────────────────
