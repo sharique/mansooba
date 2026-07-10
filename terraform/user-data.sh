@@ -1,7 +1,8 @@
 #!/bin/bash
 # EC2 bootstrap script — runs once on first boot as root.
 # Rendered by Terraform's templatefile() with aws_region, smtp_host,
-# smtp_port, and smtp_from substituted before the script reaches the instance.
+# smtp_port, smtp_from, and storage_bucket substituted before the script
+# reaches the instance.
 #
 # What this script does:
 #   1. Installs Docker and the AWS CLI
@@ -100,6 +101,12 @@ DB_DSN=host=$${RDS_ENDPOINT} user=mansooba password=$${DB_PASSWORD} dbname=manso
 DB_MAX_OPEN_CONNS=25
 DB_MAX_IDLE_CONNS=5
 DB_CONN_MAX_LIFETIME=5m
+
+# ── Attachment storage (S3) ────────────────────────────────────────────────────
+# No access key/secret here: the SDK authenticates via the EC2 instance's IAM
+# role (see modules/iam). Leaving STORAGE_ENDPOINT unset means "real AWS S3".
+STORAGE_BUCKET=${storage_bucket}
+STORAGE_REGION=${aws_region}
 
 # ── Email (AWS SES via SMTP) ──────────────────────────────────────────────────
 # SMTP_HOST is injected by Terraform templatefile() as the SES regional endpoint.

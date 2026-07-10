@@ -19,13 +19,17 @@
     <div v-if="activeTab === 'profile'" class="card bg-base-100 shadow border border-base-200">
       <div class="card-body gap-4">
         <div class="form-control">
-          <label class="label"><span class="label-text">Full Name</span></label>
+          <label class="label"><span class="label-text">Full Name <span class="text-error">*</span></span></label>
           <input
             v-model="form.fullName"
             type="text"
             class="input input-bordered w-full"
+            :class="{ 'input-error': fullNameError }"
             placeholder="Your full name"
           />
+          <label v-if="fullNameError" class="label">
+            <span class="label-text-alt text-error">Full name is required</span>
+          </label>
         </div>
 
         <div class="form-control">
@@ -127,6 +131,7 @@ const activityLoaded = ref(false)
 const selectedFile = ref<File | null>(null)
 const avatarError = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
+const fullNameError = ref(false)
 
 const form = reactive({
   fullName: authStore.profile?.name ?? authStore.user?.name ?? '',
@@ -179,6 +184,9 @@ function onFileSelect(e: Event) {
 }
 
 async function saveProfile() {
+  fullNameError.value = !form.fullName.trim()
+  if (fullNameError.value) return
+
   saving.value = true
   try {
     if (selectedFile.value) {
@@ -186,7 +194,7 @@ async function saveProfile() {
       selectedFile.value = null
     }
     await authStore.updateProfile({
-      full_name: form.fullName || undefined,
+      full_name: form.fullName.trim(),
       timezone: form.timezone || undefined,
     })
     showSuccess('Profile updated')

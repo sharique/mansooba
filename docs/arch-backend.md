@@ -77,7 +77,7 @@ type Storage interface {
 | `Activity` | `IssueID`, `ActorID`, `Kind`, `OldValue`, `NewValue` | Audit log for issue field changes |
 | `Label` | `ProjectID`, `Name`, `Color` | |
 | `Notification` | `UserID`, `IssueID`, `Kind`, `ReadAt` | |
-| `Attachment` | `IssueID`, `UploaderID`, `FileName`, `StorageKey`, `ContentType`, `FileSize` | Binary in S3/MinIO |
+| `Attachment` | `IssueID`, `UploaderID`, `Filename`, `ObjectKey`, `ContentType`, `SizeBytes` | Binary in S3 (LocalStack in dev) |
 | `TaskRelation` | `TaskAID`, `TaskBID`, `CreatedBy` | Stored once; always `TaskAID < TaskBID` (canonical ordering) |
 | `GlobalSetting` | `Key`, `Value` | Org-wide config: `org.timezone`, `org.locale` |
 

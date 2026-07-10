@@ -225,6 +225,37 @@ func TestIssueService_Update_ClearsSprintID(t *testing.T) {
 	}
 }
 
+func TestIssueService_Delete_CascadesAttachments(t *testing.T) {
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	issueRepo := newStubIssueRepo()
+	activitySvc := &stubActivitySvc{}
+	userRepo := newStubUserRepo()
+	attachmentRepo := newStubAttachmentRepo()
+	attachmentStorage := &stubAttachmentStorage{}
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo, newStubSprintRepo()).
+		WithAttachments(attachmentRepo, attachmentStorage)
+
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
+
+	_ = attachmentRepo.Create(ctx, &domain.Attachment{IssueID: resp.ID, UploaderID: 1, Filename: "a.png", ObjectKey: "issues/1/a.png"})
+	_ = attachmentRepo.Create(ctx, &domain.Attachment{IssueID: resp.ID, UploaderID: 1, Filename: "b.png", ObjectKey: "issues/1/b.png"})
+
+	if err := svc.Delete(ctx, "PROJ", resp.ID, 1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	remaining, _ := attachmentRepo.FindByIssueID(ctx, resp.ID)
+	if len(remaining) != 0 {
+		t.Errorf("expected 0 attachments after issue delete, got %d", len(remaining))
+	}
+	if len(attachmentStorage.deletedKeys) != 2 {
+		t.Errorf("expected 2 S3 objects deleted, got %d (%v)", len(attachmentStorage.deletedKeys), attachmentStorage.deletedKeys)
+	}
+}
+
 func TestIssueService_Delete_ForbiddenForNonReporter(t *testing.T) {
 	svc, projectRepo, memberRepo, _ := newIssueService()
 	ctx := context.Background()

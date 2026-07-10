@@ -7,9 +7,12 @@
           v-model="fullName"
           type="text"
           class="input input-bordered w-full"
+          :class="{ 'input-error': fullNameError }"
           placeholder="Alice Smith"
-          required
         />
+        <label v-if="fullNameError" class="label">
+          <span class="label-text-alt text-error">{{ fullNameError }}</span>
+        </label>
       </div>
 
       <div class="form-control w-full">
@@ -32,12 +35,24 @@
           v-model="password"
           type="password"
           class="input input-bordered w-full"
-          :class="{ 'input-error': passwordError }"
+          :class="{ 'input-error': passwordTouched && !allRulesPassed }"
           placeholder="••••••••"
+          @input="passwordTouched = true"
         />
-        <label v-if="passwordError" class="label">
-          <span class="label-text-alt text-error">{{ passwordError }}</span>
-        </label>
+        <ul class="text-sm mt-1 space-y-0.5" aria-label="Password requirements">
+          <li :class="rules.length ? 'text-success' : 'text-base-content/50'">
+            {{ rules.length ? '✓' : '○' }} At least 8 characters
+          </li>
+          <li :class="rules.upper ? 'text-success' : 'text-base-content/50'">
+            {{ rules.upper ? '✓' : '○' }} At least one uppercase letter
+          </li>
+          <li :class="rules.lower ? 'text-success' : 'text-base-content/50'">
+            {{ rules.lower ? '✓' : '○' }} At least one lowercase letter
+          </li>
+          <li :class="rules.digit ? 'text-success' : 'text-base-content/50'">
+            {{ rules.digit ? '✓' : '○' }} At least one number
+          </li>
+        </ul>
       </div>
     </div>
 
@@ -62,19 +77,26 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
+const fullNameError = ref('')
 const emailError = ref('')
-const passwordError = ref('')
+const passwordTouched = ref(false)
+
+// Mirrors the backend's password_complexity validator exactly (main.go):
+// 8+ chars, at least one uppercase, one lowercase, one digit.
+const rules = reactive({ length: false, upper: false, lower: false, digit: false })
+watch(password, (pw) => {
+  rules.length = pw.length >= 8
+  rules.upper = /[A-Z]/.test(pw)
+  rules.lower = /[a-z]/.test(pw)
+  rules.digit = /[0-9]/.test(pw)
+})
+const allRulesPassed = computed(() => rules.length && rules.upper && rules.lower && rules.digit)
 
 function validate(): boolean {
-  emailError.value = ''
-  passwordError.value = ''
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value)) {
-    emailError.value = 'Enter a valid email address'
-  }
-  if (password.value.length < 8) {
-    passwordError.value = 'Password must be at least 8 characters'
-  }
-  return !emailError.value && !passwordError.value
+  fullNameError.value = fullName.value.trim() ? '' : 'Full name is required'
+  emailError.value = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value) ? '' : 'Enter a valid email address'
+  passwordTouched.value = true
+  return !fullNameError.value && !emailError.value && allRulesPassed.value
 }
 
 async function submit() {

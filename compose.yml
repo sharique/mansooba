@@ -20,10 +20,15 @@ services:
       JWT_REFRESH_TTL: 168h
       LOG_LEVEL: debug
       CORS_ORIGINS: "http://localhost:3000"
-      STORAGE_ENDPOINT: "http://minio:9000"
-      STORAGE_BUCKET: "mansooba"
-      STORAGE_ACCESS_KEY_ID: "minioadmin"
-      STORAGE_SECRET_ACCESS_KEY: "minioadmin"
+      STORAGE_ENDPOINT: "http://localstack:4566"
+      # PresignEndpoint overrides the host baked into presigned download URLs.
+      # The backend container reaches LocalStack via the Docker-internal
+      # hostname above, but the browser that follows those URLs runs on the
+      # host machine and needs "localhost" instead.
+      STORAGE_PRESIGN_ENDPOINT: "http://localhost:4566"
+      STORAGE_BUCKET: "mansooba-attachments"
+      STORAGE_ACCESS_KEY_ID: "test"
+      STORAGE_SECRET_ACCESS_KEY: "test"
       STORAGE_REGION: "us-east-1"
       STORAGE_PRESIGN_TTL: "1h"
       STORAGE_USE_PATH_STYLE: "true"
@@ -34,7 +39,7 @@ services:
     volumes:
       - sqlite_data:/data
     depends_on:
-      minio-init:
+      localstack-init:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
@@ -54,33 +59,36 @@ services:
       backend:
         condition: service_healthy
 
-  minio:
-    image: minio/minio:latest
+  localstack:
+    image: localstack/localstack:3.8
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "4566:4566"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
+      SERVICES: s3
+      DEFAULT_REGION: us-east-1
+      ACTIVATE_PRO: "0"
     volumes:
-      - minio_data:/data
+      - localstack_data:/var/lib/localstack
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
-  minio-init:
-    image: minio/mc:latest
+  localstack-init:
+    image: amazon/aws-cli:latest
     depends_on:
-      minio:
+      localstack:
         condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/mansooba &&
+      aws --endpoint-url http://localstack:4566 s3api head-bucket --bucket mansooba-attachments 2>/dev/null ||
+      aws --endpoint-url http://localstack:4566 s3 mb s3://mansooba-attachments --region us-east-1 &&
       echo 'bucket ready'
       "
 
@@ -93,4 +101,4 @@ services:
 
 volumes:
   sqlite_data:
-  minio_data:
+  localstack_data:

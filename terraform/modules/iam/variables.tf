@@ -14,3 +14,8 @@ variable "name_prefix" {
   type        = string
   default     = "mansooba"
 }
+
+variable "attachments_bucket_arn" {
+  description = "ARN of the S3 attachments bucket (module.storage.bucket_arn) — scopes the EC2 role's S3 policy to this bucket only."
+  type        = string
+}

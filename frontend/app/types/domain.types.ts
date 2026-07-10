@@ -45,6 +45,7 @@ export interface Issue {
   sprint_id?: number | null
   created_at: string
   completed_at?: string | null
+  attachment_count: number
 }
 
 // ── Domain constant objects ───────────────────────────────────────────────────
@@ -147,6 +148,29 @@ export interface Comment {
   body: string
   created_at: string
   updated_at: string
+}
+
+// ── Attachments ───────────────────────────────────────────────────────────────
+
+export interface Attachment {
+  id: number
+  issue_id: number
+  filename: string
+  content_type: string
+  size_bytes: number
+  uploader_id: number
+  uploader_name: string
+  created_at: string
+}
+
+export interface AttachmentRejection {
+  filename: string
+  reason: string
+}
+
+export interface AttachmentUploadResult {
+  uploaded: Attachment[]
+  rejected: AttachmentRejection[]
 }
 
 // ── Activity ──────────────────────────────────────────────────────────────────

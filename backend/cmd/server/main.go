@@ -17,7 +17,6 @@ import (
 	"time"
 	"unicode"
 
-	"golang.org/x/time/rate"
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v4"
 	echomw "github.com/labstack/echo/v4/middleware"
@@ -26,6 +25,7 @@ import (
 	"github.com/sharique/mansooba/internal/email"
 	"github.com/sharique/mansooba/internal/handler"
 	apimw "github.com/sharique/mansooba/internal/middleware"
+	"github.com/sharique/mansooba/internal/pkg/attachmentstorage"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
 	"github.com/sharique/mansooba/pkg/apierror"
@@ -34,6 +34,7 @@ import (
 	"github.com/sharique/mansooba/pkg/logger"
 	echoSwagger "github.com/swaggo/echo-swagger"
 	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 )
 
 type customValidator struct{ v *validator.Validate }
@@ -82,6 +83,28 @@ func main() {
 	settingRepo := repository.NewSettingRepository(db)
 	issueRelationRepo := repository.NewIssueRelationRepository(db)
 	passwordResetRepo := repository.NewPasswordResetRepository(db)
+	attachmentRepo := repository.NewAttachmentRepository(db)
+
+	// Attachment storage (S3-compatible: real AWS S3 in prod, LocalStack in
+	// local dev — same code path either way, only STORAGE_ENDPOINT differs).
+	presignTTL, err := time.ParseDuration(cfg.StoragePresignTTL)
+	if err != nil {
+		log.Warn("invalid STORAGE_PRESIGN_TTL, defaulting to 1h", zap.String("value", cfg.StoragePresignTTL), zap.Error(err))
+		presignTTL = time.Hour
+	}
+	attachmentStorage, err := attachmentstorage.New(attachmentstorage.Config{
+		Endpoint:        cfg.StorageEndpoint,
+		PresignEndpoint: cfg.StoragePresignEndpoint,
+		Bucket:          cfg.StorageBucket,
+		Region:          cfg.StorageRegion,
+		AccessKeyID:     cfg.StorageAccessKeyID,
+		SecretAccessKey: cfg.StorageSecretAccessKey,
+		PresignTTL:      presignTTL,
+		UsePathStyle:    cfg.StorageUsePathStyle,
+	})
+	if err != nil {
+		log.Fatal("failed to initialize attachment storage", zap.Error(err))
+	}
 
 	// Start background goroutine to purge expired revocation records.
 	cleanupInterval, err := time.ParseDuration(cfg.RevokedTokenCleanupInterval)
@@ -97,10 +120,12 @@ func main() {
 	userSvc := service.NewUserService(userRepo)
 	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo)
 	activitySvc := service.NewActivityService(activityRepo, userRepo, issueRepo)
-	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, sprintRepo)
+	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, sprintRepo).
+		WithAttachments(attachmentRepo, attachmentStorage)
 	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo)
 	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
 	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc, notifRepo, userRepo)
+	attachmentSvc := service.NewAttachmentService(attachmentRepo, issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, attachmentStorage)
 	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
 	settingSvc := service.NewSettingService(settingRepo)
 	issueRelationSvc := service.NewIssueRelationService(issueRelationRepo, issueRepo)
@@ -130,6 +155,7 @@ func main() {
 	boardHandler := handler.NewBoardHandler(boardSvc)
 	sprintHandler := handler.NewSprintHandler(sprintSvc)
 	commentHandler := handler.NewCommentHandler(commentSvc)
+	attachmentHandler := handler.NewAttachmentHandler(attachmentSvc)
 	activityHandler := handler.NewActivityHandler(activitySvc)
 	labelHandler := handler.NewLabelHandler(labelSvc)
 	notifHandler := handler.NewNotificationHandler(notifRepo)
@@ -326,6 +352,14 @@ func main() {
 	issueItems.GET("/relations", issueRelationHandler.List)
 	issueItems.POST("/relations", issueRelationHandler.Create)
 	issueItems.DELETE("/relations/:rid", issueRelationHandler.Delete)
+
+	// Attachment upload gets a larger body-size limit than the global default
+	// (research.md Decision 3) — batch uploads of multiple ~10MB files would
+	// otherwise be rejected by the global 4M BodyLimit applied to every route.
+	issueItems.POST("/attachments", attachmentHandler.Upload, echomw.BodyLimit("25M"))
+	issueItems.GET("/attachments", attachmentHandler.List)
+	issueItems.GET("/attachments/:aid/download", attachmentHandler.Download)
+	issueItems.DELETE("/attachments/:aid", attachmentHandler.Delete)
 
 	admin := api.Group("/admin")
 	admin.GET("/users", adminUserHandler.ListUsers)

@@ -88,7 +88,7 @@ func TestAuthHandler_Register_Returns201(t *testing.T) {
 		return h.Register(c)
 	})
 
-	body := `{"full_name":"Alice","email":"alice@example.com","password":"password123"}`
+	body := `{"full_name":"Alice","email":"alice@example.com","password":"Password123"}`
 	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
@@ -263,7 +263,7 @@ func TestAuthHandler_Register_Returns409_OnDuplicate(t *testing.T) {
 		return h.Register(c)
 	})
 
-	body := `{"full_name":"Alice","email":"alice@example.com","password":"password123"}`
+	body := `{"full_name":"Alice","email":"alice@example.com","password":"Password123"}`
 	req := httptest.NewRequest(http.MethodPost, "/auth/register", strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()

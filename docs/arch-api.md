@@ -13,11 +13,11 @@ Swagger UI is available at `/swagger/index.html` when the server is running.
 | POST | `/auth/register` | — | Register a new user |
 | POST | `/auth/login` | — | Login; returns `access_token` + `refresh_token` |
 | POST | `/auth/refresh` | — | Exchange refresh token for a new access token |
-| GET | `/auth/me` | ✓ | Get current user profile (includes `is_super_admin`) |
+| GET | `/auth/me` | ✓ | Get current user profile (includes `is_admin`) |
 | PUT | `/auth/me` | ✓ | Update profile (name, timezone) |
 | GET | `/auth/me/activity` | ✓ | My recent activity (paginated) |
 | GET | `/auth/me/issues` | ✓ | Issues assigned to me across all projects |
-| POST | `/auth/me/avatar` | ✓ | Upload avatar image (multipart, max 4 MB) |
+| POST | `/auth/me/avatar` | ✓ | Upload avatar image (multipart, max 2 MB) |
 | DELETE | `/auth/me/avatar` | ✓ | Remove avatar |
 | GET | `/uploads/*` | — | Static avatar files — intentionally unauthenticated (ADR-026) |
 
@@ -25,13 +25,17 @@ Swagger UI is available at `/swagger/index.html` when the server is running.
 
 ## Setup wizard (first run only)
 
-These routes bypass JWT auth and work only when no users exist yet.
+Only `/status` and `/admin` are public and rate-limited; `/user`, `/project`, and `/seed`
+require the JWT issued by `/admin`. Once an admin account exists, `/admin` permanently
+returns 409 on every subsequent call.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/v1/setup/status` | Returns `{ "setup_required": true/false }` |
-| POST | `/api/v1/setup` | Create the superadmin account |
-| POST | `/api/v1/setup/initial-user` | Alias for the above |
+| Method | Path | Auth | Description |
+|--------|------|:----:|-------------|
+| GET | `/api/v1/setup/status` | — | Returns whether setup is required |
+| POST | `/api/v1/setup/admin` | — (rate-limited) | Create the first admin account; returns a JWT |
+| POST | `/api/v1/setup/user` | ✓ (setup JWT) | Create a second (non-admin) user |
+| POST | `/api/v1/setup/project` | ✓ (setup JWT) | Create a project, optionally adding the second user |
+| POST | `/api/v1/setup/seed` | ✓ (setup JWT) | Import demo project, sprint, issues, labels, comments |
 
 ---
 
@@ -116,9 +120,9 @@ All routes below are scoped to a specific issue (`/issues/:id/`).
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/issues/:id/attachments` | Upload a file (multipart; max 4 MB per request) |
+| POST | `/issues/:id/attachments` | Upload one or more files (multipart; max 10 MB per file, 25 MB per request — a route-scoped override of the global 4 MB body limit) |
 | GET | `/issues/:id/attachments` | List attachments (returns metadata, not binaries) |
-| GET | `/issues/:id/attachments/:aid/download` | Get a pre-signed download URL (1 h TTL) |
+| GET | `/issues/:id/attachments/:aid/download` | Get a pre-signed download URL as JSON (1 h TTL, not a 302 redirect) |
 | DELETE | `/issues/:id/attachments/:aid` | Delete an attachment (removes from S3 too) |
 
 ### Relations
@@ -177,19 +181,34 @@ Relations are symmetric and stored once per pair (`task_a_id < task_b_id`). The 
 
 ---
 
+## Admin
+
+| Method | Path | Auth | Description |
+|--------|------|:----:|-------------|
+| GET | `/admin/users` | ✓ (admin) | List all users |
+| PATCH | `/admin/users/:id` | ✓ (admin) | Update `is_admin` and/or `is_active`; rejects demoting/disabling the last active admin |
+
+---
+
 ## Settings
 
 | Method | Path | Auth | Description |
 |--------|------|:----:|-------------|
 | GET | `/settings` | ✓ | Get all org-wide settings |
-| PUT | `/settings` | ✓ (superadmin) | Update settings (`{ "values": { "org.timezone": "UTC" } }`) |
+| PATCH | `/settings` | ✓ (superadmin) | Partial update — only keys present in the body change, e.g. `{ "organization_name": "Acme" }` |
 
 **Available setting keys:**
 
 | Key | Description |
 |-----|-------------|
-| `org.timezone` | Organisation default timezone (IANA format, e.g. `America/New_York`) |
-| `org.locale` | Organisation locale (e.g. `en-US`) |
+| `organization_name` | Display name for the org, shown in the UI |
+| `date_format` | Display date format (e.g. `YYYY-MM-DD`) |
+| `time_format` | `12h` or `24h` |
+| `locale` | Locale string |
+| `week_start_day` | Which day the week starts on |
+
+There is no organisation-wide timezone — timezone is a per-user field on `User`, not a
+global setting.
 
 ---
 

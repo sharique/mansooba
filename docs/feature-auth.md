@@ -35,8 +35,8 @@ display name, email, timezone, and an optional avatar photo.
 
 ### Avatar storage
 
-- Uploaded via `POST /api/v1/users/me/avatar`
-- Stored on local disk under `uploads/`
+- Uploaded via `POST /api/v1/auth/me/avatar`
+- Stored on local disk under `uploads/avatars/`
 - Served publicly at `/uploads/*` without auth (ADR-026)
 - Falls back to OKLCH-coloured initials when no photo is set (see `UserAvatar` component)
 
@@ -44,9 +44,20 @@ display name, email, timezone, and an optional avatar photo.
 
 - `POST /api/v1/auth/register` requires a valid admin JWT — self-service signup is
   disabled
-- Admins create accounts via `/system/createuser`
+- Admins create accounts via `/system/createuser`, which shows the same password
+  complexity checklist (8+ chars, uppercase, lowercase, digit) as the first-run setup
+  wizard's Admin step
 - Unauthenticated requests → 401; non-admin requests → 403
 - New account credentials are shared directly with the user by the admin
+
+### First-run admin bootstrap (the one true self-service path)
+
+Registration above is admin-only in steady state, but the very first admin account has
+no admin to create it. That's handled by a separate, one-time setup flow — see
+[feature-setup.md](feature-setup.md) and [first-run-wizard.md](first-run-wizard.md):
+`GET /api/v1/setup/status`, `POST /api/v1/setup/admin` (public, rate-limited), plus
+JWT-gated `POST /api/v1/setup/user`, `POST /api/v1/setup/project`, `POST
+/api/v1/setup/seed`. Once an admin exists, this flow is permanently unavailable.
 
 ## API endpoints
 
@@ -58,5 +69,8 @@ See [arch-api.md](arch-api.md) for the full endpoint list. Key auth routes:
 - `POST /api/v1/auth/register` (admin JWT required)
 - `POST /api/v1/auth/forgot-password`
 - `POST /api/v1/auth/reset-password`
-- `GET/PUT /api/v1/users/me`
-- `POST /api/v1/users/me/avatar`
+- `GET/PUT /api/v1/auth/me`
+- `GET /api/v1/auth/me/activity`
+- `GET /api/v1/auth/me/issues`
+- `POST /api/v1/auth/me/avatar`
+- `DELETE /api/v1/auth/me/avatar`

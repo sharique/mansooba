@@ -4,8 +4,8 @@
 
 Issues are the core work item in Mansooba. Each issue belongs to a project and can
 represent a task, story, bug, or epic. Issues support rich metadata (type, status,
-priority, story points, assignee), free-text search, label tagging, and directional
-relationship links between issues.
+priority, story points, assignee), free-text search, label tagging, directional
+relationship links between issues, and file attachments.
 
 ## Implementation details
 
@@ -40,7 +40,34 @@ Status transitions are unconstrained — any status can be set directly from any
 - Integer field; used by sprint burndown and velocity charts
 - No range constraint is enforced
 
+### Attachments
+
+- Files are uploaded to an S3-compatible bucket, never the app server's local disk —
+  real AWS S3 in production, LocalStack in local dev, through the same code path
+  (`STORAGE_ENDPOINT` unset = real S3; set = LocalStack)
+- Object keys follow `{projectKey}/{issueKey}/{uuid}.{ext}` — the original filename is
+  never used as the storage key, so two attachments with identical names on the same
+  issue never collide; the original filename is preserved separately for display and
+  download
+- Upload is backend-mediated (not a direct-to-S3 presigned PUT) so the server can
+  validate content by magic bytes, not just the declared MIME type or file extension —
+  a mismatch (e.g. a `.png` that isn't actually a PNG) is rejected
+- Limits: 10 MB per file, 20 attachments per issue (both server-side, not configurable
+  from the UI)
+- Download returns a short-lived presigned S3 URL as JSON, not a redirect — a redirect
+  can't carry this app's Bearer auth header, and a script-initiated `fetch` can't read a
+  cross-origin redirect's `Location` either. Project membership is checked *before* the
+  URL is generated, so a rejected caller never receives a working link
+- Deleting an issue cascade-deletes both the attachment rows and their S3 objects (a
+  batched `S3.DeleteObjects` call) — never just the DB rows, which would orphan objects
+  in the bucket
+- Delete permission: the uploader, or a project admin (enforced server-side); the UI
+  currently only surfaces the delete control to the uploader, matching the same known
+  gap as comments (no per-project role surfaced to the frontend yet beyond the global
+  `IsAdmin` superadmin flag)
+
 ## API endpoints
 
 See [arch-api.md](arch-api.md). Key issue routes are under
-`/api/v1/projects/:id/issues/`.
+`/api/v1/projects/:id/issues/`. Attachment routes are under
+`/api/v1/issues/:id/attachments/`.

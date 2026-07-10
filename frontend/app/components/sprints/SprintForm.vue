@@ -26,8 +26,41 @@ const form = reactive({
 });
 const submitting = ref(false);
 
+// Today in YYYY-MM-DD — `<input type="date">` values compare correctly as
+// plain strings in this format, no Date parsing needed.
+const today = new Date().toISOString().slice(0, 10);
+
+const nameError = ref(false);
+const startDateError = ref("");
+const endDateError = ref("");
+
+// End date's picker can't go earlier than start date (or today, before a
+// start date is chosen) — matches the "end after start" / "future only"
+// rules enforced on submit below.
+const endDateMin = computed(() => form.start_date || today);
+
+function validate(): boolean {
+    nameError.value = !form.name.trim();
+
+    startDateError.value = !form.start_date
+        ? "Start date is required"
+        : form.start_date < today
+          ? "Start date can't be in the past"
+          : "";
+
+    endDateError.value = !form.end_date
+        ? "End date is required"
+        : form.end_date < today
+          ? "End date can't be in the past"
+          : form.start_date && form.end_date <= form.start_date
+            ? "End date must be after start date"
+            : "";
+
+    return !nameError.value && !startDateError.value && !endDateError.value;
+}
+
 async function submit() {
-    if (!form.name.trim()) return;
+    if (!validate()) return;
     submitting.value = true;
     try {
         let sprint: Sprint;
@@ -95,15 +128,19 @@ function convertToRFC3339Date(mdate: string) {
             <form @submit.prevent="submit" class="flex flex-col gap-3">
                 <label class="form-control">
                     <div class="label">
-                        <span class="label-text">Name *</span>
+                        <span class="label-text">Name <span class="text-error">*</span></span>
                     </div>
                     <input
                         v-model="form.name"
                         type="text"
                         placeholder="Sprint 1"
                         class="input input-bordered w-full"
+                        :class="{ 'input-error': nameError }"
                         required
                     />
+                    <div v-if="nameError" class="label">
+                        <span class="label-text-alt text-error">Sprint name is required</span>
+                    </div>
                 </label>
 
                 <label class="form-control">
@@ -121,23 +158,35 @@ function convertToRFC3339Date(mdate: string) {
                 <div class="grid grid-cols-2 gap-3">
                     <label class="form-control">
                         <div class="label">
-                            <span class="label-text">Start date</span>
+                            <span class="label-text">Start date <span class="text-error">*</span></span>
                         </div>
                         <input
                             v-model="form.start_date"
                             type="date"
+                            :min="today"
                             class="input input-bordered w-full"
+                            :class="{ 'input-error': startDateError }"
+                            required
                         />
+                        <div v-if="startDateError" class="label">
+                            <span class="label-text-alt text-error">{{ startDateError }}</span>
+                        </div>
                     </label>
                     <label class="form-control">
                         <div class="label">
-                            <span class="label-text">End date</span>
+                            <span class="label-text">End date <span class="text-error">*</span></span>
                         </div>
                         <input
                             v-model="form.end_date"
                             type="date"
+                            :min="endDateMin"
                             class="input input-bordered w-full"
+                            :class="{ 'input-error': endDateError }"
+                            required
                         />
+                        <div v-if="endDateError" class="label">
+                            <span class="label-text-alt text-error">{{ endDateError }}</span>
+                        </div>
                     </label>
                 </div>
 

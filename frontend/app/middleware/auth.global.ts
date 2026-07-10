@@ -42,7 +42,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   // Redirect authenticated users away from auth pages → dashboard
-  if (authStore.isAuthenticated && (to.path === '/login' || to.path === '/register')) {
+  if (authStore.isAuthenticated && to.path === '/login') {
     return navigateTo('/', { replace: true })
   }
 })

@@ -35,21 +35,41 @@ Key variables:
 | `SMTP_HOST` | `mailpit` | SMTP server host; use `localhost` when running Mailpit outside Compose |
 | `SMTP_PORT` | `1025` | SMTP port |
 | `SMTP_FROM` | `noreply@mansooba.local` | Sender address for password-reset emails |
+| `STORAGE_ENDPOINT` | *(unset)* | S3-compatible endpoint; set to `http://localhost:4566` for LocalStack, leave unset for real AWS S3 |
+| `STORAGE_ACCESS_KEY_ID` / `STORAGE_SECRET_ACCESS_KEY` | *(unset)* | LocalStack only — use `test`/`test`; leave unset in production (IAM role instead) |
+| `STORAGE_USE_PATH_STYLE` | `false` | Set `true` for LocalStack |
 
 See `backend/.env.example` for the full variable reference.
 
+The backend starts fine with no `STORAGE_*` vars set at all — it only touches storage when an
+attachment is actually uploaded/downloaded/deleted, so you only need this section if you're
+working on that feature.
+
 ---
 
-## 2. Start Mailpit
+## 2. Start Mailpit and LocalStack
 
-Mailpit captures outbound SMTP so password-reset emails don't reach real inboxes. Start it from `compose.yml`:
+Mailpit captures outbound SMTP so password-reset emails don't reach real inboxes. LocalStack
+provides local S3-compatible storage for issue attachments. Start both from `compose.yml` without
+starting the rest of the stack:
 
 ```sh
 cd code
-docker compose up mailpit -d
+docker compose up mailpit localstack localstack-init -d
 ```
 
 Mailpit inbox: **http://localhost:8025**
+
+Since the backend now runs natively (not inside the Compose network), point it at LocalStack via
+`localhost` directly — no `STORAGE_PRESIGN_ENDPOINT` split needed here, unlike the Docker Compose
+guide, because both the backend and your browser are on the host machine:
+
+```sh
+export STORAGE_ENDPOINT=http://localhost:4566
+export STORAGE_ACCESS_KEY_ID=test
+export STORAGE_SECRET_ACCESS_KEY=test
+export STORAGE_USE_PATH_STYLE=true
+```
 
 ---
 

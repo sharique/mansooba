@@ -30,9 +30,19 @@ type issueService struct {
 	activitySvc ActivityService
 	userRepo    domain.UserRepository
 	sprintRepo  domain.SprintRepository
+
+	// attachmentRepo/attachmentStorage are optional (nil unless WithAttachments
+	// is called). When set: enrichIssueResponse populates AttachmentCount, and
+	// Delete cascades — removing the issue's attachments (S3 objects then DB
+	// rows, research.md Decision 9) before deleting the issue itself.
+	attachmentRepo    domain.AttachmentRepository
+	attachmentStorage AttachmentStorage
 }
 
 // NewIssueService returns an IssueService backed by the given repositories.
+// The concrete *issueService type is returned (not the IssueService
+// interface) so callers may optionally chain WithAttachments(...); it still
+// satisfies IssueService for existing callers that only need the interface.
 func NewIssueService(
 	issueRepo domain.IssueRepository,
 	projectRepo domain.ProjectRepository,
@@ -40,7 +50,7 @@ func NewIssueService(
 	activitySvc ActivityService,
 	userRepo domain.UserRepository,
 	sprintRepo domain.SprintRepository,
-) IssueService {
+) *issueService {
 	return &issueService{
 		issueRepo:   issueRepo,
 		projectRepo: projectRepo,
@@ -49,6 +59,15 @@ func NewIssueService(
 		userRepo:    userRepo,
 		sprintRepo:  sprintRepo,
 	}
+}
+
+// WithAttachments attaches attachment support (count enrichment on read,
+// cascade delete on issue removal) — feature 009, added after issues
+// already existed without any notion of attachments.
+func (s *issueService) WithAttachments(repo domain.AttachmentRepository, storage AttachmentStorage) *issueService {
+	s.attachmentRepo = repo
+	s.attachmentStorage = storage
+	return s
 }
 
 var validStatuses = map[string]bool{
@@ -295,6 +314,29 @@ func (s *issueService) Delete(ctx context.Context, projectKey string, id uint, c
 		}
 	}
 
+	// Cascade attachments only after authorization has passed — never destroy
+	// data before confirming the issue delete itself will proceed (research.md
+	// Decision 9). S3 objects go before their DB rows, same ordering as a
+	// single attachment delete.
+	if s.attachmentRepo != nil && s.attachmentStorage != nil {
+		attachments, err := s.attachmentRepo.FindByIssueID(ctx, id)
+		if err != nil {
+			return err
+		}
+		if len(attachments) > 0 {
+			keys := make([]string, len(attachments))
+			for i, a := range attachments {
+				keys[i] = a.ObjectKey
+			}
+			if err := s.attachmentStorage.DeleteAll(ctx, keys); err != nil {
+				return fmt.Errorf("%w: %v", domain.ErrAttachmentStorageUnavailable, err)
+			}
+			if err := s.attachmentRepo.DeleteByIssueID(ctx, id); err != nil {
+				return err
+			}
+		}
+	}
+
 	return s.issueRepo.Delete(ctx, id)
 }
 
@@ -321,6 +363,12 @@ func (s *issueService) GetMyIssues(ctx context.Context, callerID uint, q dto.Iss
 // enrichIssueResponse populates AssigneeName and AssigneeAvatarURL from userRepo when
 // the issue has an assignee.
 func (s *issueService) enrichIssueResponse(ctx context.Context, r *dto.IssueResponse, i *domain.Issue) *dto.IssueResponse {
+	if s.attachmentRepo != nil {
+		if count, err := s.attachmentRepo.CountByIssueID(ctx, i.ID); err == nil {
+			r.AttachmentCount = int(count)
+		}
+	}
+
 	if i.AssigneeID == nil {
 		return r
 	}

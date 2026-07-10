@@ -75,14 +75,13 @@ Vue SFCs grouped by domain. Nuxt auto-imports them with a `<Directory><Component
 
 | Directory | Contents |
 |-----------|---------|
-| `attachments/` | AttachmentPanel, AttachmentItem, upload dropzone |
 | `auth/` | Login/register forms |
 | `backlog/` | BacklogList, BacklogIssueCard, sprint assignment |
 | `board/` | KanbanBoard, KanbanColumn, KanbanCard |
 | `charts/` | BurndownChart, VelocityChart (Chart.js wrappers) |
 | `common/` | EmptyState, UserAvatar (with OKLCH initials fallback) |
 | `dashboard/` | DashboardGrid, MyIssuesWidget, RecentActivityWidget |
-| `issues/` | IssueForm, IssueCard, IssueStatusBadge, IssuePriorityIcon |
+| `issues/` | IssueForm, IssueDetail, AttachmentSection, CommentSection/CommentItem, ActivityFeed, RelatedTasksSection, IssueLabelPicker |
 | `labels/` | LabelPicker, LabelBadge, LabelList |
 | `layout/` | Sidebar, TopBar, ThemeToggle, NotificationBell |
 | `projects/` | ProjectForm, ProjectMemberList |

@@ -46,6 +46,9 @@
       <!-- Related tasks -->
       <IssuesRelatedTasksSection :issue-id="issue.id" :project-key="projectKey" />
 
+      <!-- Attachments -->
+      <IssuesAttachmentSection :issue-id="issue.id" :current-user-id="currentUserId" />
+
       <!-- Activity feed -->
       <div class="mt-6 border-t border-base-200 pt-4">
         <h3 class="font-semibold text-sm mb-3">Activity</h3>
@@ -79,7 +82,7 @@
       <!-- Type -->
       <div class="form-control">
         <label class="label py-1"><span class="label-text font-medium">Type</span></label>
-        <span class="badge badge-outline capitalize">{{ issue.type }}</span>
+        <span class="px-1"><span class="badge badge-outline capitalize px-2">{{ issue.type }}</span></span>
       </div>
 
       <!-- Priority -->
@@ -128,7 +131,7 @@
       <!-- Sprint -->
       <div v-if="sprintName" class="form-control">
         <label class="label py-1"><span class="label-text font-medium">Sprint</span></label>
-        <span class="text-sm">{{ sprintName }}</span>
+        <span class="text-sm px-1">{{ sprintName }}</span>
       </div>
 
       <!-- Labels -->
@@ -140,19 +143,19 @@
       <!-- Created -->
       <div class="form-control">
         <label class="label py-1"><span class="label-text font-medium">Created</span></label>
-        <span class="text-sm text-base-content/60">{{ formatDate(issue.created_at) }}</span>
+        <span class="text-sm text-base-content/60 px-1">{{ formatDate(issue.created_at) }}</span>
       </div>
 
       <!-- Completed -->
       <div v-if="issue.completed_at" class="form-control">
         <label class="label py-1"><span class="label-text font-medium">Completed</span></label>
-        <span class="text-sm text-base-content/60">{{ formatDate(issue.completed_at) }}</span>
+        <span class="text-sm text-base-content/60 px-1">{{ formatDate(issue.completed_at) }}</span>
       </div>
 
       <!-- Reporter -->
       <div class="form-control">
         <label class="label py-1"><span class="label-text font-medium">Reporter</span></label>
-        <span class="text-sm">User #{{ issue.reporter_id }}</span>
+        <span class="text-sm px-1">{{ reporterName }}</span>
       </div>
 
       <!-- Delete -->
@@ -197,6 +200,11 @@ const currentUserId = computed(() => authStore.user?.id ?? 0)
 
 const sprintName = computed(() =>
   props.sprints?.find(s => Number(s.id) === props.issue.sprint_id)?.name ?? null
+)
+
+const reporterName = computed(() =>
+  props.members?.find(m => m.user_id === props.issue.reporter_id)?.name
+    ?? `User #${props.issue.reporter_id}`
 )
 
 const { formatDate } = useTimeFormatter()

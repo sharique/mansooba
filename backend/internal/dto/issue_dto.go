@@ -53,4 +53,5 @@ type IssueResponse struct {
 	StoryPoints        *int       `json:"story_points,omitempty"`
 	CreatedAt          time.Time  `json:"created_at"`
 	CompletedAt        *time.Time `json:"completed_at,omitempty"`
+	AttachmentCount    int        `json:"attachment_count"`
 }

@@ -23,4 +23,10 @@ var (
 
 	// Admin user management errors (feature 007).
 	ErrLastAdmin = errors.New("last admin")
+
+	// Attachment errors (feature 009). ErrAttachmentStorageUnavailable wraps
+	// S3/LocalStack failures on download-presign or delete — handlers map
+	// it to HTTP 502, distinct from a per-file rejection reason on upload.
+	ErrAttachmentCapReached         = errors.New("attachment cap reached")
+	ErrAttachmentStorageUnavailable = errors.New("attachment storage unavailable")
 )

@@ -1,6 +1,6 @@
 # Running locally with Docker
 
-This guide covers how to run the full stack (Go backend + Nuxt frontend + MinIO object storage) locally using containers.
+This guide covers how to run the full stack (Go backend + Nuxt frontend + LocalStack S3-compatible object storage) locally using containers.
 
 The simplest path is **Docker Compose** with the bundled `compose.yml` — it starts everything with a single command and requires no additional tooling.
 
@@ -38,17 +38,21 @@ The simplest path is **Docker Compose** with the bundled `compose.yml` — it st
 | `DB_MAX_IDLE_CONNS` | `2` | Max idle DB connections |
 | `DB_CONN_MAX_LIFETIME` | `0` | Max connection lifetime (e.g. `5m`; `0` = never expire) |
 
-### S3 / Object storage
+### S3 / Attachment storage
+
+Powers issue file attachments. The backend never requires storage connectivity to start —
+it only touches `STORAGE_*` config when a file is actually uploaded, downloaded, or deleted.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `STORAGE_ENDPOINT` | `http://localhost:9000` | S3-compatible endpoint URL (leave empty for AWS S3) |
-| `STORAGE_BUCKET` | `mansooba` | Bucket name |
-| `STORAGE_ACCESS_KEY_ID` | `minioadmin` | Access key (MinIO root user in dev) |
-| `STORAGE_SECRET_ACCESS_KEY` | `minioadmin` | Secret key (MinIO root password in dev) |
-| `STORAGE_REGION` | `us-east-1` | AWS region (MinIO ignores this; any string works) |
+| `STORAGE_ENDPOINT` | *(unset)* | S3-compatible endpoint URL; set to `http://localstack:4566` for the bundled LocalStack container, leave unset for real AWS S3 |
+| `STORAGE_PRESIGN_ENDPOINT` | *(unset, falls back to `STORAGE_ENDPOINT`)* | Overrides the host baked into presigned download URLs. Needed only when `STORAGE_ENDPOINT` is a Docker-internal hostname (like `localstack`) that a browser on the host can't resolve — set to `http://localhost:4566` in that case. Real AWS S3's hostname is reachable identically everywhere, so production never needs this. |
+| `STORAGE_BUCKET` | `mansooba-attachments` | Bucket name |
+| `STORAGE_ACCESS_KEY_ID` | *(unset)* | LocalStack only — use `test`; leave unset in production (the EC2 instance's IAM role is used instead, see ADR-029) |
+| `STORAGE_SECRET_ACCESS_KEY` | *(unset)* | LocalStack only — use `test` |
+| `STORAGE_REGION` | `us-east-1` | AWS region (LocalStack ignores this; any string works) |
 | `STORAGE_PRESIGN_TTL` | `1h` | How long pre-signed download URLs remain valid |
-| `STORAGE_USE_PATH_STYLE` | `true` | Must be `true` for MinIO and most self-hosted S3 alternatives |
+| `STORAGE_USE_PATH_STYLE` | `false` | Set `true` for LocalStack and most self-hosted S3 alternatives |
 
 ### SMTP / Email (Mailpit)
 
@@ -78,8 +82,8 @@ The `compose.yml` at the repo root starts the complete dev stack:
 |---------|-------------|
 | `backend` | Go API server, SQLite database, port 8080 |
 | `frontend` | Static Nuxt app served by nginx, port 3000 |
-| `minio` | S3-compatible object store for file uploads, port 9000 (API) + 9001 (console) |
-| `minio-init` | One-shot job that creates the `mansooba` bucket before the backend starts |
+| `localstack` | S3-compatible object store for issue attachments (community edition), port 4566 |
+| `localstack-init` | One-shot job that creates the `mansooba-attachments` bucket before the backend starts |
 | `mailpit` | SMTP mail catcher — captures all outbound email; web inbox on port 8025 |
 
 The frontend nginx proxies `/api/` to the backend, so the browser only needs to talk to one origin (`localhost:3000`).
@@ -101,11 +105,18 @@ docker compose logs -f
 # Stop
 docker compose down
 
-# Stop and wipe all data (SQLite + MinIO volumes)
+# Stop and wipe all data (SQLite + LocalStack volumes)
 docker compose down -v
 ```
 
-App is at **http://localhost:3000** · API at **http://localhost:8080** · MinIO console at **http://localhost:9001** (user: `minioadmin`, password: `minioadmin`) · Mail inbox at **http://localhost:8025**
+App is at **http://localhost:3000** · API at **http://localhost:8080** · LocalStack health check at **http://localhost:4566/_localstack/health** · Mail inbox at **http://localhost:8025**
+
+LocalStack's community edition has no web console — inspect the bucket with the AWS CLI instead:
+
+```bash
+docker run --rm --network host -e AWS_ACCESS_KEY_ID=test -e AWS_SECRET_ACCESS_KEY=test \
+  amazon/aws-cli:latest --endpoint-url http://localhost:4566 s3 ls s3://mansooba-attachments --recursive
+```
 
 ### First run
 
@@ -143,16 +154,18 @@ docker compose up -d --no-deps frontend
 
 ## Development mode (hot reload)
 
-Run MinIO in Docker and start the backend and frontend natively for instant code feedback.
+Run LocalStack in Docker and start the backend and frontend natively for instant code feedback.
 
 ```bash
-# Start only MinIO (and create the bucket)
-docker compose up minio minio-init
+# Start only LocalStack (and create the bucket)
+docker compose up localstack localstack-init
 
 # Backend (separate terminal)
 cd backend
 JWT_SECRET=dev-secret \
-STORAGE_ENDPOINT=http://localhost:9000 \
+STORAGE_ENDPOINT=http://localhost:4566 \
+STORAGE_ACCESS_KEY_ID=test \
+STORAGE_SECRET_ACCESS_KEY=test \
 STORAGE_USE_PATH_STYLE=true \
 go run ./cmd/server
 
@@ -225,7 +238,9 @@ cd backend
 DB_DRIVER=postgres \
 DB_DSN="host=localhost port=5432 user=mansooba password=mansooba dbname=mansooba sslmode=disable" \
 JWT_SECRET=dev-secret \
-STORAGE_ENDPOINT=http://localhost:9000 \
+STORAGE_ENDPOINT=http://localhost:4566 \
+STORAGE_ACCESS_KEY_ID=test \
+STORAGE_SECRET_ACCESS_KEY=test \
 STORAGE_USE_PATH_STYLE=true \
 go run ./cmd/server
 
@@ -234,14 +249,18 @@ cd backend
 DB_DRIVER=mysql \
 DB_DSN="mansooba:mansooba@tcp(localhost:3306)/mansooba?charset=utf8mb4&parseTime=True&loc=Local" \
 JWT_SECRET=dev-secret \
-STORAGE_ENDPOINT=http://localhost:9000 \
+STORAGE_ENDPOINT=http://localhost:4566 \
+STORAGE_ACCESS_KEY_ID=test \
+STORAGE_SECRET_ACCESS_KEY=test \
 STORAGE_USE_PATH_STYLE=true \
 go run ./cmd/server
 ```
 
-> MinIO must also be running for the backend to fully start. See the **Development mode** section for how to run MinIO alone from `compose.yml`.
+> The backend starts fine without LocalStack running — it only needs storage connectivity when
+> an attachment is actually uploaded/downloaded/deleted. See the **Development mode** section for
+> how to run LocalStack alone from `compose.yml` if you're working on that feature.
 
-### Full compose override (Postgres + MinIO)
+### Full compose override (Postgres + LocalStack)
 
 If you want Docker Compose to manage the database too, create a `compose.override.yml` at `code/`:
 
@@ -319,195 +338,36 @@ Docker Compose merges the two files — the override adds the `db` service and p
 
 ---
 
-## Option 3 — ddev
-
-[ddev](https://ddev.readthedocs.io) supports custom project types and is suited for polyglot stacks.
-
-> **Note**: The ddev config below does not include MinIO. You will need to add a `docker-compose.minio.yaml` service file analogous to the `minio` and `minio-init` services in `compose.yml`, and point `STORAGE_ENDPOINT` at it.
-
-### Install ddev
-
-```bash
-# macOS
-brew install ddev/ddev/ddev
-
-# Linux / WSL2
-curl -fsSL https://ddev.com/install.sh | bash
-```
-
-### Configuration
-
-**`.ddev/config.yaml`** (at `code/`)
-
-```yaml
-name: mansooba
-type: generic
-docroot: ""
-webserver_type: generic
-router_http_port: "3000"
-router_https_port: "3443"
-database:
-  type: postgres
-  version: "16"
-```
-
-**`.ddev/docker-compose.backend.yaml`**
-
-```yaml
-services:
-  backend:
-    image: golang:alpine
-    working_dir: /app
-    volumes:
-      - ../backend:/app
-    command: go run ./cmd/server
-    environment:
-      SERVER_PORT: "8080"
-      DB_DRIVER: postgres
-      DB_DSN: "host=db port=5432 user=db password=db dbname=db sslmode=disable"
-      JWT_SECRET: "ddev-dev-secret"
-      CORS_ORIGINS: "http://mansooba.ddev.site:3000"
-      LOG_LEVEL: debug
-      STORAGE_ENDPOINT: "http://minio:9000"
-      STORAGE_USE_PATH_STYLE: "true"
-    ports:
-      - "8080:8080"
-    depends_on:
-      - db
-```
-
-**`.ddev/docker-compose.frontend.yaml`**
-
-```yaml
-services:
-  frontend:
-    image: node:22-alpine
-    working_dir: /app
-    volumes:
-      - ../frontend:/app
-    command: sh -c "npm install && npm run dev"
-    environment:
-      NUXT_PUBLIC_API_BASE_URL: "http://backend:8080/api/v1"
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
-```
-
-### Running with ddev
-
-```bash
-cd code
-ddev start
-
-ddev logs -s backend
-ddev logs -s frontend
-
-ddev stop
-ddev delete --omit-snapshot
-```
-
----
-
-## Option 4 — Lando
-
-[Lando](https://lando.dev) is a Docker-based dev tool with first-class support for custom multi-service stacks.
-
-> **Note**: Same caveat as ddev — MinIO needs to be added as a custom service.
-
-### Install Lando
-
-```bash
-brew install lando   # macOS
-# Linux/Windows: https://lando.dev/download
-```
-
-### Configuration
-
-**`.lando.yml`** (at `code/`)
-
-```yaml
-name: mansooba
-recipe: lamp
-
-services:
-  db:
-    type: postgres:16
-    portforward: 5432
-    creds:
-      user: mansooba
-      password: mansooba
-      database: mansooba
-
-  backend:
-    type: go:1.21
-    ssl: false
-    command: go run ./cmd/server
-    overrides:
-      environment:
-        SERVER_PORT: "8080"
-        DB_DRIVER: postgres
-        DB_DSN: "host=database port=5432 user=mansooba password=mansooba dbname=mansooba sslmode=disable"
-        JWT_SECRET: "lando-dev-secret"
-        CORS_ORIGINS: "http://localhost:3000"
-        LOG_LEVEL: debug
-
-  frontend:
-    type: node:22
-    ssl: false
-    command: npm run dev
-    overrides:
-      environment:
-        NUXT_PUBLIC_API_BASE_URL: "http://backend:8080/api/v1"
-
-proxy:
-  frontend:
-    - mansooba.lndo.site:3000
-  backend:
-    - api.mansooba.lndo.site:8080
-```
-
-### Running with Lando
-
-```bash
-cd code
-lando start
-lando go test ./...
-lando npm run typecheck
-lando stop
-lando destroy
-```
-
----
-
 ## Troubleshooting
 
-**Backend fails to start — "failed to initialise object storage"**  
-The `STORAGE_*` variables are missing or the MinIO container isn't ready yet. If using `compose.yml`, verify the `minio-init` job completed:
+**`jwt: JWT_SECRET must not be empty` panic**  
+Set `JWT_SECRET` in the environment. The backend refuses to start without it — this is the only
+env var the backend requires at boot. It does *not* need working `STORAGE_*`/database connectivity
+to start; those are checked lazily, on the first request that actually needs them.
+
+**Attachment upload/download/delete returns 502 "storage temporarily unavailable"**  
+The backend can't reach LocalStack (or, in production, real S3). If using `compose.yml`, verify
+the `localstack-init` job completed and `localstack` itself is healthy:
 
 ```bash
-docker compose logs minio-init
+docker compose logs localstack-init
+docker compose ps localstack
 ```
 
-**`jwt: JWT_SECRET must not be empty` panic**  
-Set `JWT_SECRET` in the environment. The backend refuses to start without it.
-
 **Port conflicts**  
-If `:9000`, `:8080`, or `:3000` are already in use, stop the conflicting service or change the host port mapping in `compose.yml`:
+If `:4566`, `:8080`, or `:3000` are already in use, stop the conflicting service or change the host
+port mapping in `compose.yml`:
 
 ```yaml
-minio:
+localstack:
   ports:
-    - "9002:9000"   # MinIO API on host 9002
+    - "4567:4566"   # LocalStack API on host 4567 — also update STORAGE_ENDPOINT accordingly
 ```
 
 **Frontend shows API errors / blank page**  
 `CORS_ORIGINS` must match the exact origin you're accessing from (scheme + host + port). If accessing via `http://localhost:3000`, set `CORS_ORIGINS=http://localhost:3000`.
 
-**Health endpoint shows `"storage":"error"`**  
-The backend is running but can't reach MinIO. Check that the `minio` container is healthy:
-
-```bash
-docker compose ps minio
-docker compose logs minio
-```
+**Attachment download link doesn't work when accessed from a different machine**  
+`STORAGE_PRESIGN_ENDPOINT` (or `STORAGE_ENDPOINT` if the override is unset) must be a host your
+*browser* can resolve, not just the backend container. `http://localhost:4566` only works when the
+browser is on the same machine as the LocalStack container.
