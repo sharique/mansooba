@@ -14,7 +14,7 @@
       <div v-if="editing">
         <textarea v-model="editBody" class="textarea textarea-bordered w-full text-sm" rows="3" />
         <div class="flex gap-2 mt-1">
-          <button class="btn btn-xs btn-primary" @click="saveEdit">Save</button>
+          <button class="btn btn-xs btn-primary" :disabled="!editBody.trim()" @click="saveEdit">Save</button>
           <button class="btn btn-xs btn-ghost" @click="editing = false">Cancel</button>
         </div>
       </div>
@@ -47,6 +47,7 @@ function startEdit() {
   editing.value = true
 }
 function saveEdit() {
+  if (!editBody.value.trim()) return
   emit('update', props.comment.id, editBody.value)
   editing.value = false
 }

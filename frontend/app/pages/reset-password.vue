@@ -38,10 +38,25 @@
                 v-model="password"
                 type="password"
                 class="input input-bordered w-full"
+                :class="{ 'input-error': passwordTouched && !allRulesPassed }"
                 placeholder="Minimum 8 characters"
-                minlength="8"
                 :disabled="loading"
+                @input="passwordTouched = true"
               />
+              <ul class="text-sm mt-1 space-y-0.5" aria-label="Password requirements">
+                <li :class="rules.length ? 'text-success' : 'text-base-content/50'">
+                  {{ rules.length ? '✓' : '○' }} At least 8 characters
+                </li>
+                <li :class="rules.upper ? 'text-success' : 'text-base-content/50'">
+                  {{ rules.upper ? '✓' : '○' }} At least one uppercase letter
+                </li>
+                <li :class="rules.lower ? 'text-success' : 'text-base-content/50'">
+                  {{ rules.lower ? '✓' : '○' }} At least one lowercase letter
+                </li>
+                <li :class="rules.digit ? 'text-success' : 'text-base-content/50'">
+                  {{ rules.digit ? '✓' : '○' }} At least one number
+                </li>
+              </ul>
             </div>
 
             <div v-if="errorMessage" class="alert alert-error mt-4 py-2 text-sm">
@@ -78,8 +93,20 @@ const password = ref('')
 const loading = ref(false)
 const errorMessage = ref('')
 const tokenError = ref('')
+const passwordTouched = ref(false)
 
-const canSubmit = computed(() => token.value.length === 64 && password.value.length >= 8)
+// Mirrors the backend's password_complexity validator exactly (main.go):
+// 8+ chars, at least one uppercase, one lowercase, one digit.
+const rules = reactive({ length: false, upper: false, lower: false, digit: false })
+watch(password, (pw) => {
+  rules.length = pw.length >= 8
+  rules.upper = /[A-Z]/.test(pw)
+  rules.lower = /[a-z]/.test(pw)
+  rules.digit = /[0-9]/.test(pw)
+})
+const allRulesPassed = computed(() => rules.length && rules.upper && rules.lower && rules.digit)
+
+const canSubmit = computed(() => token.value.length === 64 && allRulesPassed.value)
 
 async function submit() {
   tokenError.value = ''

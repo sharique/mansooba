@@ -6,10 +6,13 @@
         v-model="form.name"
         type="text"
         class="input input-bordered w-full"
+        :class="{ 'input-error': nameError }"
         placeholder="My Project"
-        required
         @input="autoKey"
       />
+      <label v-if="nameError" class="label">
+        <span class="label-text-alt text-error">Project name is required</span>
+      </label>
     </div>
 
     <div class="form-control w-full mb-4">
@@ -18,11 +21,17 @@
         v-model="form.key"
         type="text"
         class="input input-bordered w-full font-mono lowercase"
+        :class="{ 'input-disabled': !!project }"
         placeholder="proj"
         maxlength="10"
+        :disabled="!!project"
         @input="form.key = form.key.toLowerCase()"
       />
-      <label class="label"><span class="label-text-alt text-base-content/60">Auto-generated from name, max 10 chars</span></label>
+      <label class="label">
+        <span class="label-text-alt text-base-content/60">
+          {{ project ? "Key can't be changed after creation" : 'Auto-generated from name, max 10 chars' }}
+        </span>
+      </label>
     </div>
 
     <div class="form-control w-full mb-4">
@@ -60,6 +69,7 @@ const emit = defineEmits<{ saved: [project: Project]; cancel: [] }>()
 const projectsStore = useProjectsStore()
 const loading = ref(false)
 const errorMessage = ref('')
+const nameError = ref(false)
 
 const form = reactive({
   name: props.project?.name ?? '',
@@ -73,6 +83,9 @@ function autoKey() {
 }
 
 async function submit() {
+  nameError.value = !form.name.trim()
+  if (nameError.value) return
+
   loading.value = true
   errorMessage.value = ''
   try {
