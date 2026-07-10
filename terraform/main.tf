@@ -104,10 +104,11 @@ module "compute" {
   instance_profile_name = module.iam.instance_profile_name
   ssh_public_key        = var.ssh_public_key
   user_data = templatefile("${path.root}/user-data.sh", {
-    aws_region = var.aws_region
-    smtp_host  = module.ses.smtp_host
-    smtp_port  = module.ses.smtp_port
-    smtp_from  = module.ses.smtp_from
+    aws_region     = var.aws_region
+    smtp_host      = module.ses.smtp_host
+    smtp_port      = module.ses.smtp_port
+    smtp_from      = module.ses.smtp_from
+    storage_bucket = module.storage.bucket_name
   })
 }
 
