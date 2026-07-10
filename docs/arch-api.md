@@ -116,9 +116,9 @@ All routes below are scoped to a specific issue (`/issues/:id/`).
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/issues/:id/attachments` | Upload a file (multipart; max 4 MB per request) |
+| POST | `/issues/:id/attachments` | Upload one or more files (multipart; max 10 MB per file, 25 MB per request — a route-scoped override of the global 4 MB body limit) |
 | GET | `/issues/:id/attachments` | List attachments (returns metadata, not binaries) |
-| GET | `/issues/:id/attachments/:aid/download` | Get a pre-signed download URL (1 h TTL) |
+| GET | `/issues/:id/attachments/:aid/download` | Get a pre-signed download URL as JSON (1 h TTL, not a 302 redirect) |
 | DELETE | `/issues/:id/attachments/:aid` | Delete an attachment (removes from S3 too) |
 
 ### Relations

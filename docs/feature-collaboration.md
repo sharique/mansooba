@@ -32,6 +32,8 @@ Events recorded:
 - Sprint assignment — the sprint name is captured at the time of the move, not stored by
   ID, so history is stable even if the sprint is later renamed (e.g. "Sprint Alpha"
   remains "Sprint Alpha" in older feed entries)
+- Attachment upload (`attachment_added`) and deletion (`attachment_removed`) — see
+  [feature-issues.md](feature-issues.md#attachments)
 
 ### My Activity feed
 
