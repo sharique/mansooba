@@ -17,7 +17,9 @@ const maxAttachmentsPerIssue = 20
 // package) so unit tests can stub it — *attachmentstorage.Storage satisfies
 // this interface without any changes on its side.
 type AttachmentStorage interface {
-	Save(ctx context.Context, issueID uint, filename string, data []byte, contentType string) (objectKey string, err error)
+	// Save writes data under keyPrefix (e.g. "PROJ/PROJ-3" — a project key
+	// and issue key) and returns the generated object key.
+	Save(ctx context.Context, keyPrefix string, filename string, data []byte, contentType string) (objectKey string, err error)
 	PresignGet(ctx context.Context, objectKey, filename string) (string, error)
 	Delete(ctx context.Context, objectKey string) error
 	DeleteAll(ctx context.Context, objectKeys []string) error
@@ -38,6 +40,7 @@ type AttachmentService interface {
 type attachmentService struct {
 	attachmentRepo domain.AttachmentRepository
 	issueRepo      domain.IssueRepository
+	projectRepo    domain.ProjectRepository
 	memberRepo     domain.ProjectMemberRepository
 	activitySvc    ActivityService
 	userRepo       domain.UserRepository
@@ -47,6 +50,7 @@ type attachmentService struct {
 func NewAttachmentService(
 	attachmentRepo domain.AttachmentRepository,
 	issueRepo domain.IssueRepository,
+	projectRepo domain.ProjectRepository,
 	memberRepo domain.ProjectMemberRepository,
 	activitySvc ActivityService,
 	userRepo domain.UserRepository,
@@ -55,6 +59,7 @@ func NewAttachmentService(
 	return &attachmentService{
 		attachmentRepo: attachmentRepo,
 		issueRepo:      issueRepo,
+		projectRepo:    projectRepo,
 		memberRepo:     memberRepo,
 		activitySvc:    activitySvc,
 		userRepo:       userRepo,
@@ -92,13 +97,21 @@ func (s *attachmentService) Upload(ctx context.Context, issueID, callerID uint, 
 		return nil, domain.ErrAttachmentCapReached
 	}
 
+	project, err := s.projectRepo.FindByID(ctx, issue.ProjectID)
+	if err != nil {
+		return nil, err
+	}
+	// e.g. "PROJ/PROJ-3" — objects for an issue live under its project key
+	// and issue key, not an opaque numeric ID.
+	keyPrefix := project.Key + "/" + issue.Key
+
 	result := &dto.AttachmentUploadResult{
 		Uploaded: []dto.AttachmentResponse{},
 		Rejected: []dto.AttachmentRejection{},
 	}
 
 	for _, f := range files {
-		key, err := s.storage.Save(ctx, issueID, f.Filename, f.Data, f.ContentType)
+		key, err := s.storage.Save(ctx, keyPrefix, f.Filename, f.Data, f.ContentType)
 		if err != nil {
 			result.Rejected = append(result.Rejected, dto.AttachmentRejection{
 				Filename: f.Filename,

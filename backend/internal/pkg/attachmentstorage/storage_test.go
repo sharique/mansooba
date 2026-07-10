@@ -67,16 +67,16 @@ func newStorage(t *testing.T) *attachmentstorage.Storage {
 
 func TestSave_ValidPNG(t *testing.T) {
 	s := newStorage(t)
-	key, err := s.Save(context.Background(), 1, "screenshot.png", minimalPNG, "image/png")
+	key, err := s.Save(context.Background(), "PROJ/PROJ-1", "screenshot.png", minimalPNG, "image/png")
 	require.NoError(t, err)
-	assert.Contains(t, key, "issues/1/")
+	assert.Contains(t, key, "PROJ/PROJ-1/")
 }
 
 func TestSave_OversizedFileRejected(t *testing.T) {
 	s := newStorage(t)
 	big := make([]byte, 11*1024*1024) // 11 MB, over the 10 MB cap
 	copy(big, minimalPNG)
-	_, err := s.Save(context.Background(), 1, "big.png", big, "image/png")
+	_, err := s.Save(context.Background(), "PROJ/PROJ-1", "big.png", big, "image/png")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "size")
 }
@@ -84,27 +84,27 @@ func TestSave_OversizedFileRejected(t *testing.T) {
 func TestSave_WrongContentTypeRejected(t *testing.T) {
 	s := newStorage(t)
 	data := []byte("this is not an image")
-	_, err := s.Save(context.Background(), 1, "hack.png", data, "image/png")
+	_, err := s.Save(context.Background(), "PROJ/PROJ-1", "hack.png", data, "image/png")
 	require.Error(t, err)
 }
 
 func TestSave_DisallowedTypeRejected(t *testing.T) {
 	s := newStorage(t)
 	exe := []byte("MZ\x90\x00\x03\x00\x00\x00") // PE/EXE magic bytes
-	_, err := s.Save(context.Background(), 1, "malware.exe", exe, "application/x-msdownload")
+	_, err := s.Save(context.Background(), "PROJ/PROJ-1", "malware.exe", exe, "application/x-msdownload")
 	require.Error(t, err)
 }
 
 func TestSave_OOXMLDeclaredAsZipSignatureAccepted(t *testing.T) {
 	s := newStorage(t)
-	_, err := s.Save(context.Background(), 1, "report.docx",
+	_, err := s.Save(context.Background(), "PROJ/PROJ-1", "report.docx",
 		minimalZip, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 	require.NoError(t, err, "OOXML formats are ZIP containers — declaring docx over a ZIP signature must be accepted")
 }
 
 func TestSave_LegacyOfficeDeclaredAsOLESignatureAccepted(t *testing.T) {
 	s := newStorage(t)
-	_, err := s.Save(context.Background(), 1, "report.doc", minimalOLE, "application/msword")
+	_, err := s.Save(context.Background(), "PROJ/PROJ-1", "report.doc", minimalOLE, "application/msword")
 	require.NoError(t, err, "legacy Office formats share the OLE Compound File signature and must be accepted")
 }
 
@@ -112,23 +112,23 @@ func TestSave_OLESignatureDeclaredAsWrongLegacyOfficeTypeRejected(t *testing.T) 
 	s := newStorage(t)
 	// Actual bytes are a valid OLE compound file, but declared as a ZIP-based
 	// OOXML type — the signature families don't overlap, so this must be rejected.
-	_, err := s.Save(context.Background(), 1, "fake.docx",
+	_, err := s.Save(context.Background(), "PROJ/PROJ-1", "fake.docx",
 		minimalOLE, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
 	require.Error(t, err)
 }
 
 func TestSave_TwoFilesSameFilenameGetDistinctKeys(t *testing.T) {
 	s := newStorage(t)
-	key1, err := s.Save(context.Background(), 2, "report.png", minimalPNG, "image/png")
+	key1, err := s.Save(context.Background(), "PROJ/PROJ-2", "report.png", minimalPNG, "image/png")
 	require.NoError(t, err)
-	key2, err := s.Save(context.Background(), 2, "report.png", minimalPNG, "image/png")
+	key2, err := s.Save(context.Background(), "PROJ/PROJ-2", "report.png", minimalPNG, "image/png")
 	require.NoError(t, err)
 	assert.NotEqual(t, key1, key2, "two uploads of the same filename must not collide on storage")
 }
 
 func TestPresignGet_ReturnsWorkingSignedURL(t *testing.T) {
 	s := newStorage(t)
-	key, err := s.Save(context.Background(), 3, "doc.png", minimalPNG, "image/png")
+	key, err := s.Save(context.Background(), "PROJ/PROJ-3", "doc.png", minimalPNG, "image/png")
 	require.NoError(t, err)
 
 	url, err := s.PresignGet(context.Background(), key, "doc.png")
@@ -165,7 +165,7 @@ func TestPresignGet_UsesPresignEndpointOverride(t *testing.T) {
 		t.Skipf("LocalStack not reachable at localhost:4566 (%v) — run `docker compose up -d localstack localstack-init`", herr)
 	}
 	resp.Body.Close()
-	key, err := writer.Save(context.Background(), 6, "override.png", minimalPNG, "image/png")
+	key, err := writer.Save(context.Background(), "PROJ/PROJ-6", "override.png", minimalPNG, "image/png")
 	require.NoError(t, err)
 
 	url, err := s.PresignGet(context.Background(), key, "override.png")
@@ -175,7 +175,7 @@ func TestPresignGet_UsesPresignEndpointOverride(t *testing.T) {
 
 func TestDelete_RemovesObject(t *testing.T) {
 	s := newStorage(t)
-	key, err := s.Save(context.Background(), 4, "temp.png", minimalPNG, "image/png")
+	key, err := s.Save(context.Background(), "PROJ/PROJ-4", "temp.png", minimalPNG, "image/png")
 	require.NoError(t, err)
 
 	err = s.Delete(context.Background(), key)
@@ -194,7 +194,7 @@ func TestDeleteAll_RemovesMultipleObjects(t *testing.T) {
 	s := newStorage(t)
 	var keys []string
 	for i := 0; i < 3; i++ {
-		key, err := s.Save(context.Background(), 5, "batch.png", minimalPNG, "image/png")
+		key, err := s.Save(context.Background(), "PROJ/PROJ-5", "batch.png", minimalPNG, "image/png")
 		require.NoError(t, err)
 		keys = append(keys, key)
 	}

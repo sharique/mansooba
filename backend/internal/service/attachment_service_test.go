@@ -98,7 +98,7 @@ type stubAttachmentStorage struct {
 	nextKeyIndex int
 }
 
-func (s *stubAttachmentStorage) Save(_ context.Context, issueID uint, filename string, data []byte, _ string) (string, error) {
+func (s *stubAttachmentStorage) Save(_ context.Context, keyPrefix string, filename string, data []byte, _ string) (string, error) {
 	if s.saveErr != nil {
 		return "", s.saveErr
 	}
@@ -133,15 +133,15 @@ func (s *stubAttachmentStorage) DeleteAll(_ context.Context, keys []string) erro
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-func newAttachmentTestDeps() (*stubAttachmentRepo, *stubIssueRepo, *stubProjectMemberRepo, *stubActivitySvc, *stubUserRepo, *stubAttachmentStorage) {
-	return newStubAttachmentRepo(), newStubIssueRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo(), &stubAttachmentStorage{}
+func newAttachmentTestDeps() (*stubAttachmentRepo, *stubIssueRepo, *stubProjectRepo, *stubProjectMemberRepo, *stubActivitySvc, *stubUserRepo, *stubAttachmentStorage) {
+	return newStubAttachmentRepo(), newStubIssueRepo(), newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo(), &stubAttachmentStorage{}
 }
 
 func newAttachmentService(
-	attachmentRepo *stubAttachmentRepo, issueRepo *stubIssueRepo, memberRepo *stubProjectMemberRepo,
+	attachmentRepo *stubAttachmentRepo, issueRepo *stubIssueRepo, projectRepo *stubProjectRepo, memberRepo *stubProjectMemberRepo,
 	activitySvc *stubActivitySvc, userRepo *stubUserRepo, storage *stubAttachmentStorage,
 ) service.AttachmentService {
-	return service.NewAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	return service.NewAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 }
 
 func mustCreateUser(t *testing.T, userRepo *stubUserRepo, id uint, name string) {
@@ -152,11 +152,12 @@ func mustCreateUser(t *testing.T, userRepo *stubUserRepo, id uint, name string) 
 // ── Upload ────────────────────────────────────────────────────────────────────
 
 func TestAttachmentService_Upload_MemberCanUpload(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issue := &domain.Issue{ID: 1, ProjectID: 10, Key: "P-1", Title: "t", Type: domain.IssueTypeTask, Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityMedium, ReporterID: 42}
 	issueRepo.issues = append(issueRepo.issues, issue)
+	projectRepo.projects["PROJ"] = &domain.Project{ID: 10, Key: "PROJ"}
 	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"})
 	mustCreateUser(t, userRepo, 42, "Alice")
 
@@ -173,10 +174,11 @@ func TestAttachmentService_Upload_MemberCanUpload(t *testing.T) {
 }
 
 func TestAttachmentService_Upload_AdminCanUpload(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
-	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, Key: "PROJ-1", ReporterID: 1})
+	projectRepo.projects["PROJ"] = &domain.Project{ID: 10, Key: "PROJ"}
 	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 99, Role: "admin"})
 	mustCreateUser(t, userRepo, 99, "Admin")
 
@@ -188,8 +190,8 @@ func TestAttachmentService_Upload_AdminCanUpload(t *testing.T) {
 }
 
 func TestAttachmentService_Upload_ViewerForbidden(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
 	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 7, Role: "viewer"})
@@ -202,8 +204,8 @@ func TestAttachmentService_Upload_ViewerForbidden(t *testing.T) {
 }
 
 func TestAttachmentService_Upload_NonMemberForbidden(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
 
@@ -214,14 +216,15 @@ func TestAttachmentService_Upload_NonMemberForbidden(t *testing.T) {
 }
 
 func TestAttachmentService_Upload_PerFileStorageFailureIsRejectedNotFatal(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, _ := newAttachmentTestDeps()
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, _ := newAttachmentTestDeps()
 
-	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, Key: "PROJ-1", ReporterID: 1})
+	projectRepo.projects["PROJ"] = &domain.Project{ID: 10, Key: "PROJ"}
 	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"})
 	mustCreateUser(t, userRepo, 42, "Alice")
 
 	failing := &failingOnceStorage{failFilename: "bad.exe"}
-	svc := service.NewAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, failing)
+	svc := service.NewAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, failing)
 
 	result, err := svc.Upload(context.Background(), 1, 42, []dto.AttachmentUploadFile{
 		{Filename: "good.png", Data: []byte("x"), ContentType: "image/png"},
@@ -243,7 +246,7 @@ type failingOnceStorage struct {
 	saved        []string
 }
 
-func (s *failingOnceStorage) Save(_ context.Context, _ uint, filename string, _ []byte, _ string) (string, error) {
+func (s *failingOnceStorage) Save(_ context.Context, _ string, filename string, _ []byte, _ string) (string, error) {
 	if filename == s.failFilename {
 		return "", errors.New("content type not accepted")
 	}
@@ -258,8 +261,8 @@ func (s *failingOnceStorage) Delete(_ context.Context, _ string) error      { re
 func (s *failingOnceStorage) DeleteAll(_ context.Context, _ []string) error { return nil }
 
 func TestAttachmentService_Upload_CapReached(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
 	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"})
@@ -278,8 +281,8 @@ func TestAttachmentService_Upload_CapReached(t *testing.T) {
 // ── List ──────────────────────────────────────────────────────────────────────
 
 func TestAttachmentService_List_ViewerCanList(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
 	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 7, Role: "viewer"})
@@ -293,8 +296,8 @@ func TestAttachmentService_List_ViewerCanList(t *testing.T) {
 }
 
 func TestAttachmentService_List_NonMemberForbidden(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
 
 	_, err := svc.List(context.Background(), 1, 999)
@@ -304,8 +307,8 @@ func TestAttachmentService_List_NonMemberForbidden(t *testing.T) {
 // ── GenerateDownloadURL ──────────────────────────────────────────────────────
 
 func TestAttachmentService_GenerateDownloadURL_MemberCanDownload(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
 	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"})
@@ -318,8 +321,8 @@ func TestAttachmentService_GenerateDownloadURL_MemberCanDownload(t *testing.T) {
 }
 
 func TestAttachmentService_GenerateDownloadURL_NonMemberForbidden_NoURLGenerated(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
 	attachmentRepo.attachments = append(attachmentRepo.attachments, &domain.Attachment{ID: 5, IssueID: 1, ObjectKey: "issues/1/x.png", Filename: "x.png"})
@@ -330,8 +333,8 @@ func TestAttachmentService_GenerateDownloadURL_NonMemberForbidden_NoURLGenerated
 }
 
 func TestAttachmentService_GenerateDownloadURL_WrongIssueNotFound(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
 	attachmentRepo.attachments = append(attachmentRepo.attachments, &domain.Attachment{ID: 5, IssueID: 999, ObjectKey: "issues/999/x.png", Filename: "x.png"})
@@ -343,8 +346,8 @@ func TestAttachmentService_GenerateDownloadURL_WrongIssueNotFound(t *testing.T) 
 // ── Delete ────────────────────────────────────────────────────────────────────
 
 func TestAttachmentService_Delete_UploaderCanDeleteOwn(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
 	attachmentRepo.attachments = append(attachmentRepo.attachments, &domain.Attachment{ID: 5, IssueID: 1, UploaderID: 42, ObjectKey: "issues/1/x.png", Filename: "x.png"})
@@ -358,8 +361,8 @@ func TestAttachmentService_Delete_UploaderCanDeleteOwn(t *testing.T) {
 }
 
 func TestAttachmentService_Delete_AdminCanDeleteOthers(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
 	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 99, Role: "admin"})
@@ -371,8 +374,8 @@ func TestAttachmentService_Delete_AdminCanDeleteOthers(t *testing.T) {
 }
 
 func TestAttachmentService_Delete_RegularMemberForbidden(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
 	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 7, Role: "member"})
@@ -384,8 +387,8 @@ func TestAttachmentService_Delete_RegularMemberForbidden(t *testing.T) {
 }
 
 func TestAttachmentService_Delete_ViewerForbiddenEvenIfSomehowUploader(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
 	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 7, Role: "viewer"})
@@ -397,9 +400,9 @@ func TestAttachmentService_Delete_ViewerForbiddenEvenIfSomehowUploader(t *testin
 }
 
 func TestAttachmentService_Delete_StorageFailureLeavesDBRowIntact(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
 	storage.deleteErr = errors.New("s3 unavailable")
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
 	attachmentRepo.attachments = append(attachmentRepo.attachments, &domain.Attachment{ID: 5, IssueID: 1, UploaderID: 42, ObjectKey: "issues/1/x.png", Filename: "x.png"})
@@ -410,8 +413,8 @@ func TestAttachmentService_Delete_StorageFailureLeavesDBRowIntact(t *testing.T) 
 }
 
 func TestAttachmentService_Delete_WrongIssueNotFound(t *testing.T) {
-	attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
-	svc := newAttachmentService(attachmentRepo, issueRepo, memberRepo, activitySvc, userRepo, storage)
+	attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage := newAttachmentTestDeps()
+	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	attachmentRepo.attachments = append(attachmentRepo.attachments, &domain.Attachment{ID: 5, IssueID: 999, UploaderID: 42, ObjectKey: "issues/999/x.png", Filename: "x.png"})
 

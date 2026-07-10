@@ -125,7 +125,7 @@ func main() {
 	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo)
 	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
 	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc, notifRepo, userRepo)
-	attachmentSvc := service.NewAttachmentService(attachmentRepo, issueRepo, projectMemberRepo, activitySvc, userRepo, attachmentStorage)
+	attachmentSvc := service.NewAttachmentService(attachmentRepo, issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, attachmentStorage)
 	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
 	settingSvc := service.NewSettingService(settingRepo)
 	issueRelationSvc := service.NewIssueRelationService(issueRelationRepo, issueRepo)

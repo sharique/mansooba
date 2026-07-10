@@ -182,14 +182,20 @@ func New(cfg Config) (*Storage, error) {
 	}, nil
 }
 
-// Save validates data, writes it to S3 under a generated key, and returns
-// that key. Returns an error if the file exceeds maxBytes or the content
-// type is not accepted.
+// Save validates data, writes it to S3 under a generated key within
+// keyPrefix, and returns that key. Returns an error if the file exceeds
+// maxBytes or the content type is not accepted.
+//
+// keyPrefix is caller-supplied (e.g. "PROJ/PROJ-3", a project key and issue
+// key) and used verbatim as the S3 key's directory portion — the object
+// itself always gets a generated, collision-proof filename
+// ("<uuid>.<ext>") within it, so multiple attachments on the same issue,
+// even with identical original filenames, never collide (data-model.md).
 //
 // Validation happens entirely before the S3 write (ADR-029, research.md
 // Decision 2 & 9): the object key is only returned — and only ever
 // persisted by the caller — once the write to S3 has succeeded.
-func (s *Storage) Save(ctx context.Context, issueID uint, _ string, data []byte, contentType string) (string, error) {
+func (s *Storage) Save(ctx context.Context, keyPrefix string, _ string, data []byte, contentType string) (string, error) {
 	if len(data) > maxBytes {
 		return "", fmt.Errorf("file size %d exceeds maximum %d bytes", len(data), maxBytes)
 	}
@@ -205,7 +211,7 @@ func (s *Storage) Save(ctx context.Context, issueID uint, _ string, data []byte,
 		return "", fmt.Errorf("declared content type %q does not match detected content (sniffed as %q)", contentType, detected)
 	}
 
-	key := path.Join("issues", fmt.Sprintf("%d", issueID), fmt.Sprintf("%s.%s", uuid.NewString(), ext))
+	key := path.Join(keyPrefix, fmt.Sprintf("%s.%s", uuid.NewString(), ext))
 
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      aws.String(s.bucket),

@@ -18,6 +18,10 @@
       >
     </div>
 
+    <p class="text-xs text-base-content/40 -mt-2 mb-3">
+      Images, PDF, text, CSV, ZIP, Word, Excel, PowerPoint · Max 10 MB per file · Up to 20 files per issue
+    </p>
+
     <!-- Attachment list -->
     <div v-if="store.attachments.length" class="space-y-2">
       <div
