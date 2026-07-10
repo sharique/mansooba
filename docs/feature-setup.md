@@ -13,7 +13,7 @@ import, and a summary screen.
 
 - The Nuxt middleware checks `GET /api/v1/setup/status` on every navigation
 - If no admin exists, the response instructs the frontend to redirect to `/setup`
-- Once setup is complete, visiting `/setup` redirects to `/login`
+- Once setup is complete, visiting `/setup` redirects to `/` (the dashboard), not `/login`
 
 ### Setup endpoint self-deactivation
 
@@ -23,20 +23,25 @@ import, and a summary screen.
 
 ### DEMO key conflict
 
-If the admin creates a project with key `DEMO` during wizard Step 4, the sample-data import
-falls back to key `SDEMO` (name: "Seed Demo Project"). A notice on the wizard summary screen
-explains this.
+If the admin creates a project with key `DEMO` during the wizard's Project step, the
+sample-data import falls back to key `SDEMO` (name: "Seed Demo Project"). A notice on the
+wizard summary screen explains this.
 
 ### Wizard steps
 
-1. **Welcome** — intro screen
-2. **Admin account** — creates the first admin user; issues a JWT for subsequent steps
-3. **Team member** — optional; creates a second user account
-4. **Project** — optional; creates a project and optionally adds the team member as a
-   member in a single atomic DB transaction
-5. **Sample data** — optional; imports a demo project (`DEMO` key), 1 active sprint, 7
-   issues, 2 labels, and 2 comments in a single DB transaction
-6. **Summary** — confirms what was created
+Steps are 0-indexed in the UI (`Step X of 5` in `WizardShell.vue`) and in the setup
+store:
+
+0. **Welcome** — intro screen
+1. **Admin account** — creates the first admin user; issues a JWT for subsequent steps
+2. **Team member** — optional; creates a second user account
+3. **Project** — optional; creates a project and optionally adds the team member as a
+   member. This is **not** wrapped in a single DB transaction — project creation and the
+   member-add are two independent service calls, so a failure partway through can leave
+   the project created without the member added.
+4. **Sample data** — optional; imports a demo project (`DEMO` key), 1 active sprint, 7
+   issues, 2 labels, and 2 comments — this step *is* wrapped in a single DB transaction
+5. **Summary** — confirms what was created
 
 ### Step 5 retry behaviour
 
@@ -93,6 +98,6 @@ See [arch-api.md](arch-api.md). Setup routes:
 
 - `GET /api/v1/setup/status`
 - `POST /api/v1/setup/admin` (public, rate-limited)
-- `POST /api/v1/setup/member` (JWT required)
+- `POST /api/v1/setup/user` (JWT required)
 - `POST /api/v1/setup/project` (JWT required)
-- `POST /api/v1/setup/sample-data` (JWT required)
+- `POST /api/v1/setup/seed` (JWT required)

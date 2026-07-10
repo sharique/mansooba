@@ -89,7 +89,8 @@ Non-admin callers receive `403 Forbidden`. Unauthenticated callers receive `401 
 **How admins create new user accounts:**
 
 1. Log in as an admin.
-2. Navigate to `/register` in the browser.
+2. Navigate to `/system/createuser` (linked from the sidebar's System section).
 3. Fill in the new user's details and submit.
 
-Unauthenticated users who visit `/register` are redirected to `/login`. Authenticated non-admin users are redirected to the dashboard (`/`).
+Unauthenticated users who visit `/system/createuser` are redirected to `/login`.
+Authenticated non-admin users are redirected to `/system/users`.
