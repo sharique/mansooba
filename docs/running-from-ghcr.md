@@ -22,41 +22,44 @@ docker compose version    # Docker Compose v2.x
 
 ---
 
-## Option A — Quick local run (SQLite + MinIO)
+## Option A — Quick local run (SQLite + LocalStack)
 
-The fastest way to run the full stack locally. Uses SQLite for the database and a local MinIO container for object storage — no Postgres setup required.
+The fastest way to run the full stack locally. Uses SQLite for the database and a local LocalStack container for S3-compatible object storage (issue attachments) — no Postgres setup required.
 
 Create a `compose.quickstart.yml` anywhere:
 
 ```yaml
 services:
-  minio:
-    image: minio/minio:latest
+  localstack:
+    image: localstack/localstack:3.8
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "4566:4566"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
+      SERVICES: s3
+      DEFAULT_REGION: us-east-1
+      ACTIVATE_PRO: "0"
     volumes:
-      - minio_data:/data
+      - localstack_data:/var/lib/localstack
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
-  minio-init:
-    image: minio/mc:latest
+  localstack-init:
+    image: amazon/aws-cli:latest
     depends_on:
-      minio:
+      localstack:
         condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/mansooba &&
+      aws --endpoint-url http://localstack:4566 s3api head-bucket --bucket mansooba-attachments 2>/dev/null ||
+      aws --endpoint-url http://localstack:4566 s3 mb s3://mansooba-attachments --region us-east-1 &&
       echo 'bucket ready'
       "
 
@@ -69,15 +72,19 @@ services:
       DB_DRIVER: sqlite
       DB_DSN: /data/dev.db
       CORS_ORIGINS: http://localhost:3000
-      STORAGE_ENDPOINT: http://minio:9000
-      STORAGE_BUCKET: mansooba
-      STORAGE_ACCESS_KEY_ID: minioadmin
-      STORAGE_SECRET_ACCESS_KEY: minioadmin
+      STORAGE_ENDPOINT: http://localstack:4566
+      # PresignEndpoint overrides the host baked into presigned download URLs — the
+      # backend reaches LocalStack via the Docker-internal hostname above, but the
+      # browser that follows those URLs needs "localhost" instead.
+      STORAGE_PRESIGN_ENDPOINT: http://localhost:4566
+      STORAGE_BUCKET: mansooba-attachments
+      STORAGE_ACCESS_KEY_ID: test
+      STORAGE_SECRET_ACCESS_KEY: test
       STORAGE_USE_PATH_STYLE: "true"
     volumes:
       - sqlite_data:/data
     depends_on:
-      minio-init:
+      localstack-init:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
@@ -96,7 +103,7 @@ services:
 
 volumes:
   sqlite_data:
-  minio_data:
+  localstack_data:
 ```
 
 Then:
@@ -106,7 +113,7 @@ docker compose -f compose.quickstart.yml pull
 docker compose -f compose.quickstart.yml up -d
 ```
 
-App is at **http://localhost:3000** · API at **http://localhost:8080** · MinIO console at **http://localhost:9001**
+App is at **http://localhost:3000** · API at **http://localhost:8080** · LocalStack health check at **http://localhost:4566/_localstack/health**
 
 > SQLite data persists in the `sqlite_data` volume. Stop with `docker compose -f compose.quickstart.yml down` (add `-v` to wipe data too).
 
@@ -114,7 +121,7 @@ App is at **http://localhost:3000** · API at **http://localhost:8080** · MinIO
 
 ## Option B — Full stack with PostgreSQL (compose.prod.yml)
 
-Uses `compose.prod.yml` from the repo with a local Postgres and MinIO container alongside it. Closest to the real production setup.
+Uses `compose.prod.yml` from the repo with a local Postgres and LocalStack container alongside it. Closest to the real production setup.
 
 ### Step 1 — Authenticate to GHCR (if images are private)
 
@@ -140,10 +147,11 @@ DB_DSN=host=db port=5432 user=mansooba password=mansooba dbname=mansooba sslmode
 JWT_SECRET=change-me-use-a-long-random-string
 LOG_LEVEL=info
 CORS_ORIGINS=http://localhost
-STORAGE_ENDPOINT=http://minio:9000
-STORAGE_BUCKET=mansooba
-STORAGE_ACCESS_KEY_ID=minioadmin
-STORAGE_SECRET_ACCESS_KEY=minioadmin
+STORAGE_ENDPOINT=http://localstack:4566
+STORAGE_PRESIGN_ENDPOINT=http://localhost:4566
+STORAGE_BUCKET=mansooba-attachments
+STORAGE_ACCESS_KEY_ID=test
+STORAGE_SECRET_ACCESS_KEY=test
 STORAGE_REGION=us-east-1
 STORAGE_USE_PATH_STYLE=true
 STORAGE_PRESIGN_TTL=1h
@@ -152,11 +160,11 @@ DB_MAX_IDLE_CONNS=5
 DB_CONN_MAX_LIFETIME=5m
 ```
 
-> The backend supports `DB_DRIVER=sqlite`, `postgres`, or `mysql` / `mariadb`. For local use, any of these work fine — swap the `DB_DRIVER` and `DB_DSN` values and add the matching database container to `compose.override.yml` if using MariaDB. For production (e.g. EC2 + RDS), set `DB_DSN` to the RDS endpoint with `sslmode=require` and replace the MinIO vars with real AWS S3 credentials (`STORAGE_ENDPOINT` empty, `STORAGE_USE_PATH_STYLE=false`).
+> The backend supports `DB_DRIVER=sqlite`, `postgres`, or `mysql` / `mariadb`. For local use, any of these work fine — swap the `DB_DRIVER` and `DB_DSN` values and add the matching database container to `compose.override.yml` if using MariaDB. For production (e.g. EC2 + RDS), set `DB_DSN` to the RDS endpoint with `sslmode=require` and replace the LocalStack vars with real AWS S3 access: unset `STORAGE_ENDPOINT`, `STORAGE_PRESIGN_ENDPOINT`, `STORAGE_ACCESS_KEY_ID`, and `STORAGE_SECRET_ACCESS_KEY` entirely, set `STORAGE_USE_PATH_STYLE=false`, and rely on the EC2 instance's IAM role for credentials (see ADR-029) — never a static key in production.
 
 ### Step 3 — Create a local override file
 
-`compose.prod.yml` connects to an external database and storage. For local use, add Postgres and MinIO via an override file.
+`compose.prod.yml` connects to an external database and storage. For local use, add Postgres and LocalStack via an override file.
 
 Create `compose.override.yml` in the same directory:
 
@@ -177,34 +185,37 @@ services:
       timeout: 5s
       retries: 10
 
-  minio:
-    image: minio/minio:latest
+  localstack:
+    image: localstack/localstack:3.8
     restart: unless-stopped
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "4566:4566"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
+      SERVICES: s3
+      DEFAULT_REGION: us-east-1
+      ACTIVATE_PRO: "0"
     volumes:
-      - minio_data:/data
+      - localstack_data:/var/lib/localstack
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
-  minio-init:
-    image: minio/mc:latest
+  localstack-init:
+    image: amazon/aws-cli:latest
     depends_on:
-      minio:
+      localstack:
         condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/mansooba &&
+      aws --endpoint-url http://localstack:4566 s3api head-bucket --bucket mansooba-attachments 2>/dev/null ||
+      aws --endpoint-url http://localstack:4566 s3 mb s3://mansooba-attachments --region us-east-1 &&
       echo 'bucket ready'
       "
 
@@ -219,12 +230,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      minio-init:
+      localstack-init:
         condition: service_completed_successfully
 
 volumes:
   pg_data:
-  minio_data:
+  localstack_data:
 ```
 
 ### Step 4 — Pull and start
@@ -237,7 +248,7 @@ docker compose -f compose.prod.yml -f compose.override.yml pull
 docker compose -f compose.prod.yml -f compose.override.yml up -d
 ```
 
-App is at **http://localhost** (port 80) · API at **http://localhost:8080** · MinIO console at **http://localhost:9001** · Mail inbox at **http://localhost:8025**
+App is at **http://localhost** (port 80) · API at **http://localhost:8080** · LocalStack health check at **http://localhost:4566/_localstack/health** · Mail inbox at **http://localhost:8025**
 
 ### Step 5 — Verify
 
@@ -247,7 +258,9 @@ docker compose -f compose.prod.yml -f compose.override.yml ps
 
 # Check backend health (expect all green)
 curl http://localhost:8080/health
-# Expected: {"status":"ok","db":"ok","db_latency_ms":1,"storage":"ok"}
+# Expected: {"status":"ok","db":"ok","db_latency_ms":1}
+# Note: this only reports database connectivity, not storage — the backend doesn't
+# check storage at startup, only when an attachment is actually uploaded/downloaded/deleted.
 ```
 
 ### Stopping and cleanup
@@ -299,22 +312,22 @@ services:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `JWT_SECRET` | ✅ | — | Secret for signing JWTs. Use `openssl rand -hex 32`. |
+| `JWT_SECRET` | ✅ | — | Secret for signing JWTs. Use `openssl rand -hex 32`. The only var the backend requires at startup. |
 | `DB_DRIVER` | ✅ | — | `sqlite`, `postgres` / `postgresql`, or `mysql` / `mariadb` |
 | `DB_DSN` | ✅ | — | SQLite path, Postgres DSN, or MySQL/MariaDB DSN |
 | `CORS_ORIGINS` | ✅ | — | Comma-separated allowed origins (e.g. `http://localhost`) |
-| `STORAGE_BUCKET` | ✅ | — | S3/MinIO bucket name |
-| `STORAGE_ACCESS_KEY_ID` | ✅ | — | S3/MinIO access key |
-| `STORAGE_SECRET_ACCESS_KEY` | ✅ | — | S3/MinIO secret key |
 | `LOG_LEVEL` | | `info` | `debug`, `info`, `warn`, `error` |
 | `SERVER_PORT` | | `8080` | Port the backend listens on |
 | `BODY_SIZE_LIMIT` | | `4M` | Max request body size (rejects with 413 when exceeded) |
 | `REQUEST_TIMEOUT` | | `30s` | Per-request timeout |
 | `SHUTDOWN_TIMEOUT` | | `30s` | Graceful shutdown window |
-| `STORAGE_ENDPOINT` | | *(AWS default)* | Leave empty for AWS S3; set to MinIO URL for self-hosted |
-| `STORAGE_REGION` | | `us-east-1` | AWS region (MinIO ignores this) |
+| `STORAGE_ENDPOINT` | | *(unset — AWS default)* | Leave unset for real AWS S3; set to `http://localstack:4566` for LocalStack. Only checked when an attachment is actually uploaded/downloaded/deleted, not at startup. |
+| `STORAGE_PRESIGN_ENDPOINT` | | *(unset, falls back to `STORAGE_ENDPOINT`)* | Overrides the host baked into presigned download URLs — needed when `STORAGE_ENDPOINT` is a Docker-internal hostname the browser can't resolve |
+| `STORAGE_BUCKET` | | `mansooba-attachments` | S3/LocalStack bucket name |
+| `STORAGE_ACCESS_KEY_ID` / `STORAGE_SECRET_ACCESS_KEY` | | *(unset)* | LocalStack only (`test`/`test`); leave unset in production — the EC2 instance's IAM role is used instead (ADR-029) |
+| `STORAGE_REGION` | | `us-east-1` | AWS region (LocalStack ignores this) |
 | `STORAGE_PRESIGN_TTL` | | `1h` | Pre-signed download URL expiry |
-| `STORAGE_USE_PATH_STYLE` | | `true` | Set `true` for MinIO; `false` for AWS S3 |
+| `STORAGE_USE_PATH_STYLE` | | `false` | Set `true` for LocalStack; `false` for AWS S3 |
 | `DB_MAX_OPEN_CONNS` | | `25` | Max open DB connections |
 | `DB_MAX_IDLE_CONNS` | | `5` | Max idle DB connections |
 | `DB_CONN_MAX_LIFETIME` | | `5m` | Connection max lifetime |
@@ -344,11 +357,11 @@ The GHCR packages are private. Log in with a `read:packages` PAT (see Step 1 in 
 docker logs <container-name>
 ```
 
-**Health endpoint shows `"storage":"error"`**  
-The backend can't reach the object storage endpoint. Verify:
-- The `minio` container is running and healthy: `docker compose ps minio`
-- `STORAGE_ENDPOINT` matches the hostname Docker can resolve (use the service name `minio` inside Compose networks, not `localhost`)
-- The bucket was created by `minio-init`: `docker compose logs minio-init`
+**Attachment upload/download/delete returns 502 "storage temporarily unavailable"**  
+The backend can't reach the object storage endpoint (checked lazily, only on these requests — not at startup). Verify:
+- The `localstack` container is running and healthy: `docker compose ps localstack`
+- `STORAGE_ENDPOINT` matches a hostname the *backend container* can resolve (use the service name `localstack` inside Compose networks, not `localhost`) — and separately, `STORAGE_PRESIGN_ENDPOINT` matches a hostname your *browser* can resolve (`localhost`, not `localstack`)
+- The bucket was created by `localstack-init`: `docker compose logs localstack-init`
 
 **Health endpoint shows `"db":"error"`**  
 Database connection failed. Check that the `db` container is healthy before the backend starts:
