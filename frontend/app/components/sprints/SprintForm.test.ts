@@ -16,16 +16,33 @@ vi.stubGlobal('useSprintsStore', () => ({
 }))
 vi.stubGlobal('useToast', () => ({ showSuccess: mockShowSuccess, showError: mockShowError }))
 
+// Dates computed relative to "today" so this fixture never goes stale and
+// fail the form's own "no past dates" validation as the calendar moves on.
+function daysFromToday(offset: number): string {
+  const d = new Date()
+  d.setDate(d.getDate() + offset)
+  return d.toISOString().slice(0, 10)
+}
+
+const futureStart = daysFromToday(7)
+const futureEnd = daysFromToday(14)
+
 const editSprint: Sprint = {
   id: 'sprint-1',
   project_id: 'p-1',
   name: 'Sprint 1',
   goal: 'Some goal',
   status: 'planning',
-  start_date: '2026-05-01T00:00:00Z',
-  end_date: '2026-05-14T00:00:00Z',
+  start_date: `${futureStart}T00:00:00Z`,
+  end_date: `${futureEnd}T00:00:00Z`,
   created_at: '2026-05-01T00:00:00Z',
   updated_at: '2026-05-01T00:00:00Z',
+}
+
+async function fillValidDates(w: ReturnType<typeof mount>) {
+  const dateInputs = w.findAll('input[type="date"]')
+  await dateInputs[0]!.setValue(futureStart)
+  await dateInputs[1]!.setValue(futureEnd)
 }
 
 describe('SprintForm', () => {
@@ -49,10 +66,13 @@ describe('SprintForm', () => {
     expect(w.find('button[type="submit"]').text()).toContain('Save')
   })
 
-  it('prefills name field with sprint data in edit mode', () => {
+  it('prefills name and date fields with sprint data in edit mode', () => {
     const w = mount(SprintForm, { props: { projectKey: 'P', sprint: editSprint } })
-    const input = w.find('input[type="text"]').element as HTMLInputElement
-    expect(input.value).toBe('Sprint 1')
+    const nameInput = w.find('input[type="text"]').element as HTMLInputElement
+    expect(nameInput.value).toBe('Sprint 1')
+    const dateInputs = w.findAll('input[type="date"]')
+    expect((dateInputs[0]!.element as HTMLInputElement).value).toBe(futureStart)
+    expect((dateInputs[1]!.element as HTMLInputElement).value).toBe(futureEnd)
   })
 
   it('emits cancel when Cancel button is clicked', async () => {
@@ -66,6 +86,7 @@ describe('SprintForm', () => {
     mockCreateSprint.mockResolvedValue(created)
     const w = mount(SprintForm, { props: { projectKey: 'P' } })
     await w.find('input[type="text"]').setValue('New Sprint')
+    await fillValidDates(w)
     await w.find('form').trigger('submit')
     await flushPromises()
     expect(mockCreateSprint).toHaveBeenCalledWith('P', expect.objectContaining({ name: 'New Sprint' }))
@@ -86,9 +107,77 @@ describe('SprintForm', () => {
     mockCreateSprint.mockRejectedValue({ data: { message: 'Sprint name taken' } })
     const w = mount(SprintForm, { props: { projectKey: 'P' } })
     await w.find('input[type="text"]').setValue('Conflict Sprint')
+    await fillValidDates(w)
     await w.find('form').trigger('submit')
     await flushPromises()
     expect(mockShowError).toHaveBeenCalledWith('Sprint name taken')
     expect(w.emitted('saved')).toBeFalsy()
+  })
+
+  // ── Validation ────────────────────────────────────────────────────────────
+
+  it('blocks submit and shows an error when name is blank', async () => {
+    const w = mount(SprintForm, { props: { projectKey: 'P' } })
+    await fillValidDates(w)
+    await w.find('form').trigger('submit')
+    await flushPromises()
+    expect(mockCreateSprint).not.toHaveBeenCalled()
+    expect(w.text()).toContain('Sprint name is required')
+  })
+
+  it('blocks submit and shows an error when start date is blank', async () => {
+    const w = mount(SprintForm, { props: { projectKey: 'P' } })
+    await w.find('input[type="text"]').setValue('No Start Date')
+    await w.findAll('input[type="date"]')[1]!.setValue(futureEnd)
+    await w.find('form').trigger('submit')
+    await flushPromises()
+    expect(mockCreateSprint).not.toHaveBeenCalled()
+    expect(w.text()).toContain('Start date is required')
+  })
+
+  it('blocks submit and shows an error when end date is blank', async () => {
+    const w = mount(SprintForm, { props: { projectKey: 'P' } })
+    await w.find('input[type="text"]').setValue('No End Date')
+    await w.findAll('input[type="date"]')[0]!.setValue(futureStart)
+    await w.find('form').trigger('submit')
+    await flushPromises()
+    expect(mockCreateSprint).not.toHaveBeenCalled()
+    expect(w.text()).toContain('End date is required')
+  })
+
+  it('blocks submit and shows an error when start date is in the past', async () => {
+    const w = mount(SprintForm, { props: { projectKey: 'P' } })
+    await w.find('input[type="text"]').setValue('Past Start')
+    const dateInputs = w.findAll('input[type="date"]')
+    await dateInputs[0]!.setValue(daysFromToday(-5))
+    await dateInputs[1]!.setValue(futureEnd)
+    await w.find('form').trigger('submit')
+    await flushPromises()
+    expect(mockCreateSprint).not.toHaveBeenCalled()
+    expect(w.text()).toContain("Start date can't be in the past")
+  })
+
+  it('blocks submit and shows an error when end date is before start date', async () => {
+    const w = mount(SprintForm, { props: { projectKey: 'P' } })
+    await w.find('input[type="text"]').setValue('Backwards Dates')
+    const dateInputs = w.findAll('input[type="date"]')
+    await dateInputs[0]!.setValue(futureEnd)
+    await dateInputs[1]!.setValue(futureStart)
+    await w.find('form').trigger('submit')
+    await flushPromises()
+    expect(mockCreateSprint).not.toHaveBeenCalled()
+    expect(w.text()).toContain('End date must be after start date')
+  })
+
+  it('blocks submit when end date equals start date', async () => {
+    const w = mount(SprintForm, { props: { projectKey: 'P' } })
+    await w.find('input[type="text"]').setValue('Same Day Sprint')
+    const dateInputs = w.findAll('input[type="date"]')
+    await dateInputs[0]!.setValue(futureStart)
+    await dateInputs[1]!.setValue(futureStart)
+    await w.find('form').trigger('submit')
+    await flushPromises()
+    expect(mockCreateSprint).not.toHaveBeenCalled()
+    expect(w.text()).toContain('End date must be after start date')
   })
 })
