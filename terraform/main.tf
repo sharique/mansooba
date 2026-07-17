@@ -65,6 +65,7 @@ module "iam" {
   aws_region             = var.aws_region
   ssm_path_prefix        = "/mansooba"
   attachments_bucket_arn = module.storage.bucket_arn
+  db_instance_arn        = module.database.rds_arn
 }
 
 # ── Email (SES) ───────────────────────────────────────────────────────────────

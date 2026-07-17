@@ -26,6 +26,7 @@ import (
 	"github.com/sharique/mansooba/internal/handler"
 	apimw "github.com/sharique/mansooba/internal/middleware"
 	"github.com/sharique/mansooba/internal/pkg/attachmentstorage"
+	"github.com/sharique/mansooba/internal/pkg/rdsclient"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
 	"github.com/sharique/mansooba/pkg/apierror"
@@ -114,6 +115,46 @@ func main() {
 		cleanupInterval = 15 * time.Minute
 	}
 	startRevokedTokenCleanup(ctx, revokedTokenRepo, cleanupInterval, log)
+
+	// Database idle auto-stop / wake-on-hit (spec 010, db-idle-autostop; see
+	// docs/decisions/ADR-030). Entirely inert unless the driver is postgres AND
+	// the feature flag is enabled (research.md Decision 5) — local dev (SQLite)
+	// never touches this code path and needs no AWS credentials. dbLifecycleTracker
+	// and rdsClient stay nil when disabled; startDBIdleCheck (US1) and the dbwake
+	// middleware (US2) both check for nil before doing anything.
+	var dbLifecycleTracker *service.DBLifecycleTracker
+	var rdsClient *rdsclient.Client
+	if cfg.DBDriver == "postgres" && cfg.RDSAutoStopEnabled {
+		idleTimeout, err := time.ParseDuration(cfg.RDSIdleTimeout)
+		if err != nil {
+			log.Warn("invalid RDS_IDLE_TIMEOUT, defaulting to 10m", zap.String("value", cfg.RDSIdleTimeout), zap.Error(err))
+			idleTimeout = 10 * time.Minute
+		}
+		idleCheckInterval, err := time.ParseDuration(cfg.RDSIdleCheckInterval)
+		if err != nil {
+			log.Warn("invalid RDS_IDLE_CHECK_INTERVAL, defaulting to 1m", zap.String("value", cfg.RDSIdleCheckInterval), zap.Error(err))
+			idleCheckInterval = time.Minute
+		}
+
+		rdsClient, err = rdsclient.New(ctx, cfg.RDSInstanceIdentifier)
+		if err != nil {
+			log.Fatal("failed to initialize RDS client", zap.Error(err))
+		}
+
+		// Fail fast at startup if permissions/credentials are misconfigured
+		// (FR-014/FR-015's fail-fast requirement, spec.md Edge Cases) — better
+		// to fail loudly at boot than silently behave as if disabled.
+		if _, err := rdsClient.DescribeState(ctx); err != nil {
+			log.Fatal("RDS auto-stop is enabled but the configured instance could not be described — check RDS_INSTANCE_IDENTIFIER and IAM permissions",
+				zap.String("instance", cfg.RDSInstanceIdentifier), zap.Error(err))
+		}
+
+		dbLifecycleTracker = service.NewDBLifecycleTracker(idleTimeout, cfg.RDSStartFailureBound, time.Now)
+		startDBIdleCheck(ctx, dbLifecycleTracker, rdsClient, idleCheckInterval, log)
+		log.Info("db idle auto-stop enabled", zap.String("instance", cfg.RDSInstanceIdentifier), zap.Duration("idle_timeout", idleTimeout))
+	} else {
+		log.Info("db idle auto-stop disabled", zap.String("driver", cfg.DBDriver), zap.Bool("flag_enabled", cfg.RDSAutoStopEnabled))
+	}
 
 	// Services
 	authSvc := service.NewAuthService(userRepo, revokedTokenRepo, log, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
@@ -206,6 +247,16 @@ func main() {
 	e.Use(echomw.TimeoutWithConfig(echomw.TimeoutConfig{
 		Timeout: requestTimeout,
 	}))
+
+	// Database idle auto-stop / wake-on-hit (spec 010) — only registered when
+	// the feature is actually enabled (T009 above), so both are a complete
+	// no-op otherwise, not just an inert call. DBWake runs first so a request
+	// hitting a stopped database gets the waking_up signal immediately,
+	// without DBActivity or any handler attempting real (doomed) DB work.
+	if dbLifecycleTracker != nil {
+		e.Use(apimw.DBWake(dbLifecycleTracker, rdsClient, log))
+		e.Use(apimw.DBActivity(dbLifecycleTracker))
+	}
 
 	// Public routes
 	e.GET("/health", healthHandler.Check)
@@ -421,6 +472,40 @@ func main() {
 	} else {
 		log.Info("server shutdown complete")
 	}
+}
+
+// startDBIdleCheck launches a background goroutine that periodically checks
+// whether the database has been idle long enough to stop, and — while a
+// start is pending — polls for it having become available again (spec 010,
+// db-idle-autostop). Mirrors startRevokedTokenCleanup's ticker/select/
+// ctx.Done() shape. The goroutine stops when ctx is cancelled.
+func startDBIdleCheck(ctx context.Context, tracker *service.DBLifecycleTracker, client *rdsclient.Client, interval time.Duration, log *zap.Logger) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				attempted, stopErr := tracker.CheckAndStop(ctx, client)
+				if attempted {
+					if stopErr != nil {
+						service.LogDBLifecycleEvent(log, "db_auto_stop", "idle_timeout", "failed", stopErr)
+					} else {
+						service.LogDBLifecycleEvent(log, "db_auto_stop", "idle_timeout", "succeeded", nil)
+					}
+				}
+
+				justStarted, pollErr := tracker.CheckStartProgress(ctx, client)
+				if pollErr != nil {
+					log.Warn("db_auto_start poll failed", zap.Error(pollErr))
+				} else if justStarted {
+					service.LogDBLifecycleEvent(log, "db_auto_start", "incoming_request", "succeeded", nil)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 }
 
 // startRevokedTokenCleanup launches a background goroutine that periodically

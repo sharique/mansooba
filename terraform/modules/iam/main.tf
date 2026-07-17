@@ -70,6 +70,33 @@ resource "aws_iam_role_policy" "s3_attachments" {
   })
 }
 
+# ── RDS Lifecycle Policy (feature 010: db-idle-autostop) ──────────────────────
+# Lets the EC2 instance start/stop the RDS instance itself and check its
+# current status, so the backend can automatically stop it after an idle
+# period and start it again on the next request (spec.md FR-005, FR-015 —
+# least-privilege access: only these three actions, only this one instance).
+#
+# Unlike the S3 policy above, RDS actions operate on the DB instance resource
+# itself, not on sub-objects — so the resource is the instance ARN directly,
+# with no "/*" suffix.
+
+resource "aws_iam_role_policy" "rds_lifecycle" {
+  name = "${var.name_prefix}-rds-lifecycle"
+  role = aws_iam_role.ec2.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "rds:StartDBInstance",
+        "rds:StopDBInstance",
+        "rds:DescribeDBInstances"
+      ]
+      Resource = var.db_instance_arn
+    }]
+  })
+}
+
 # ── Instance Profile ──────────────────────────────────────────────────────────
 # An instance profile is the container that attaches an IAM role to an EC2
 # instance. The EC2 launch API accepts an instance profile name, not a role ARN.
