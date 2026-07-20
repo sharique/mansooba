@@ -117,22 +117,21 @@ func main() {
 	startRevokedTokenCleanup(ctx, revokedTokenRepo, cleanupInterval, log)
 
 	// Database idle auto-stop / wake-on-hit (spec 010, db-idle-autostop; see
-	// docs/decisions/ADR-030). Entirely inert unless the driver is postgres, the
-	// feature flag is enabled (research.md Decision 5), AND an instance
-	// identifier is actually configured. That third condition matters: DB_DRIVER
-	// == "postgres" alone doesn't mean "this is the AWS demo deployment" — a
-	// contributor running local Postgres via docker-compose (a supported dev
-	// path, docs/running-locally-using-docker.md) is also DB_DRIVER=postgres,
-	// but has no real RDS instance for this feature to describe. Without this
-	// check, RDS_AUTOSTOP_ENABLED's default-true (FR-014) would make the
-	// fail-fast startup check below refuse to boot for every local-Postgres
-	// contributor. Local dev (SQLite or local Postgres) never touches this code
-	// path and needs no AWS credentials. dbLifecycleTracker and rdsClient stay
-	// nil when disabled; startDBIdleCheck (US1) and the dbwake middleware (US2)
-	// both check for nil before doing anything.
+	// docs/decisions/ADR-030 and docs/superpowers/specs/2026-07-20-rds-autostop-detection-design.md
+	// in the docs repo). Config.RDSAutoStopApplies() confirms DB_DSN's hostname
+	// is the *specific* AWS RDS instance named by RDS_INSTANCE_IDENTIFIER — not
+	// just "some database using a driver AWS RDS also happens to support."
+	// This matters because DB_DRIVER=postgres alone doesn't mean "this is the
+	// AWS demo deployment": a contributor running local Postgres via
+	// docker-compose (a supported dev path, docs/running-locally-using-docker.md)
+	// is also DB_DRIVER=postgres, but has no real RDS instance to describe.
+	// Local dev (SQLite or local Postgres/MySQL/MariaDB) never touches this
+	// code path and needs no AWS credentials. dbLifecycleTracker and rdsClient
+	// stay nil when disabled; startDBIdleCheck (US1) and the dbwake middleware
+	// (US2) both check for nil before doing anything.
 	var dbLifecycleTracker *service.DBLifecycleTracker
 	var rdsClient *rdsclient.Client
-	if cfg.DBDriver == "postgres" && cfg.RDSAutoStopEnabled && cfg.RDSInstanceIdentifier != "" {
+	if cfg.RDSAutoStopApplies() {
 		idleTimeout, err := time.ParseDuration(cfg.RDSIdleTimeout)
 		if err != nil {
 			log.Warn("invalid RDS_IDLE_TIMEOUT, defaulting to 10m", zap.String("value", cfg.RDSIdleTimeout), zap.Error(err))
