@@ -117,14 +117,22 @@ func main() {
 	startRevokedTokenCleanup(ctx, revokedTokenRepo, cleanupInterval, log)
 
 	// Database idle auto-stop / wake-on-hit (spec 010, db-idle-autostop; see
-	// docs/decisions/ADR-030). Entirely inert unless the driver is postgres AND
-	// the feature flag is enabled (research.md Decision 5) — local dev (SQLite)
-	// never touches this code path and needs no AWS credentials. dbLifecycleTracker
-	// and rdsClient stay nil when disabled; startDBIdleCheck (US1) and the dbwake
-	// middleware (US2) both check for nil before doing anything.
+	// docs/decisions/ADR-030). Entirely inert unless the driver is postgres, the
+	// feature flag is enabled (research.md Decision 5), AND an instance
+	// identifier is actually configured. That third condition matters: DB_DRIVER
+	// == "postgres" alone doesn't mean "this is the AWS demo deployment" — a
+	// contributor running local Postgres via docker-compose (a supported dev
+	// path, docs/running-locally-using-docker.md) is also DB_DRIVER=postgres,
+	// but has no real RDS instance for this feature to describe. Without this
+	// check, RDS_AUTOSTOP_ENABLED's default-true (FR-014) would make the
+	// fail-fast startup check below refuse to boot for every local-Postgres
+	// contributor. Local dev (SQLite or local Postgres) never touches this code
+	// path and needs no AWS credentials. dbLifecycleTracker and rdsClient stay
+	// nil when disabled; startDBIdleCheck (US1) and the dbwake middleware (US2)
+	// both check for nil before doing anything.
 	var dbLifecycleTracker *service.DBLifecycleTracker
 	var rdsClient *rdsclient.Client
-	if cfg.DBDriver == "postgres" && cfg.RDSAutoStopEnabled {
+	if cfg.DBDriver == "postgres" && cfg.RDSAutoStopEnabled && cfg.RDSInstanceIdentifier != "" {
 		idleTimeout, err := time.ParseDuration(cfg.RDSIdleTimeout)
 		if err != nil {
 			log.Warn("invalid RDS_IDLE_TIMEOUT, defaulting to 10m", zap.String("value", cfg.RDSIdleTimeout), zap.Error(err))
@@ -153,7 +161,10 @@ func main() {
 		startDBIdleCheck(ctx, dbLifecycleTracker, rdsClient, idleCheckInterval, log)
 		log.Info("db idle auto-stop enabled", zap.String("instance", cfg.RDSInstanceIdentifier), zap.Duration("idle_timeout", idleTimeout))
 	} else {
-		log.Info("db idle auto-stop disabled", zap.String("driver", cfg.DBDriver), zap.Bool("flag_enabled", cfg.RDSAutoStopEnabled))
+		log.Info("db idle auto-stop disabled",
+			zap.String("driver", cfg.DBDriver),
+			zap.Bool("flag_enabled", cfg.RDSAutoStopEnabled),
+			zap.Bool("instance_configured", cfg.RDSInstanceIdentifier != ""))
 	}
 
 	// Services

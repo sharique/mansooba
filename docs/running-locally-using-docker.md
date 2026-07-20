@@ -38,6 +38,23 @@ The simplest path is **Docker Compose** with the bundled `compose.yml` — it st
 | `DB_MAX_IDLE_CONNS` | `2` | Max idle DB connections |
 | `DB_CONN_MAX_LIFETIME` | `0` | Max connection lifetime (e.g. `5m`; `0` = never expire) |
 
+### Database idle auto-stop (AWS RDS only — no-op locally)
+
+Powers the demo deployment's cost-saving auto-stop/wake-on-hit behavior (spec 010, ADR-030). **You
+never need to touch these vars for local development, including Option 2 below (local Postgres via
+docker-compose)** — the backend only engages this feature when *all three* are true: `DB_DRIVER=postgres`,
+`RDS_AUTOSTOP_ENABLED` is not explicitly disabled (defaults to enabled), and `RDS_INSTANCE_IDENTIFIER`
+is actually set. Local Postgres has no real RDS instance, so leaving `RDS_INSTANCE_IDENTIFIER` unset
+keeps this entirely inert regardless of the other two.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RDS_AUTOSTOP_ENABLED` | `true` | Only relevant with `DB_DRIVER=postgres` **and** `RDS_INSTANCE_IDENTIFIER` set — see above |
+| `RDS_INSTANCE_IDENTIFIER` | *(unset)* | AWS RDS instance identifier. Leave unset for any local setup, including local Postgres |
+| `RDS_IDLE_TIMEOUT` | `10m` | How long the database can sit idle before being stopped |
+| `RDS_IDLE_CHECK_INTERVAL` | `1m` | How often the idle/pending-start check runs |
+| `RDS_START_FAILURE_BOUND` | `3` | Consecutive failed start attempts before giving up |
+
 ### S3 / Attachment storage
 
 Powers issue file attachments. The backend never requires storage connectivity to start —
