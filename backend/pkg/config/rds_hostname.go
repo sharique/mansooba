@@ -61,3 +61,26 @@ func matchesRDSInstance(host, identifier string) bool {
 	return strings.HasSuffix(host, ".rds.amazonaws.com") &&
 		strings.HasPrefix(host, identifier+".")
 }
+
+// RDSAutoStopApplies reports whether the idle auto-stop/wake-on-hit feature
+// (spec 010, docs/decisions/ADR-030) should be active. All of the following
+// must hold:
+//  1. DBDriver is a supported SQL driver (postgres/postgresql/mysql/mariadb)
+//  2. RDSAutoStopEnabled is not explicitly disabled (defaults true)
+//  3. RDSInstanceIdentifier is configured
+//  4. DBDSN's hostname is confirmed as that exact AWS RDS instance's
+//     endpoint — not just any database using a driver AWS RDS also happens
+//     to support (e.g. local Postgres via docker-compose)
+func (c *Config) RDSAutoStopApplies() bool {
+	if normalizeDriver(c.DBDriver) == "" {
+		return false
+	}
+	if !c.RDSAutoStopEnabled {
+		return false
+	}
+	if c.RDSInstanceIdentifier == "" {
+		return false
+	}
+	host := extractDSNHost(c.DBDriver, c.DBDSN)
+	return matchesRDSInstance(host, c.RDSInstanceIdentifier)
+}

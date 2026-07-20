@@ -117,3 +117,87 @@ func TestMatchesRDSInstance(t *testing.T) {
 		})
 	}
 }
+
+func TestConfig_RDSAutoStopApplies(t *testing.T) {
+	awsDSN := "host=mansooba-db.abc123xyz.eu-central-1.rds.amazonaws.com user=mansooba dbname=mansooba sslmode=require"
+	awsMariaDSN := "mansooba:secret@tcp(mansooba-db.abc123xyz.eu-central-1.rds.amazonaws.com:3306)/mansooba"
+	localDSN := "host=localhost user=mansooba dbname=mansooba"
+
+	tests := []struct {
+		name string
+		cfg  Config
+		want bool
+	}{
+		{
+			name: "sqlite always false",
+			cfg: Config{
+				DBDriver: "sqlite", DBDSN: "./dev.db",
+				RDSAutoStopEnabled: true, RDSInstanceIdentifier: "mansooba-db",
+			},
+			want: false,
+		},
+		{
+			name: "local docker postgres, no identifier configured",
+			cfg: Config{
+				DBDriver: "postgres", DBDSN: localDSN,
+				RDSAutoStopEnabled: true, RDSInstanceIdentifier: "",
+			},
+			want: false,
+		},
+		{
+			name: "local docker postgres, identifier set but DSN host does not match (the mismatch case)",
+			cfg: Config{
+				DBDriver: "postgres", DBDSN: localDSN,
+				RDSAutoStopEnabled: true, RDSInstanceIdentifier: "mansooba-db",
+			},
+			want: false,
+		},
+		{
+			name: "real AWS RDS postgres with matching identifier",
+			cfg: Config{
+				DBDriver: "postgres", DBDSN: awsDSN,
+				RDSAutoStopEnabled: true, RDSInstanceIdentifier: "mansooba-db",
+			},
+			want: true,
+		},
+		{
+			name: "real AWS RDS but identifier does not match DSN host (misconfiguration)",
+			cfg: Config{
+				DBDriver: "postgres", DBDSN: awsDSN,
+				RDSAutoStopEnabled: true, RDSInstanceIdentifier: "some-other-instance",
+			},
+			want: false,
+		},
+		{
+			name: "flag explicitly disabled, otherwise valid AWS setup",
+			cfg: Config{
+				DBDriver: "postgres", DBDSN: awsDSN,
+				RDSAutoStopEnabled: false, RDSInstanceIdentifier: "mansooba-db",
+			},
+			want: false,
+		},
+		{
+			name: "mariadb on RDS with matching identifier (bonus: mysql/mariadb now supported)",
+			cfg: Config{
+				DBDriver: "mariadb", DBDSN: awsMariaDSN,
+				RDSAutoStopEnabled: true, RDSInstanceIdentifier: "mansooba-db",
+			},
+			want: true,
+		},
+		{
+			name: "postgresql alias on RDS with matching identifier (bonus: alias now recognized)",
+			cfg: Config{
+				DBDriver: "postgresql", DBDSN: awsDSN,
+				RDSAutoStopEnabled: true, RDSInstanceIdentifier: "mansooba-db",
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.cfg.RDSAutoStopApplies(); got != tt.want {
+				t.Errorf("RDSAutoStopApplies() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
