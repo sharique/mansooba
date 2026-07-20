@@ -334,8 +334,8 @@ services:
 | `SMTP_HOST` | | `mailpit` | SMTP server host — use `mailpit` in the local override |
 | `SMTP_PORT` | | `1025` | SMTP port |
 | `SMTP_FROM` | | `noreply@mansooba.local` | Sender address for outbound email |
-| `RDS_AUTOSTOP_ENABLED` | | `true` | Database idle auto-stop/wake-on-hit (spec 010, ADR-030). Only takes effect when `DB_DRIVER=postgres` — always a no-op otherwise. Any unrecognized value is treated as enabled; only an explicit `false`/`0`/`no` disables it. |
-| `RDS_INSTANCE_IDENTIFIER` | | *(unset)* | The RDS instance identifier to stop/start. Required (and validated at startup — the app fails fast if it can't be described) whenever `RDS_AUTOSTOP_ENABLED` is in effect. |
+| `RDS_AUTOSTOP_ENABLED` | | `true` | Database idle auto-stop/wake-on-hit (spec 010, ADR-030). Only takes effect when `DB_DSN`'s hostname is confirmed as the specific AWS RDS instance named by `RDS_INSTANCE_IDENTIFIER` — always a no-op otherwise (including local Postgres/MySQL/MariaDB). Any unrecognized value is treated as enabled; only an explicit `false`/`0`/`no` disables it. |
+| `RDS_INSTANCE_IDENTIFIER` | | *(unset)* | The RDS instance identifier to stop/start. Required, and its value MUST match the leading label of `DB_DSN`'s host (e.g. identifier `mansooba-db` requires a DSN host like `mansooba-db.<random>.<region>.rds.amazonaws.com`) — that match is what confirms the feature should actually engage. Also validated at startup: the app fails fast if the identifier can't be described via the AWS API. |
 | `RDS_IDLE_TIMEOUT` | | `10m` | How long the database can sit idle before being automatically stopped |
 | `RDS_IDLE_CHECK_INTERVAL` | | `1m` | How often the background check for idle/pending-start runs |
 | `RDS_START_FAILURE_BOUND` | | `3` | Consecutive failed start attempts before giving up and returning a plain error instead of "waking up" |

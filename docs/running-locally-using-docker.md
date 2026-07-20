@@ -42,10 +42,12 @@ The simplest path is **Docker Compose** with the bundled `compose.yml` — it st
 
 Powers the demo deployment's cost-saving auto-stop/wake-on-hit behavior (spec 010, ADR-030). **You
 never need to touch these vars for local development, including Option 2 below (local Postgres via
-docker-compose)** — the backend only engages this feature when *all three* are true: `DB_DRIVER=postgres`,
-`RDS_AUTOSTOP_ENABLED` is not explicitly disabled (defaults to enabled), and `RDS_INSTANCE_IDENTIFIER`
-is actually set. Local Postgres has no real RDS instance, so leaving `RDS_INSTANCE_IDENTIFIER` unset
-keeps this entirely inert regardless of the other two.
+docker-compose)** — the backend confirms `DB_DSN`'s hostname is the *specific* AWS RDS instance named
+by `RDS_INSTANCE_IDENTIFIER` (it must both end in `.rds.amazonaws.com` and start with
+`<RDS_INSTANCE_IDENTIFIER>.`) before engaging at all. A local Postgres/MySQL/MariaDB container's DSN
+host (`localhost`, or a Docker service name) can never satisfy that check, so this feature stays
+inert for every local setup — even if `RDS_AUTOSTOP_ENABLED` and `RDS_INSTANCE_IDENTIFIER` both
+happen to be set, e.g. from a copied `.env` file.
 
 | Variable | Default | Description |
 |----------|---------|-------------|

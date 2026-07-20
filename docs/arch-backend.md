@@ -123,7 +123,7 @@ Cost-saving feature for the AWS demo deployment (spec 010; full spec/plan/ADR in
 
 - **`DBLifecycleTracker`** (`internal/service/dbinstance_service.go`) — the only place lifecycle state lives: last-activity timestamp, in-flight operation count, start dedupe flag, and start-failure count, all behind one mutex.
 - **Wake-on-hit**: a request hitting a stopped database gets an immediate `503 {"status":"waking_up",...}` instead of blocking (the `DBWake` middleware); the frontend (`app/plugins/api.ts`'s `fetchWithWakeRetry`) retries automatically with a loading indicator until it succeeds or 5 minutes elapse.
-- **Never affects local dev**: the whole feature is inert unless `DB_DRIVER=postgres`, `RDS_AUTOSTOP_ENABLED` isn't explicitly disabled (defaults to enabled), *and* `RDS_INSTANCE_IDENTIFIER` is actually configured — local Postgres via docker-compose is `DB_DRIVER=postgres` too, but has no RDS instance, so it never engages this path.
+- **Never affects local dev**: `Config.RDSAutoStopApplies()` (`pkg/config/rds_hostname.go`) requires the driver to be postgres/postgresql/mysql/mariadb, the flag not explicitly disabled, an identifier configured, *and* `DB_DSN`'s hostname confirmed as that exact AWS RDS instance's endpoint (ends in `.rds.amazonaws.com`, starts with `<identifier>.`) — local Postgres/MySQL/MariaDB via docker-compose can never satisfy that last check, so it never engages this path, regardless of what the other config values happen to be set to.
 - **Fails fast, not silently**: if the feature is enabled but the configured instance can't be described (bad identifier, missing IAM permissions), the backend refuses to start rather than pretending to work.
 
 ---
