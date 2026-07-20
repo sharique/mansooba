@@ -118,6 +118,46 @@ func TestMatchesRDSInstance(t *testing.T) {
 	}
 }
 
+func TestConfig_RDSHostForDiagnostics(t *testing.T) {
+	tests := []struct {
+		name   string
+		driver string
+		dsn    string
+		want   string
+	}{
+		{
+			name:   "postgres RDS",
+			driver: "postgres",
+			dsn:    "host=mansooba-db.abc123xyz.eu-central-1.rds.amazonaws.com user=mansooba dbname=mansooba",
+			want:   "mansooba-db.abc123xyz.eu-central-1.rds.amazonaws.com",
+		},
+		{
+			name:   "mysql local",
+			driver: "mysql",
+			dsn:    "mansooba:secret@tcp(localhost:3306)/mansooba",
+			want:   "localhost",
+		},
+		{
+			name:   "malformed postgres DSN",
+			driver: "postgres",
+			dsn:    "user=mansooba dbname=mansooba",
+			want:   "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := Config{DBDriver: tt.driver, DBDSN: tt.dsn}
+			got := cfg.RDSHostForDiagnostics()
+			if got != tt.want {
+				t.Errorf("RDSHostForDiagnostics() = %q, want %q", got, tt.want)
+			}
+			if want := extractDSNHost(tt.driver, tt.dsn); got != want {
+				t.Errorf("RDSHostForDiagnostics() = %q, does not match extractDSNHost() = %q", got, want)
+			}
+		})
+	}
+}
+
 func TestConfig_RDSAutoStopApplies(t *testing.T) {
 	awsDSN := "host=mansooba-db.abc123xyz.eu-central-1.rds.amazonaws.com user=mansooba dbname=mansooba sslmode=require"
 	awsMariaDSN := "mansooba:secret@tcp(mansooba-db.abc123xyz.eu-central-1.rds.amazonaws.com:3306)/mansooba"

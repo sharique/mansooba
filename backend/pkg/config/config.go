@@ -66,10 +66,14 @@ type Config struct {
 	// real S3's hostname is reachable identically everywhere).
 	StoragePresignEndpoint string `mapstructure:"STORAGE_PRESIGN_ENDPOINT"`
 
-	// Database idle auto-stop/start (spec 010, db-idle-autostop). Unconditionally
-	// disabled whenever DBDriver != "postgres" (local dev uses SQLite and has no
-	// AWS credentials); RDSAutoStopEnabled additionally gates it when the driver
-	// is postgres.
+	// Database idle auto-stop/start (spec 010, db-idle-autostop). Whether the
+	// feature is actually active is decided by Config.RDSAutoStopApplies()
+	// (pkg/config/rds_hostname.go), not by any single field here: it requires
+	// DBDriver to be a supported SQL driver (postgres/postgresql/mysql/mariadb),
+	// RDSAutoStopEnabled to not be explicitly disabled, RDSInstanceIdentifier to
+	// be configured, AND DBDSN's hostname to match that exact AWS RDS instance's
+	// endpoint (not just any database using a driver AWS RDS also happens to
+	// support, e.g. local Postgres via docker-compose).
 	//
 	// RDSAutoStopEnabled is set manually in Load() below, not via a mapstructure
 	// bool tag — FR-014 requires an unrecognized value to default to enabled,

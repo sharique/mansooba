@@ -84,3 +84,15 @@ func (c *Config) RDSAutoStopApplies() bool {
 	host := extractDSNHost(c.DBDriver, c.DBDSN)
 	return matchesRDSInstance(host, c.RDSInstanceIdentifier)
 }
+
+// RDSHostForDiagnostics returns the hostname RDSAutoStopApplies extracts from
+// DBDSN (the same value it compares against RDSInstanceIdentifier), for
+// logging purposes only. It's a thin wrapper around the unexported
+// extractDSNHost so callers outside this package (e.g. cmd/server/main.go's
+// startup log) can report what host was actually parsed — the design has no
+// separate error state for an RDS_INSTANCE_IDENTIFIER/DB_DSN mismatch (it's
+// meant to look identical to "not AWS at all"), so this is the only
+// diagnostic surface for that misconfiguration class.
+func (c *Config) RDSHostForDiagnostics() string {
+	return extractDSNHost(c.DBDriver, c.DBDSN)
+}

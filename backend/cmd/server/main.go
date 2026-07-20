@@ -163,7 +163,8 @@ func main() {
 		log.Info("db idle auto-stop disabled",
 			zap.String("driver", cfg.DBDriver),
 			zap.Bool("flag_enabled", cfg.RDSAutoStopEnabled),
-			zap.Bool("instance_configured", cfg.RDSInstanceIdentifier != ""))
+			zap.Bool("instance_configured", cfg.RDSInstanceIdentifier != ""),
+			zap.String("dsn_host", cfg.RDSHostForDiagnostics()))
 	}
 
 	// Services
