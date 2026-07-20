@@ -51,8 +51,8 @@ happen to be set, e.g. from a copied `.env` file.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `RDS_AUTOSTOP_ENABLED` | `true` | Only relevant with `DB_DRIVER=postgres` **and** `RDS_INSTANCE_IDENTIFIER` set — see above |
-| `RDS_INSTANCE_IDENTIFIER` | *(unset)* | AWS RDS instance identifier. Leave unset for any local setup, including local Postgres |
+| `RDS_AUTOSTOP_ENABLED` | `true` | Database idle auto-stop/wake-on-hit (spec 010, ADR-030). Only takes effect when `DB_DSN`'s hostname is confirmed as the specific AWS RDS instance named by `RDS_INSTANCE_IDENTIFIER` — always a no-op otherwise (including local Postgres/MySQL/MariaDB). |
+| `RDS_INSTANCE_IDENTIFIER` | *(unset)* | The RDS instance identifier to stop/start. Required, and its value MUST match the leading label of `DB_DSN`'s host (e.g. identifier `mansooba-db` requires a DSN host like `mansooba-db.<random>.<region>.rds.amazonaws.com`) — that match is what confirms the feature should actually engage. |
 | `RDS_IDLE_TIMEOUT` | `10m` | How long the database can sit idle before being stopped |
 | `RDS_IDLE_CHECK_INTERVAL` | `1m` | How often the idle/pending-start check runs |
 | `RDS_START_FAILURE_BOUND` | `3` | Consecutive failed start attempts before giving up |
