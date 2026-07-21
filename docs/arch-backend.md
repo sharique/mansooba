@@ -40,11 +40,16 @@ Echo HTTP handlers that do three things only:
 
 ### `middleware/`
 
-A single `JWTAuth` middleware that validates the `Authorization: Bearer` header and injects the caller's user ID into the Echo context. All protected route groups use it.
+- `JWTAuth` validates the `Authorization: Bearer` header and injects the caller's user ID into the Echo context. All protected route groups use it.
+- `DBActivity` / `DBWake` (spec 010, ADR-030) — only registered when the database idle auto-stop feature is active (AWS RDS demo deployment only; see [Database idle auto-stop](#database-idle-auto-stop) below). `DBActivity` records every request as activity and tracks it as an in-flight operation; `DBWake` intercepts requests while the database is stopped/starting and returns the `waking_up` signal instead of letting them reach a handler.
 
 ### `internal/pkg/avatarstorage/`
 
 Local-disk storage for avatar images. Avatars are saved under `uploads/` and served as unauthenticated static files (ADR-026). Separate from `pkg/storage/` because avatars do not need pre-signed URLs or S3.
+
+### `internal/pkg/rdsclient/`
+
+Thin `aws-sdk-go-v2/service/rds` wrapper (spec 010) — `StartDBInstance`/`StopDBInstance`/`DescribeDBInstances`, authenticated via the EC2 instance's IAM role. Same shape as `pkg/storage`'s AWS SDK v2 usage below. Only ever constructed when the auto-stop feature is active; never touched in local dev.
 
 ### `pkg/storage/`
 
@@ -100,6 +105,26 @@ type Storage interface {
 | `RelationService` | Create/list/delete symmetric task relations; enforces canonical ordering (`taskAID < taskBID`); guards against self-relations and cross-project links |
 | `SettingService` | Get/update org-wide settings; write requires `IsSuperAdmin` |
 | `SetupService` | First-run wizard: check if any users exist; create the superadmin account |
+
+---
+
+## Background jobs
+
+Two goroutines run for the lifetime of the process, both started in `cmd/server/main.go` and stopped cleanly via `signal.NotifyContext` on SIGTERM/SIGINT:
+
+| Job | Purpose | Interval |
+|---|---|---|
+| Revoked-token cleanup | Purges expired rows from the `revoked_tokens` table | `REVOKED_TOKEN_CLEANUP_INTERVAL` (default `15m`) |
+| DB idle-check (spec 010) | Stops the database when idle; polls for a pending start to complete | `RDS_IDLE_CHECK_INTERVAL` (default `1m`) — AWS demo deployment only, see below |
+
+## Database idle auto-stop
+
+Cost-saving feature for the AWS demo deployment (spec 010; full spec/plan/ADR in the docs repo's `specs/010-db-idle-autostop/` and `docs/decisions/ADR-030-db-idle-autostop.md`). Stops the RDS instance after 10 minutes of no application activity, and starts it again the moment a request needs it — no new cloud infrastructure, no change to local development.
+
+- **`DBLifecycleTracker`** (`internal/service/dbinstance_service.go`) — the only place lifecycle state lives: last-activity timestamp, in-flight operation count, start dedupe flag, and start-failure count, all behind one mutex.
+- **Wake-on-hit**: a request hitting a stopped database gets an immediate `503 {"status":"waking_up",...}` instead of blocking (the `DBWake` middleware); the frontend (`app/plugins/api.ts`'s `fetchWithWakeRetry`) retries automatically with a loading indicator until it succeeds or 5 minutes elapse.
+- **Never affects local dev**: `Config.RDSAutoStopApplies()` (`pkg/config/rds_hostname.go`) requires the driver to be postgres/postgresql/mysql/mariadb, the flag not explicitly disabled, an identifier configured, *and* `DB_DSN`'s hostname confirmed as that exact AWS RDS instance's endpoint (ends in `.rds.amazonaws.com`, starts with `<identifier>.`) — local Postgres/MySQL/MariaDB via docker-compose can never satisfy that last check, so it never engages this path, regardless of what the other config values happen to be set to.
+- **Fails fast, not silently**: if the feature is enabled but the configured instance can't be described (bad identifier, missing IAM permissions), the backend refuses to start rather than pretending to work.
 
 ---
 

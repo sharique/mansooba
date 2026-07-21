@@ -65,6 +65,28 @@ type Config struct {
 	// hostname the browser can't resolve. Empty in production (not needed;
 	// real S3's hostname is reachable identically everywhere).
 	StoragePresignEndpoint string `mapstructure:"STORAGE_PRESIGN_ENDPOINT"`
+
+	// Database idle auto-stop/start (spec 010, db-idle-autostop). Whether the
+	// feature is actually active is decided by Config.RDSAutoStopApplies()
+	// (pkg/config/rds_hostname.go), not by any single field here: it requires
+	// DBDriver to be a supported SQL driver (postgres/postgresql/mysql/mariadb),
+	// RDSAutoStopEnabled to not be explicitly disabled, RDSInstanceIdentifier to
+	// be configured, AND DBDSN's hostname to match that exact AWS RDS instance's
+	// endpoint (not just any database using a driver AWS RDS also happens to
+	// support, e.g. local Postgres via docker-compose).
+	//
+	// RDSAutoStopEnabled is set manually in Load() below, not via a mapstructure
+	// bool tag — FR-014 requires an unrecognized value to default to enabled,
+	// but viper/cast.ToBool treats unparseable strings as false, the wrong
+	// default here.
+	RDSAutoStopEnabled    bool
+	RDSInstanceIdentifier string `mapstructure:"RDS_INSTANCE_IDENTIFIER"`
+	RDSIdleTimeout        string `mapstructure:"RDS_IDLE_TIMEOUT"`        // e.g. "10m"
+	RDSIdleCheckInterval  string `mapstructure:"RDS_IDLE_CHECK_INTERVAL"` // e.g. "1m"
+	// RDSStartFailureBound is a *count* of consecutive failed start attempts
+	// (research.md Decision 6), not a duration — independent of the client's
+	// separate 5-minute retry bound (FR-013).
+	RDSStartFailureBound int `mapstructure:"RDS_START_FAILURE_BOUND"`
 }
 
 // Load reads configuration from a .env file and environment variables.
@@ -108,6 +130,11 @@ func Load() *Config {
 	viper.SetDefault("STORAGE_PRESIGN_TTL", "1h")
 	viper.SetDefault("STORAGE_USE_PATH_STYLE", false)
 	viper.SetDefault("STORAGE_PRESIGN_ENDPOINT", "")
+	viper.SetDefault("RDS_AUTOSTOP_ENABLED", "true")
+	viper.SetDefault("RDS_INSTANCE_IDENTIFIER", "")
+	viper.SetDefault("RDS_IDLE_TIMEOUT", "10m")
+	viper.SetDefault("RDS_IDLE_CHECK_INTERVAL", "1m")
+	viper.SetDefault("RDS_START_FAILURE_BOUND", 3)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -121,10 +148,24 @@ func Load() *Config {
 	}
 
 	cfg.ServerPort = strings.TrimPrefix(cfg.ServerPort, ":")
+	cfg.RDSAutoStopEnabled = !isFalsey(viper.GetString("RDS_AUTOSTOP_ENABLED"))
 
 	if cfg.JWTSecret == "" {
 		log.Fatal("config: JWT_SECRET must not be empty")
 	}
 
 	return cfg
+}
+
+// isFalsey reports whether v is an explicit, recognized "disable" value
+// (case-insensitive "false", "0", or "no"). Anything else — including unset,
+// unrecognized, or an explicit "true" — is not falsey, per FR-014's
+// "unrecognized value defaults to enabled" requirement.
+func isFalsey(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "false", "0", "no":
+		return true
+	default:
+		return false
+	}
 }

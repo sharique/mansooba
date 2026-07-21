@@ -160,7 +160,7 @@ DB_MAX_IDLE_CONNS=5
 DB_CONN_MAX_LIFETIME=5m
 ```
 
-> The backend supports `DB_DRIVER=sqlite`, `postgres`, or `mysql` / `mariadb`. For local use, any of these work fine — swap the `DB_DRIVER` and `DB_DSN` values and add the matching database container to `compose.override.yml` if using MariaDB. For production (e.g. EC2 + RDS), set `DB_DSN` to the RDS endpoint with `sslmode=require` and replace the LocalStack vars with real AWS S3 access: unset `STORAGE_ENDPOINT`, `STORAGE_PRESIGN_ENDPOINT`, `STORAGE_ACCESS_KEY_ID`, and `STORAGE_SECRET_ACCESS_KEY` entirely, set `STORAGE_USE_PATH_STYLE=false`, and rely on the EC2 instance's IAM role for credentials (see ADR-029) — never a static key in production.
+> The backend supports `DB_DRIVER=sqlite`, `postgres`, or `mysql` / `mariadb`. For local use, any of these work fine — swap the `DB_DRIVER` and `DB_DSN` values and add the matching database container to `compose.override.yml` if using MariaDB. For production (e.g. EC2 + RDS), set `DB_DSN` to the RDS endpoint with `sslmode=require` and replace the LocalStack vars with real AWS S3 access: unset `STORAGE_ENDPOINT`, `STORAGE_PRESIGN_ENDPOINT`, `STORAGE_ACCESS_KEY_ID`, and `STORAGE_SECRET_ACCESS_KEY` entirely, set `STORAGE_USE_PATH_STYLE=false`, and rely on the EC2 instance's IAM role for credentials (see ADR-029) — never a static key in production. On the demo/showcase RDS deployment specifically, also set `RDS_INSTANCE_IDENTIFIER` so the idle auto-stop/wake-on-hit feature (spec 010, ADR-030) can find and manage the instance — it's enabled by default whenever `DB_DRIVER=postgres`, so this is required there, not optional.
 
 ### Step 3 — Create a local override file
 
@@ -334,6 +334,11 @@ services:
 | `SMTP_HOST` | | `mailpit` | SMTP server host — use `mailpit` in the local override |
 | `SMTP_PORT` | | `1025` | SMTP port |
 | `SMTP_FROM` | | `noreply@mansooba.local` | Sender address for outbound email |
+| `RDS_AUTOSTOP_ENABLED` | | `true` | Database idle auto-stop/wake-on-hit (spec 010, ADR-030). Only takes effect when `DB_DSN`'s hostname is confirmed as the specific AWS RDS instance named by `RDS_INSTANCE_IDENTIFIER` — always a no-op otherwise (including local Postgres/MySQL/MariaDB). Any unrecognized value is treated as enabled; only an explicit `false`/`0`/`no` disables it. |
+| `RDS_INSTANCE_IDENTIFIER` | | *(unset)* | The RDS instance identifier to stop/start. Required, and its value MUST match the leading label of `DB_DSN`'s host (e.g. identifier `mansooba-db` requires a DSN host like `mansooba-db.<random>.<region>.rds.amazonaws.com`) — that match is what confirms the feature should actually engage. Also validated at startup: the app fails fast if the identifier can't be described via the AWS API. |
+| `RDS_IDLE_TIMEOUT` | | `10m` | How long the database can sit idle before being automatically stopped |
+| `RDS_IDLE_CHECK_INTERVAL` | | `1m` | How often the background check for idle/pending-start runs |
+| `RDS_START_FAILURE_BOUND` | | `3` | Consecutive failed start attempts before giving up and returning a plain error instead of "waking up" |
 
 **Connection string formats:**
 ```
