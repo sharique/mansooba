@@ -36,8 +36,9 @@ type DBLifecycleTracker struct {
 }
 
 // NewDBLifecycleTracker constructs a tracker starting in the running state
-// (the database is assumed available when the backend boots). nowFunc is
-// injectable so tests can use a fake clock instead of time.Now.
+// (the database is assumed available when the backend boots, until/unless
+// the caller overrides this with SeedState). nowFunc is injectable so tests
+// can use a fake clock instead of time.Now.
 func NewDBLifecycleTracker(idleTimeout time.Duration, startFailureBound int, nowFunc func() time.Time) *DBLifecycleTracker {
 	return &DBLifecycleTracker{
 		idleTimeout:       idleTimeout,
@@ -46,6 +47,33 @@ func NewDBLifecycleTracker(idleTimeout time.Duration, startFailureBound int, now
 		lastActivity:      nowFunc(),
 		state:             domain.DBInstanceRunning,
 	}
+}
+
+// SeedState overrides the tracker's initial "running" assumption with the
+// database's actual state, as observed via a real DescribeState call at
+// boot. This must be called (if at all) immediately after construction,
+// before any other goroutine can observe the tracker.
+//
+// The default "running" assumption in NewDBLifecycleTracker is unsafe for
+// this feature specifically: the whole point of auto-stop is that the
+// database can be legitimately stopped for long stretches, including across
+// a backend restart (deploy, crash, manual restart/recreate). A fresh
+// tracker that still believes "running" against that reality will never
+// trigger a wake — the dbwake middleware only intercepts a request when it
+// believes the state isn't Running, and TryClaimStart only fires once state
+// is exactly Stopped — so real requests would be let through to a database
+// that isn't actually there, and no StartDBInstance call would ever be made.
+//
+// A described state of "stopping" is seeded as Stopped rather than passed
+// through as-is: no in-flight stop was actually claimed by this tracker
+// instance, so there is no path that would otherwise transition it onward.
+func (t *DBLifecycleTracker) SeedState(state domain.DBInstanceState) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if state == domain.DBInstanceStopping {
+		state = domain.DBInstanceStopped
+	}
+	t.state = state
 }
 
 // RecordActivity marks the database as used right now (FR-001, FR-011),

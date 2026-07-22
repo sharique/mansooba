@@ -150,15 +150,25 @@ func main() {
 
 		// Fail fast at startup if permissions/credentials are misconfigured
 		// (FR-014/FR-015's fail-fast requirement, spec.md Edge Cases) — better
-		// to fail loudly at boot than silently behave as if disabled.
-		if _, err := rdsClient.DescribeState(ctx); err != nil {
+		// to fail loudly at boot than silently behave as if disabled. The
+		// returned state also seeds dbLifecycleTracker below (SeedState) —
+		// the backend can restart while the database is legitimately
+		// stopped (that's the whole point of this feature), so a tracker
+		// that defaulted to "running" regardless of reality would silently
+		// never trigger a wake.
+		initialState, err := rdsClient.DescribeState(ctx)
+		if err != nil {
 			log.Fatal("RDS auto-stop is enabled but the configured instance could not be described — check RDS_INSTANCE_IDENTIFIER and IAM permissions",
 				zap.String("instance", cfg.RDSInstanceIdentifier), zap.Error(err))
 		}
 
 		dbLifecycleTracker = service.NewDBLifecycleTracker(idleTimeout, cfg.RDSStartFailureBound, time.Now)
+		dbLifecycleTracker.SeedState(initialState)
 		startDBIdleCheck(ctx, dbLifecycleTracker, rdsClient, idleCheckInterval, log)
-		log.Info("db idle auto-stop enabled", zap.String("instance", cfg.RDSInstanceIdentifier), zap.Duration("idle_timeout", idleTimeout))
+		log.Info("db idle auto-stop enabled",
+			zap.String("instance", cfg.RDSInstanceIdentifier),
+			zap.Duration("idle_timeout", idleTimeout),
+			zap.String("initial_state", initialState.String()))
 	} else {
 		log.Info("db idle auto-stop disabled",
 			zap.String("driver", cfg.DBDriver),
