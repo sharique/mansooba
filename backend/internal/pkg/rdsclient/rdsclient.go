@@ -1,9 +1,12 @@
 // Package rdsclient is a thin wrapper around aws-sdk-go-v2's RDS client,
 // implementing domain.DBInstanceClient for the idle auto-stop/wake-on-hit
 // feature (spec 010, db-idle-autostop). It authenticates via the EC2
-// instance's IAM role (SDK default credential chain, no static keys, no
-// region override — research.md Decisions 3 and 7), mirroring
-// internal/pkg/attachmentstorage's shape.
+// instance's IAM role (SDK default credential chain, no static keys —
+// research.md Decision 3), mirroring internal/pkg/attachmentstorage's shape.
+// Region is NOT auto-resolved from EC2 instance metadata the way credentials
+// are — an AWS_REGION env var must be set in the deployment environment, or
+// New's LoadDefaultConfig call fails with "missing region" (research.md
+// Decision 7, corrected after a real deployment hit this exact crash).
 package rdsclient
 
 import (
