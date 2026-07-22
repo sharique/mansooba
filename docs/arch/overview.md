@@ -133,8 +133,8 @@ Images published:
 
 ## Further reading
 
-- [Backend detail](arch-backend.md) — layers, entities, services
-- [Frontend detail](arch-frontend.md) — pages, stores, components, routing
-- [API reference](arch-api.md) — all endpoints with methods and descriptions
-- [Running locally with Docker](running-locally-using-docker.md)
-- [Running from GHCR images](running-from-ghcr.md)
+- [Backend detail](backend.md) — layers, entities, services
+- [Frontend detail](frontend.md) — pages, stores, components, routing
+- [API reference](api.md) — all endpoints with methods and descriptions
+- [Running locally with Docker](../deployments/running-locally-using-docker.md)
+- [Running from GHCR images](../deployments/running-from-ghcr.md)

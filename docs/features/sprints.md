@@ -57,7 +57,7 @@ velocity chart below.
 
 ## API endpoints
 
-See [arch-api.md](arch-api.md). Most sprint CRUD/lifecycle routes (get, update, delete,
+See [api.md](../arch/api.md). Most sprint CRUD/lifecycle routes (get, update, delete,
 start, complete, list issues, burndown) are under
 `/api/v1/projects/:key/sprints/...`. Backlog (`GET /api/v1/projects/:key/backlog`) and
 velocity (`GET /api/v1/projects/:key/velocity`) are sibling routes directly under

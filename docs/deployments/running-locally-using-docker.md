@@ -6,6 +6,30 @@ The simplest path is **Docker Compose** with the bundled `compose.yml` — it st
 
 ---
 
+## Contents
+
+- [Environment variables reference](#environment-variables-reference)
+  - [Server](#server)
+  - [JWT / Authentication](#jwt-authentication)
+  - [Database](#database)
+  - [Database idle auto-stop (AWS RDS only — no-op locally)](#database-idle-auto-stop-aws-rds-only-no-op-locally)
+  - [S3 / Attachment storage](#s3-attachment-storage)
+  - [SMTP / Email (Mailpit)](#smtp-email-mailpit)
+- [Option 1 — Docker Compose (recommended)](#option-1-docker-compose-recommended)
+  - [Running](#running)
+  - [First run](#first-run)
+  - [Catching outbound emails (Mailpit)](#catching-outbound-emails-mailpit)
+  - [Rebuilding after code changes](#rebuilding-after-code-changes)
+- [Development mode (hot reload)](#development-mode-hot-reload)
+  - [Running backend tests](#running-backend-tests)
+  - [Running frontend tests](#running-frontend-tests)
+- [Option 2 — Docker Compose with PostgreSQL or MariaDB](#option-2-docker-compose-with-postgresql-or-mariadb)
+  - [Quick database containers](#quick-database-containers)
+  - [Full compose override (Postgres + LocalStack)](#full-compose-override-postgres-localstack)
+- [Troubleshooting](#troubleshooting)
+
+---
+
 ## Environment variables reference
 
 ### Server
@@ -56,6 +80,7 @@ happen to be set, e.g. from a copied `.env` file.
 | `RDS_IDLE_TIMEOUT` | `10m` | How long the database can sit idle before being stopped |
 | `RDS_IDLE_CHECK_INTERVAL` | `1m` | How often the idle/pending-start check runs |
 | `RDS_START_FAILURE_BOUND` | `3` | Consecutive failed start attempts before giving up |
+| `AWS_REGION` | *(unset)* | Required on the real AWS deployment once auto-stop is enabled — the RDS SDK client needs an explicit region (unlike credentials, it isn't inferred from the EC2 instance automatically). Leave unset locally. |
 
 ### S3 / Attachment storage
 

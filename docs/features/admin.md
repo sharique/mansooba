@@ -45,7 +45,7 @@ The sidebar System section is rendered only when `authStore.isAdmin` is true.
 
 ## API endpoints
 
-See [arch-api.md](arch-api.md). Key admin routes:
+See [api.md](../arch/api.md). Key admin routes:
 
 - `GET /api/v1/settings`
 - `PATCH /api/v1/settings`

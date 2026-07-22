@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-See [arch-overview.md](arch-overview.md) for the project-level overview.
+See [overview.md](overview.md) for the project-level overview.
 
 ## Build mode
 

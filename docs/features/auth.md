@@ -54,14 +54,14 @@ display name, email, timezone, and an optional avatar photo.
 
 Registration above is admin-only in steady state, but the very first admin account has
 no admin to create it. That's handled by a separate, one-time setup flow — see
-[feature-setup.md](feature-setup.md) and [first-run-wizard.md](first-run-wizard.md):
+[setup.md](setup.md) and [first-run-wizard.md](first-run-wizard.md):
 `GET /api/v1/setup/status`, `POST /api/v1/setup/admin` (public, rate-limited), plus
 JWT-gated `POST /api/v1/setup/user`, `POST /api/v1/setup/project`, `POST
 /api/v1/setup/seed`. Once an admin exists, this flow is permanently unavailable.
 
 ## API endpoints
 
-See [arch-api.md](arch-api.md) for the full endpoint list. Key auth routes:
+See [api.md](../arch/api.md) for the full endpoint list. Key auth routes:
 
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/logout`

@@ -33,7 +33,7 @@ Events recorded:
   ID, so history is stable even if the sprint is later renamed (e.g. "Sprint Alpha"
   remains "Sprint Alpha" in older feed entries)
 - Attachment upload (`attachment_added`) and deletion (`attachment_removed`) — see
-  [feature-issues.md](feature-issues.md#attachments)
+  [issues.md](issues.md#attachments)
 
 ### My Activity feed
 
@@ -42,7 +42,7 @@ Events recorded:
 
 ## API endpoints
 
-See [arch-api.md](arch-api.md). Key routes:
+See [api.md](../arch/api.md). Key routes:
 
 - `GET/POST /api/v1/projects/:id/issues/:iid/comments`
 - `PUT/DELETE /api/v1/projects/:id/issues/:iid/comments/:cid`
