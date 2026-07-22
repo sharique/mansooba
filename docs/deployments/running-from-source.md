@@ -6,6 +6,17 @@ Use this guide when you want a tight Go + Node dev loop without building Docker 
 
 ---
 
+## Contents
+
+- [Prerequisites](#prerequisites)
+- [1. Environment](#1-environment)
+- [2. Start Mailpit and LocalStack](#2-start-mailpit-and-localstack)
+- [3. Backend](#3-backend)
+- [4. Frontend](#4-frontend)
+- [Running tests](#running-tests)
+
+---
+
 ## Prerequisites
 
 - Go 1.21+

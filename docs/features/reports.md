@@ -13,7 +13,7 @@ without a dropdown at `/projects/:key/reports`, scoped to that project via the r
 
 - Data comes from all `completed` sprints for the selected project
 - Each bar pair: committed story points and completed (`done`-status) story points. Note
-  "committed" is not a snapshot taken at sprint start — see feature-sprints.md's Velocity
+  "committed" is not a snapshot taken at sprint start — see sprints.md's Velocity
   chart section for why, in practice, committed tends to equal completed for sprints that
   went through the normal completion flow.
 
@@ -29,6 +29,6 @@ the bundle size minimal and avoids a third-party dependency for a single chart t
 
 ## API endpoints
 
-See [arch-api.md](arch-api.md). Report data comes from `GET
+See [api.md](../arch/api.md). Report data comes from `GET
 /api/v1/projects/:key/velocity` — a sibling route under `/projects/:key/`, not nested
 under `/sprints/`.

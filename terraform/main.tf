@@ -110,6 +110,7 @@ module "compute" {
     smtp_port      = module.ses.smtp_port
     smtp_from      = module.ses.smtp_from
     storage_bucket = module.storage.bucket_name
+    rds_identifier = module.database.rds_identifier
   })
 }
 

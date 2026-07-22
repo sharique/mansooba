@@ -50,9 +50,10 @@ docker compose up --build
 On first visit the setup wizard walks you through creating the admin account.
 
 Other ways to run:
-- [Docker with PostgreSQL or hot-reload dev mode](docs/running-locally-using-docker.md)
-- [Pre-built GHCR images](docs/running-from-ghcr.md) — no Go toolchain needed
-- [From source](docs/running-from-source.md) — Go + Node, no Docker
+- [Docker with PostgreSQL or hot-reload dev mode](docs/deployments/running-locally-using-docker.md)
+- [Pre-built GHCR images](docs/deployments/running-from-ghcr.md) — no Go toolchain needed
+- [From source](docs/deployments/running-from-source.md) — Go + Node, no Docker
+- [Deploy to AWS (beginner, console-only)](docs/deployments/deploy-to-aws-beginner.md) — no Terraform, no CLI
 
 ---
 
@@ -62,20 +63,20 @@ Other ways to run:
 
 | | |
 |---|---|
-| [Overview](docs/arch-overview.md) | Tech stack, project structure, CI/CD pipeline |
-| [Backend](docs/arch-backend.md) | Layers, entities, services |
-| [Frontend](docs/arch-frontend.md) | Pages, stores, components, routing |
-| [API reference](docs/arch-api.md) | All endpoints with methods and descriptions |
+| [Overview](docs/arch/overview.md) | Tech stack, project structure, CI/CD pipeline |
+| [Backend](docs/arch/backend.md) | Layers, entities, services |
+| [Frontend](docs/arch/frontend.md) | Pages, stores, components, routing |
+| [API reference](docs/arch/api.md) | All endpoints with methods and descriptions |
 
 ### Feature deep-dives
 
 | | |
 |---|---|
-| [Authentication & security](docs/feature-auth.md) | JWT strategy, token revocation, password reset flow |
-| [Issues](docs/feature-issues.md) | Relations, labels, and how issues connect |
-| [Sprints & board](docs/feature-sprints.md) | Lifecycle states, completion migration, burndown & velocity |
-| [Reports](docs/feature-reports.md) | Velocity chart data source and rendering approach |
-| [Collaboration](docs/feature-collaboration.md) | @mention parsing, notification model, activity feeds |
-| [System admin](docs/feature-admin.md) | User management, platform settings, and safety guardrails |
-| [Setup wizard](docs/feature-setup.md) | First-run wizard flow, sample data import, and seed CLI |
-| [First-run wizard guide](docs/first-run-wizard.md) | Step-by-step wizard reference with DEMO conflict, retry behaviour, and CLI output |
+| [Authentication & security](docs/features/auth.md) | JWT strategy, token revocation, password reset flow |
+| [Issues](docs/features/issues.md) | Relations, labels, and how issues connect |
+| [Sprints & board](docs/features/sprints.md) | Lifecycle states, completion migration, burndown & velocity |
+| [Reports](docs/features/reports.md) | Velocity chart data source and rendering approach |
+| [Collaboration](docs/features/collaboration.md) | @mention parsing, notification model, activity feeds |
+| [System admin](docs/features/admin.md) | User management, platform settings, and safety guardrails |
+| [Setup wizard](docs/features/setup.md) | First-run wizard flow, sample data import, and seed CLI |
+| [First-run wizard guide](docs/features/first-run-wizard.md) | Step-by-step wizard reference with DEMO conflict, retry behaviour, and CLI output |

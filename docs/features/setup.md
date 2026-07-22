@@ -94,7 +94,7 @@ exit status 1
 
 ## API endpoints
 
-See [arch-api.md](arch-api.md). Setup routes:
+See [api.md](../arch/api.md). Setup routes:
 
 - `GET /api/v1/setup/status`
 - `POST /api/v1/setup/admin` (public, rate-limited)

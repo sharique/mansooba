@@ -68,6 +68,6 @@ Status transitions are unconstrained — any status can be set directly from any
 
 ## API endpoints
 
-See [arch-api.md](arch-api.md). Key issue routes are under
+See [api.md](../arch/api.md). Key issue routes are under
 `/api/v1/projects/:id/issues/`. Attachment routes are under
 `/api/v1/issues/:id/attachments/`.

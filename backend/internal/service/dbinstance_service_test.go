@@ -259,6 +259,39 @@ func TestDBLifecycleTracker_MarkStarted_ResetsFailureCountAndState(t *testing.T)
 	assert.True(t, tr.TryClaimStop())
 }
 
+// ── SeedState: overriding the "running" boot assumption with reality ──────────
+
+func TestDBLifecycleTracker_SeedState_OverridesDefaultRunningAssumption(t *testing.T) {
+	clock := newFakeClock(time.Now())
+	tr := newTestTracker(clock)
+	require.Equal(t, domain.DBInstanceRunning, tr.CurrentState(), "fresh tracker defaults to running")
+
+	tr.SeedState(domain.DBInstanceStopped)
+	assert.Equal(t, domain.DBInstanceStopped, tr.CurrentState())
+
+	// A seeded "stopped" state must actually be actionable — TryClaimStart
+	// should now succeed, exactly as if a real idle-driven stop had happened.
+	assert.True(t, tr.TryClaimStart(), "a seeded stopped state must let a wake be claimed")
+}
+
+func TestDBLifecycleTracker_SeedState_StoppingIsSeededAsStopped(t *testing.T) {
+	clock := newFakeClock(time.Now())
+	tr := newTestTracker(clock)
+
+	tr.SeedState(domain.DBInstanceStopping)
+	assert.Equal(t, domain.DBInstanceStopped, tr.CurrentState(),
+		"a described 'stopping' state has no in-flight claim to transition it onward, so it must be seeded as stopped rather than left stuck")
+}
+
+func TestDBLifecycleTracker_SeedState_StartingIsPreserved(t *testing.T) {
+	clock := newFakeClock(time.Now())
+	tr := newTestTracker(clock)
+
+	tr.SeedState(domain.DBInstanceStarting)
+	assert.Equal(t, domain.DBInstanceStarting, tr.CurrentState(),
+		"a described 'starting' state is left as-is — CheckStartProgress polls and resolves it normally")
+}
+
 // ── T010: the idle-check loop (CheckAndStop) calls StopDBInstance exactly once ──
 
 func TestDBLifecycleTracker_CheckAndStop_CallsStopExactlyOnceWhenIdle(t *testing.T) {
