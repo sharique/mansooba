@@ -149,4 +149,3 @@ func parsePagination(c echo.Context) (page, size int, err error) {
 	}
 	return page, size, nil
 }
-

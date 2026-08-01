@@ -11,13 +11,16 @@ const (
 	SettingKeyTimeFormat       = "time_format"
 	SettingKeyLocale           = "locale"
 	SettingKeyWeekStartDay     = "week_start_day"
+	// SettingKeySystemLogRetentionDays is the admin-configurable retention
+	// period (in days) for System Log entries (011-system-logs, FR-010).
+	SettingKeySystemLogRetentionDays = "system_log_retention_days"
 )
 
 // GlobalSetting stores a single platform-wide configuration key-value pair.
 type GlobalSetting struct {
-	ID           uint      `gorm:"primaryKey"`
-	SettingKey   string    `gorm:"uniqueIndex;not null"`
-	SettingValue string    `gorm:"not null"`
+	ID           uint   `gorm:"primaryKey"`
+	SettingKey   string `gorm:"uniqueIndex;not null"`
+	SettingValue string `gorm:"not null"`
 	UpdatedByID  uint
 	UpdatedAt    time.Time
 }

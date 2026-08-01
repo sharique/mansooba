@@ -395,9 +395,11 @@ func TestDBLifecycleTracker_CheckStartProgress_NoOpWhenNotStarting(t *testing.T)
 func TestLogDBLifecycleEvent_StopAndStartShareTheSameFieldSchema(t *testing.T) {
 	core, logs := observer.New(zapcore.InfoLevel)
 	log := zap.New(core)
+	systemLogSvc := &recordingSystemLogService{}
+	ctx := context.Background()
 
-	service.LogDBLifecycleEvent(log, "db_auto_stop", "idle_timeout", "succeeded", nil)
-	service.LogDBLifecycleEvent(log, "db_auto_start", "incoming_request", "succeeded", nil)
+	service.LogDBLifecycleEvent(ctx, log, systemLogSvc, "db_auto_stop", "idle_timeout", "succeeded", nil)
+	service.LogDBLifecycleEvent(ctx, log, systemLogSvc, "db_auto_start", "incoming_request", "succeeded", nil)
 
 	entries := logs.All()
 	require.Len(t, entries, 2)
@@ -421,14 +423,30 @@ func TestLogDBLifecycleEvent_StopAndStartShareTheSameFieldSchema(t *testing.T) {
 	assert.Equal(t, "db_auto_start", entries[1].ContextMap()["event"])
 	assert.Equal(t, "incoming_request", entries[1].ContextMap()["trigger"])
 	assert.Equal(t, "succeeded", entries[1].ContextMap()["outcome"])
+
+	// 011-system-logs (US3, FR-013): both terminal-outcome events are also
+	// durably recorded, with the fixed "system" actor (no human actor).
+	systemLogEntries := systemLogSvc.all()
+	require.Len(t, systemLogEntries, 2)
+	for _, e := range systemLogEntries {
+		assert.Equal(t, domain.SystemLogCategoryDBLifecycle, e.Category)
+		assert.Equal(t, domain.SystemLogActorSystem, e.Actor)
+		assert.Equal(t, "succeeded", e.Outcome)
+	}
+	assert.Equal(t, "db_auto_stop", systemLogEntries[0].Action)
+	assert.Contains(t, systemLogEntries[0].Detail, "idle_timeout")
+	assert.Equal(t, "db_auto_start", systemLogEntries[1].Action)
+	assert.Contains(t, systemLogEntries[1].Detail, "incoming_request")
 }
 
 func TestLogDBLifecycleEvent_FailedOutcomeIncludesErrorFieldAndLogsAtWarn(t *testing.T) {
 	core, logs := observer.New(zapcore.InfoLevel)
 	log := zap.New(core)
+	systemLogSvc := &recordingSystemLogService{}
+	ctx := context.Background()
 
-	service.LogDBLifecycleEvent(log, "db_auto_stop", "idle_timeout", "failed", assert.AnError)
-	service.LogDBLifecycleEvent(log, "db_auto_start", "incoming_request", "failed", assert.AnError)
+	service.LogDBLifecycleEvent(ctx, log, systemLogSvc, "db_auto_stop", "idle_timeout", "failed", assert.AnError)
+	service.LogDBLifecycleEvent(ctx, log, systemLogSvc, "db_auto_start", "incoming_request", "failed", assert.AnError)
 
 	entries := logs.All()
 	require.Len(t, entries, 2)
@@ -437,6 +455,27 @@ func TestLogDBLifecycleEvent_FailedOutcomeIncludesErrorFieldAndLogsAtWarn(t *tes
 		assert.Contains(t, e.ContextMap(), "error", "a failed outcome must include the error field")
 		assert.Equal(t, "failed", e.ContextMap()["outcome"])
 	}
+
+	systemLogEntries := systemLogSvc.all()
+	require.Len(t, systemLogEntries, 2)
+	for _, e := range systemLogEntries {
+		assert.Equal(t, "failed", e.Outcome)
+		assert.Contains(t, e.Detail, assert.AnError.Error(), "the error should be reflected in the durable entry's detail too")
+	}
+}
+
+func TestLogDBLifecycleEvent_InitiatedOutcome_LogsButDoesNotRecordToSystemLogs(t *testing.T) {
+	// "initiated" is a transient, non-terminal state (the request was made,
+	// not yet resolved) — System Logs only records completed events
+	// (succeeded/failed), matching FR-013's "durable record of what
+	// happened" framing rather than in-progress state.
+	core, _ := observer.New(zapcore.InfoLevel)
+	log := zap.New(core)
+	systemLogSvc := &recordingSystemLogService{}
+
+	service.LogDBLifecycleEvent(context.Background(), log, systemLogSvc, "db_auto_start", "incoming_request", "initiated", nil)
+
+	assert.Empty(t, systemLogSvc.all(), "an 'initiated' outcome must not produce a System Logs entry")
 }
 
 // ── Stop-failure handling (spec.md Edge Cases): a failed stop leaves state running ──

@@ -72,6 +72,11 @@ const systemLinks: NavLink[] = [
         to: "/system/createuser",
         icon: "mdi:account-plus-outline",
     },
+    {
+        label: "System Logs",
+        to: "/system/logs",
+        icon: "mdi:text-box-search-outline",
+    },
 ];
 
 const currentKey = computed(() =>

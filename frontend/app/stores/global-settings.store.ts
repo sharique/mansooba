@@ -9,6 +9,7 @@ export const useGlobalSettingsStore = defineStore('global-settings', {
     time_format: '24h',
     locale: 'en-US',
     week_start_day: 'monday',
+    system_log_retention_days: '90',
     loaded: false,
   }),
   actions: {
@@ -19,6 +20,7 @@ export const useGlobalSettingsStore = defineStore('global-settings', {
       this.time_format = data.time_format
       this.locale = data.locale
       this.week_start_day = data.week_start_day
+      this.system_log_retention_days = data.system_log_retention_days
       this.loaded = true
     },
     async patch(payload: PatchSettingsRequest) {
@@ -28,6 +30,7 @@ export const useGlobalSettingsStore = defineStore('global-settings', {
       this.time_format = data.time_format
       this.locale = data.locale
       this.week_start_day = data.week_start_day
+      this.system_log_retention_days = data.system_log_retention_days
     },
   },
 })

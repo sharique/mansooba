@@ -145,16 +145,16 @@ func (r *stubProjectMemberRepo) DeleteByProjectID(_ context.Context, projectID u
 
 type stubIssueRepoForProject struct{}
 
-func (s *stubIssueRepoForProject) Create(_ context.Context, _ *domain.Issue) error        { return nil }
+func (s *stubIssueRepoForProject) Create(_ context.Context, _ *domain.Issue) error { return nil }
 func (s *stubIssueRepoForProject) FindByID(_ context.Context, _ uint) (*domain.Issue, error) {
 	return nil, domain.ErrNotFound
 }
 func (s *stubIssueRepoForProject) FindByProjectID(_ context.Context, _ uint) ([]*domain.Issue, error) {
 	return nil, nil
 }
-func (s *stubIssueRepoForProject) Update(_ context.Context, _ *domain.Issue) error        { return nil }
-func (s *stubIssueRepoForProject) Delete(_ context.Context, _ uint) error                 { return nil }
-func (s *stubIssueRepoForProject) DeleteByProjectID(_ context.Context, _ uint) error      { return nil }
+func (s *stubIssueRepoForProject) Update(_ context.Context, _ *domain.Issue) error   { return nil }
+func (s *stubIssueRepoForProject) Delete(_ context.Context, _ uint) error            { return nil }
+func (s *stubIssueRepoForProject) DeleteByProjectID(_ context.Context, _ uint) error { return nil }
 func (s *stubIssueRepoForProject) FindBacklog(_ context.Context, _ uint) ([]*domain.Issue, error) {
 	return nil, nil
 }

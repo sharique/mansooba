@@ -18,7 +18,11 @@ var errInvalidCredentials = errors.New("invalid credentials")
 
 // AuthService defines the authentication business-logic contract.
 type AuthService interface {
-	Register(ctx context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error)
+	// Register creates a user on behalf of callerID (the authenticated admin
+	// making the call — AuthHandler.Register enforces admin-only access
+	// before invoking this). callerID is used only to label the resulting
+	// account_created System Log entry's actor (FR-002).
+	Register(ctx context.Context, req dto.RegisterRequest, callerID uint) (*dto.AuthResponse, error)
 	Login(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, error)
 	// Refresh validates a refresh token and returns a new access token string.
 	// Returns ErrTokenRevoked, ErrRevocationStoreUnavailable, or ErrAccountDisabled
@@ -30,12 +34,13 @@ type AuthService interface {
 }
 
 type authService struct {
-	userRepo    domain.UserRepository
-	revokedRepo domain.RevokedTokenRepository
-	log         *zap.Logger
-	jwtSecret   string
-	accessTTL   time.Duration
-	refreshTTL  time.Duration
+	userRepo     domain.UserRepository
+	revokedRepo  domain.RevokedTokenRepository
+	systemLogSvc SystemLogService
+	log          *zap.Logger
+	jwtSecret    string
+	accessTTL    time.Duration
+	refreshTTL   time.Duration
 }
 
 // NewAuthService returns an AuthService backed by the given repositories.
@@ -43,22 +48,24 @@ type authService struct {
 func NewAuthService(
 	userRepo domain.UserRepository,
 	revokedRepo domain.RevokedTokenRepository,
+	systemLogSvc SystemLogService,
 	log *zap.Logger,
 	jwtSecret, accessTTL, refreshTTL string,
 ) AuthService {
 	aTTL, _ := time.ParseDuration(accessTTL)
 	rTTL, _ := time.ParseDuration(refreshTTL)
 	return &authService{
-		userRepo:    userRepo,
-		revokedRepo: revokedRepo,
-		log:         log,
-		jwtSecret:   jwtSecret,
-		accessTTL:   aTTL,
-		refreshTTL:  rTTL,
+		userRepo:     userRepo,
+		revokedRepo:  revokedRepo,
+		systemLogSvc: systemLogSvc,
+		log:          log,
+		jwtSecret:    jwtSecret,
+		accessTTL:    aTTL,
+		refreshTTL:   rTTL,
 	}
 }
 
-func (s *authService) Register(ctx context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error) {
+func (s *authService) Register(ctx context.Context, req dto.RegisterRequest, callerID uint) (*dto.AuthResponse, error) {
 	if _, err := s.userRepo.FindByEmail(ctx, req.Email); err == nil {
 		return nil, domain.ErrConflict
 	}
@@ -73,22 +80,81 @@ func (s *authService) Register(ctx context.Context, req dto.RegisterRequest) (*d
 		return nil, err
 	}
 
+	// Register is always invoked via the admin-only create-user flow
+	// (AuthHandler.Register requires an admin caller) — every successful
+	// call here is an auditable admin action (FR-002).
+	s.systemLogSvc.Record(ctx, domain.SystemLogEntry{
+		Category: domain.SystemLogCategoryAdminAction,
+		Action:   "account_created",
+		Outcome:  "success",
+		Actor:    s.actorLabel(ctx, callerID),
+		ActorID:  callerID,
+		Target:   user.Email,
+		TargetID: user.ID,
+	})
+
 	return s.buildResponse(ctx, user)
+}
+
+// actorLabel resolves callerID to a human-readable label (email) for System
+// Log entries — falls back to a stable "user#<id>" form if the lookup fails,
+// mirroring the same pattern in admin_user_service.go and setting_service.go
+// (each service owns its own copy rather than sharing one, since none of
+// them otherwise depend on each other).
+func (s *authService) actorLabel(ctx context.Context, callerID uint) string {
+	user, err := s.userRepo.FindByID(ctx, callerID)
+	if err != nil {
+		return fmt.Sprintf("user#%d", callerID)
+	}
+	return user.Email
 }
 
 func (s *authService) Login(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, error) {
 	user, err := s.userRepo.FindByEmail(ctx, req.Email)
 	if err != nil {
+		// No matching user — the actor is recorded as the attempted email
+		// with no ActorID, per FR-004's "unknown identifier" case.
+		s.systemLogSvc.Record(ctx, domain.SystemLogEntry{
+			Category: domain.SystemLogCategoryAuthentication,
+			Action:   "login_failed",
+			Outcome:  "failure",
+			Actor:    req.Email,
+			Detail:   "no account with this email",
+		})
 		return nil, errInvalidCredentials
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		s.systemLogSvc.Record(ctx, domain.SystemLogEntry{
+			Category: domain.SystemLogCategoryAuthentication,
+			Action:   "login_failed",
+			Outcome:  "failure",
+			Actor:    req.Email,
+			ActorID:  user.ID,
+			Detail:   "invalid credentials",
+		})
 		return nil, errInvalidCredentials
 	}
 
 	if !user.IsActive {
+		s.systemLogSvc.Record(ctx, domain.SystemLogEntry{
+			Category: domain.SystemLogCategoryAuthentication,
+			Action:   "login_failed",
+			Outcome:  "failure",
+			Actor:    req.Email,
+			ActorID:  user.ID,
+			Detail:   "account disabled",
+		})
 		return nil, domain.ErrAccountDisabled
 	}
+
+	s.systemLogSvc.Record(ctx, domain.SystemLogEntry{
+		Category: domain.SystemLogCategoryAuthentication,
+		Action:   "login_success",
+		Outcome:  "success",
+		Actor:    req.Email,
+		ActorID:  user.ID,
+	})
 
 	return s.buildResponse(ctx, user)
 }
@@ -131,6 +197,17 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (string,
 			zap.Uint("user_id", userID),
 			zap.String("reason", "jti_revoked"),
 		)
+		// A revoked-token refresh attempt is a signal of potential token
+		// theft/reuse (FR-001) — durably recorded, unlike an ordinary expired
+		// or malformed token, which isn't security-relevant on its own.
+		s.systemLogSvc.Record(ctx, domain.SystemLogEntry{
+			Category: domain.SystemLogCategoryAuthentication,
+			Action:   "refresh_rejected",
+			Outcome:  "failure",
+			Actor:    user.Email,
+			ActorID:  userID,
+			Detail:   "revoked token reuse attempt",
+		})
 		return "", domain.ErrTokenRevoked
 	}
 

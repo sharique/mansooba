@@ -21,6 +21,15 @@ func (s *stubDBPinger) PingContext(_ context.Context) error {
 	return s.pingErr
 }
 
+// stubLokiPinger is a test double for handler.LokiPinger.
+type stubLokiPinger struct {
+	readyErr error
+}
+
+func (s *stubLokiPinger) Ready(_ context.Context) error {
+	return s.readyErr
+}
+
 func newHealthEcho(h *handler.HealthHandler) *echo.Echo {
 	e := newEcho()
 	e.GET("/health", h.Check)
@@ -85,5 +94,69 @@ func TestHealthHandler_Check_Returns503_WhenDBUnreachable(t *testing.T) {
 	}
 	if _, ok := body["db_latency_ms"]; ok {
 		t.Error("db_latency_ms should not appear in degraded response")
+	}
+}
+
+func TestHealthHandler_Check_ReportsLokiOK_WhenConfiguredAndReachable(t *testing.T) {
+	h := handler.NewHealthHandler(&stubDBPinger{}).WithLoki(&stubLokiPinger{})
+	e := newHealthEcho(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var body map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("could not decode response: %v", err)
+	}
+	if body["loki"] != "ok" {
+		t.Errorf("expected loki=ok, got %v", body["loki"])
+	}
+}
+
+func TestHealthHandler_Check_ReportsLokiError_ButStaysOverall200_WhenLokiDown(t *testing.T) {
+	// A Loki outage is reported, but must NOT flip the overall status to 503 —
+	// the application keeps operating normally without it (FR-012, best-effort
+	// logging). This is the key behavioral difference from the DB check.
+	lokiErr := errors.New("connection refused")
+	h := handler.NewHealthHandler(&stubDBPinger{}).WithLoki(&stubLokiPinger{readyErr: lokiErr})
+	e := newHealthEcho(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 (Loki being down must not degrade overall status), got %d: %s", rec.Code, rec.Body.String())
+	}
+	var body map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("could not decode response: %v", err)
+	}
+	if body["status"] != "ok" {
+		t.Errorf("expected status=ok despite Loki being down, got %v", body["status"])
+	}
+	if body["loki"] != "error" {
+		t.Errorf("expected loki=error, got %v", body["loki"])
+	}
+}
+
+func TestHealthHandler_Check_OmitsLokiField_WhenNotConfigured(t *testing.T) {
+	h := handler.NewHealthHandler(&stubDBPinger{}) // WithLoki never called
+	e := newHealthEcho(h)
+
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	var body map[string]any
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("could not decode response: %v", err)
+	}
+	if _, ok := body["loki"]; ok {
+		t.Errorf("expected loki field to be absent when WithLoki was never called, got %v", body["loki"])
 	}
 }

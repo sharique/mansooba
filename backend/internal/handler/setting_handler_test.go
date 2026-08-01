@@ -20,7 +20,7 @@ import (
 
 type stubSettingService struct {
 	getAllFn func() (*dto.SettingsResponse, error)
-	patchFn func(userID uint, req dto.PatchSettingsRequest) (*dto.SettingsResponse, error)
+	patchFn  func(userID uint, req dto.PatchSettingsRequest) (*dto.SettingsResponse, error)
 }
 
 func (s *stubSettingService) GetAll(_ context.Context) (*dto.SettingsResponse, error) {

@@ -54,6 +54,27 @@
             </select>
         </div>
 
+        <div class="form-control">
+            <label class="label"><span class="label-text">System Log Retention (days)</span></label>
+            <input
+                v-model="form.system_log_retention_days"
+                type="number"
+                min="1"
+                step="1"
+                class="input input-bordered w-full"
+            />
+            <label class="label">
+                <span class="label-text-alt">
+                    How long entries on the
+                    <NuxtLink to="/system/logs" class="link">System Logs</NuxtLink>
+                    page are kept before being purged.
+                </span>
+            </label>
+            <label v-if="errors.system_log_retention_days" class="label">
+                <span class="label-text-alt text-error">{{ errors.system_log_retention_days }}</span>
+            </label>
+        </div>
+
         <div class="flex justify-end pt-2">
             <button type="submit" class="btn btn-primary" :disabled="saving">
                 {{ saving ? "Saving…" : "Save Settings" }}
@@ -74,6 +95,7 @@ const form = reactive({
     time_format: store.time_format,
     locale: store.locale,
     week_start_day: store.week_start_day,
+    system_log_retention_days: store.system_log_retention_days,
 });
 
 const errors = reactive<Record<string, string>>({});
@@ -88,6 +110,7 @@ watch(
             form.time_format = store.time_format;
             form.locale = store.locale;
             form.week_start_day = store.week_start_day;
+            form.system_log_retention_days = store.system_log_retention_days;
         }
     },
     { immediate: true },
@@ -108,6 +131,11 @@ function validate(): boolean {
         errors.locale = "Must be a valid BCP-47 locale tag (e.g. en-US)";
         return false;
     }
+    const retentionDays = Number(form.system_log_retention_days);
+    if (!Number.isInteger(retentionDays) || retentionDays < 1) {
+        errors.system_log_retention_days = "Must be a whole number of days, 1 or greater";
+        return false;
+    }
     return true;
 }
 
@@ -121,6 +149,7 @@ async function save() {
             time_format: form.time_format,
             locale: form.locale,
             week_start_day: form.week_start_day,
+            system_log_retention_days: form.system_log_retention_days,
         });
         showSuccess("Settings saved");
     } catch {

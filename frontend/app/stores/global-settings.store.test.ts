@@ -18,6 +18,7 @@ const defaultSettings = {
   time_format: '24h',
   locale: 'en-US',
   week_start_day: 'monday',
+  system_log_retention_days: '90',
 }
 
 describe('global-settings store', () => {
@@ -27,7 +28,7 @@ describe('global-settings store', () => {
     mockPatchSettings.mockReset()
   })
 
-  test('fetch() populates all five settings fields from API response', async () => {
+  test('fetch() populates all six settings fields from API response', async () => {
     mockGetSettings.mockResolvedValueOnce(defaultSettings)
     const store = useGlobalSettingsStore()
     await store.fetch()
@@ -36,6 +37,7 @@ describe('global-settings store', () => {
     expect(store.time_format).toBe('24h')
     expect(store.locale).toBe('en-US')
     expect(store.week_start_day).toBe('monday')
+    expect(store.system_log_retention_days).toBe('90')
   })
 
   test('patch() calls API and updates state on success', async () => {
@@ -45,5 +47,14 @@ describe('global-settings store', () => {
     await store.patch({ organization_name: 'Acme Corp' })
     expect(mockPatchSettings).toHaveBeenCalledWith({ organization_name: 'Acme Corp' })
     expect(store.organization_name).toBe('Acme Corp')
+  })
+
+  test('patch() updates system_log_retention_days on success', async () => {
+    const updated = { ...defaultSettings, system_log_retention_days: '30' }
+    mockPatchSettings.mockResolvedValueOnce(updated)
+    const store = useGlobalSettingsStore()
+    await store.patch({ system_log_retention_days: '30' })
+    expect(mockPatchSettings).toHaveBeenCalledWith({ system_log_retention_days: '30' })
+    expect(store.system_log_retention_days).toBe('30')
   })
 })

@@ -180,7 +180,10 @@ func buildMultipartRequest(t *testing.T, fieldName, filename string, data []byte
 // minimalJPEG bytes for handler tests.
 var minimalJPEGForHandler = func() []byte {
 	b := make([]byte, 512)
-	b[0] = 0xFF; b[1] = 0xD8; b[2] = 0xFF; b[3] = 0xE0
+	b[0] = 0xFF
+	b[1] = 0xD8
+	b[2] = 0xFF
+	b[3] = 0xE0
 	return b
 }()
 

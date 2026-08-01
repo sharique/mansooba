@@ -43,6 +43,16 @@ usermod -aG docker ec2-user
 mkdir -p /opt/mansooba
 cd /opt/mansooba
 
+# ── System Logs (011-system-logs, ADR-031) ────────────────────────────────────
+# Loki's -runtime-config.file must point at a file that exists before Loki
+# starts (an empty "overrides: {}" is a valid, inert starting point — the
+# backend's retention-sync reconciler rewrites it after boot). Bind-mounted
+# into both the backend and loki containers via compose.prod.yml.
+mkdir -p /opt/mansooba/loki
+cat > /opt/mansooba/loki/runtime-overrides.yaml <<'EOF'
+overrides: {}
+EOF
+
 # ── Fetch secrets from SSM Parameter Store ───────────────────────────────────
 # The EC2 instance role grants ssm:GetParameter on /mansooba/* (see iam module).
 # Using --with-decryption to read SecureString values.
@@ -112,6 +122,14 @@ RDS_INSTANCE_IDENTIFIER=${rds_identifier}
 # "missing region" error whenever auto-stop is enabled.
 AWS_REGION=${aws_region}
 
+# ── System Logs (011-system-logs, ADR-031) ────────────────────────────────────
+# LOKI_BASE_URL uses the compose service name, same pattern as local dev.
+# LOKI_RUNTIME_OVERRIDES_PATH must match the container-side path in
+# compose.prod.yml's volume mounts for both the backend and loki services.
+LOKI_BASE_URL=http://loki:3100
+LOKI_RUNTIME_OVERRIDES_PATH=/etc/loki/runtime-overrides.yaml
+LOKI_RETENTION_SYNC_INTERVAL=5m
+
 # ── Attachment storage (S3) ────────────────────────────────────────────────────
 # No access key/secret here: the SDK authenticates via the EC2 instance's IAM
 # role (see modules/iam). Leaving STORAGE_ENDPOINT unset means "real AWS S3".
@@ -148,6 +166,14 @@ echo "$${GHCR_PAT}" | docker login ghcr.io -u github-actions --password-stdin
 curl -fsSL \
   "https://raw.githubusercontent.com/sharique/mansooba/main/compose.prod.yml" \
   -o /opt/mansooba/compose.prod.yml
+
+# Loki's static config (011-system-logs) — same file compose.yml uses
+# locally; see its own comment for why max_query_length is overridden.
+# runtime-overrides.yaml was already written above, by this script itself
+# (not fetched — the backend's retention-sync reconciler owns that file).
+curl -fsSL \
+  "https://raw.githubusercontent.com/sharique/mansooba/main/loki/local-config.yaml" \
+  -o /opt/mansooba/loki/local-config.yaml
 
 # ── Start the application ─────────────────────────────────────────────────────
 echo "Pulling images and starting Mansooba stack..."

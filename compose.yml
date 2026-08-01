@@ -36,11 +36,21 @@ services:
       SMTP_PORT: "1025"
       SMTP_FROM: noreply@mansooba.local
       APP_BASE_URL: "http://localhost:3000"
+      LOKI_BASE_URL: "http://loki:3100"
+      # Same host file Loki's -runtime-config.file points at (below), bind-
+      # mounted into this container too — the backend and Loki are separate
+      # containers with separate filesystems, so sharing this file between
+      # them requires mounting the same host path into both.
+      LOKI_RUNTIME_OVERRIDES_PATH: "/etc/loki/runtime-overrides.yaml"
+      LOKI_RETENTION_SYNC_INTERVAL: "1m"
     volumes:
       - sqlite_data:/data
+      - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
     depends_on:
       localstack-init:
         condition: service_completed_successfully
+      loki:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 15s
@@ -99,6 +109,30 @@ services:
       - "8025:8025" # Web inbox — http://localhost:8025
     restart: unless-stopped
 
+  # System Logs backing store (011-system-logs, ADR-031). Monolithic mode,
+  # filesystem storage — matches production's single-instance topology.
+  # -config.file is our own local-config.yaml (based on the image's bundled
+  # default, +max_query_length — see that file's comment for why).
+  # -runtime-config.file points at a bind-mounted, empty-but-present file so
+  # the backend's retention-sync reconciler (systemlog_service.go) has a real
+  # file to write into and Loki hot-reloads it without a restart.
+  loki:
+    image: grafana/loki:3.2.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml -runtime-config.file=/etc/loki/runtime-overrides.yaml
+    volumes:
+      - loki_data:/loki
+      - ./loki/local-config.yaml:/etc/loki/local-config.yaml
+      - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
 volumes:
   sqlite_data:
   localstack_data:
+  loki_data:

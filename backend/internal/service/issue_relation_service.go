@@ -11,18 +11,18 @@ import (
 
 // Sentinel errors for issue-relation business rule violations.
 var (
-	ErrSelfRelation        = errors.New("self_relation")
-	ErrCircularRelation    = errors.New("circular_relation")
+	ErrSelfRelation         = errors.New("self_relation")
+	ErrCircularRelation     = errors.New("circular_relation")
 	ErrCrossProjectRelation = errors.New("cross_project_relation")
-	ErrDuplicateRelation   = errors.New("duplicate_relation")
+	ErrDuplicateRelation    = errors.New("duplicate_relation")
 	ErrInvalidRelationType  = errors.New("invalid_relation_type")
-	ErrRelationNotFound    = errors.New("relation_not_found")
+	ErrRelationNotFound     = errors.New("relation_not_found")
 )
 
 // userSelectableTypes are the three types a user can request; "is_blocked_by" is auto-managed.
 var userSelectableTypes = map[string]bool{
-	domain.RelationTypeBlocks:    true,
-	domain.RelationTypeRelatesTo: true,
+	domain.RelationTypeBlocks:     true,
+	domain.RelationTypeRelatesTo:  true,
 	domain.RelationTypeDuplicates: true,
 }
 

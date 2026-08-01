@@ -32,10 +32,11 @@ describe('system nav links (admin only)', () => {
     { label: 'System Settings', to: '/system/settings', icon: 'mdi:cog-outline' },
     { label: 'User Management', to: '/system/users',    icon: 'mdi:account-group-outline' },
     { label: 'Create User',     to: '/system/createuser', icon: 'mdi:account-plus-outline' },
+    { label: 'System Logs',     to: '/system/logs',      icon: 'mdi:text-box-search-outline' },
   ]
 
-  it('contains three links', () => {
-    expect(systemLinks).toHaveLength(3)
+  it('contains four links', () => {
+    expect(systemLinks).toHaveLength(4)
   })
 
   it('system settings link points to /system/settings', () => {
@@ -51,5 +52,10 @@ describe('system nav links (admin only)', () => {
   it('create user link points to /system/createuser', () => {
     expect(systemLinks[2].to).toBe('/system/createuser')
     expect(systemLinks[2].label).toBe('Create User')
+  })
+
+  it('system logs link points to /system/logs', () => {
+    expect(systemLinks[3].to).toBe('/system/logs')
+    expect(systemLinks[3].label).toBe('System Logs')
   })
 })

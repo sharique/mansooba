@@ -13,11 +13,11 @@ import (
 // stubAdminUserRepo is a controllable stand-in for domain.UserRepository used
 // by admin user service tests. Only methods relevant to admin operations are wired.
 type stubAdminUserRepo struct {
-	users             []*domain.User
-	listAllFn         func(page, size int) ([]*domain.User, int64, error)
-	countAdminsFn     func() (int64, error)
-	updateAdminFn     func(u *domain.User) error
-	findByIDFn        func(id uint) (*domain.User, error)
+	users         []*domain.User
+	listAllFn     func(page, size int) ([]*domain.User, int64, error)
+	countAdminsFn func() (int64, error)
+	updateAdminFn func(u *domain.User) error
+	findByIDFn    func(id uint) (*domain.User, error)
 }
 
 func (r *stubAdminUserRepo) Create(_ context.Context, _ *domain.User) error { return nil }
@@ -48,7 +48,7 @@ func (r *stubAdminUserRepo) Update(_ context.Context, u *domain.User) error {
 	}
 	return domain.ErrNotFound
 }
-func (r *stubAdminUserRepo) HasAdmin(_ context.Context) (bool, error)          { return false, nil }
+func (r *stubAdminUserRepo) HasAdmin(_ context.Context) (bool, error) { return false, nil }
 func (r *stubAdminUserRepo) FindFirstAdmin(_ context.Context) (*domain.User, error) {
 	return nil, domain.ErrNotFound
 }
@@ -92,7 +92,7 @@ func TestAdminUserService_ListUsers_MapsToDTO(t *testing.T) {
 			}, 2, nil
 		},
 	}
-	svc := service.NewAdminUserService(repo)
+	svc := service.NewAdminUserService(repo, stubSystemLogService{})
 
 	resp, err := svc.ListUsers(context.Background(), 1, 20)
 	if err != nil {
@@ -121,7 +121,7 @@ func TestAdminUserService_ListUsers_PassesPaginationThrough(t *testing.T) {
 			return nil, 0, nil
 		},
 	}
-	svc := service.NewAdminUserService(repo)
+	svc := service.NewAdminUserService(repo, stubSystemLogService{})
 
 	if _, err := svc.ListUsers(context.Background(), 3, 50); err != nil {
 		t.Fatalf("ListUsers: %v", err)
@@ -137,7 +137,7 @@ func TestAdminUserService_ListUsers_EmptyResult(t *testing.T) {
 			return nil, 0, nil
 		},
 	}
-	svc := service.NewAdminUserService(repo)
+	svc := service.NewAdminUserService(repo, stubSystemLogService{})
 
 	resp, err := svc.ListUsers(context.Background(), 1, 20)
 	if err != nil {
@@ -165,7 +165,7 @@ func TestAdminUserService_SetRole_PromotesUser(t *testing.T) {
 		users:         []*domain.User{makeUser(1, "admin", true, true), target},
 		countAdminsFn: func() (int64, error) { return 1, nil }, // 1 active admin
 	}
-	svc := service.NewAdminUserService(repo)
+	svc := service.NewAdminUserService(repo, stubSystemLogService{})
 
 	if err := svc.SetRole(context.Background(), 1, 2, true); err != nil {
 		t.Fatalf("SetRole promote: %v", err)
@@ -181,7 +181,7 @@ func TestAdminUserService_SetRole_DemotesNonLastAdmin(t *testing.T) {
 		users:         []*domain.User{makeUser(1, "admin1", true, true), makeUser(2, "admin2", true, true)},
 		countAdminsFn: func() (int64, error) { return 2, nil }, // 2 active admins → safe to demote
 	}
-	svc := service.NewAdminUserService(repo)
+	svc := service.NewAdminUserService(repo, stubSystemLogService{})
 
 	if err := svc.SetRole(context.Background(), 1, 2, false); err != nil {
 		t.Fatalf("SetRole demote: %v", err)
@@ -193,7 +193,7 @@ func TestAdminUserService_SetRole_DemotesLastAdmin_ReturnsErrLastAdmin(t *testin
 		users:         []*domain.User{makeUser(1, "admin", true, true)},
 		countAdminsFn: func() (int64, error) { return 1, nil }, // only 1 admin
 	}
-	svc := service.NewAdminUserService(repo)
+	svc := service.NewAdminUserService(repo, stubSystemLogService{})
 
 	err := svc.SetRole(context.Background(), 1, 1, false)
 	if !errors.Is(err, domain.ErrLastAdmin) {
@@ -206,7 +206,7 @@ func TestAdminUserService_SetActive_DisablesUser(t *testing.T) {
 		users:         []*domain.User{makeUser(1, "admin", true, true), makeUser(2, "user", false, true)},
 		countAdminsFn: func() (int64, error) { return 1, nil },
 	}
-	svc := service.NewAdminUserService(repo)
+	svc := service.NewAdminUserService(repo, stubSystemLogService{})
 
 	if err := svc.SetActive(context.Background(), 1, 2, false); err != nil {
 		t.Fatalf("SetActive disable: %v", err)
@@ -222,7 +222,7 @@ func TestAdminUserService_SetActive_DisablesLastAdmin_ReturnsErrLastAdmin(t *tes
 		users:         []*domain.User{makeUser(1, "admin", true, true)},
 		countAdminsFn: func() (int64, error) { return 1, nil },
 	}
-	svc := service.NewAdminUserService(repo)
+	svc := service.NewAdminUserService(repo, stubSystemLogService{})
 
 	err := svc.SetActive(context.Background(), 1, 1, false)
 	if !errors.Is(err, domain.ErrLastAdmin) {
@@ -235,7 +235,7 @@ func TestAdminUserService_SetActive_ReEnablesDisabledUser(t *testing.T) {
 		users:         []*domain.User{makeUser(1, "admin", true, true), makeUser(2, "disabled", false, false)},
 		countAdminsFn: func() (int64, error) { return 1, nil },
 	}
-	svc := service.NewAdminUserService(repo)
+	svc := service.NewAdminUserService(repo, stubSystemLogService{})
 
 	if err := svc.SetActive(context.Background(), 1, 2, true); err != nil {
 		t.Fatalf("SetActive re-enable: %v", err)
@@ -248,10 +248,89 @@ func TestAdminUserService_SetActive_ReEnablesDisabledUser(t *testing.T) {
 
 func TestAdminUserService_SetActive_TargetNotFound(t *testing.T) {
 	repo := &stubAdminUserRepo{users: []*domain.User{makeUser(1, "admin", true, true)}}
-	svc := service.NewAdminUserService(repo)
+	svc := service.NewAdminUserService(repo, stubSystemLogService{})
 
 	err := svc.SetActive(context.Background(), 1, 99, false)
 	if !errors.Is(err, domain.ErrNotFound) {
 		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 011-system-logs (US1): Record calls from SetRole/SetActive (T024)
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestAdminUserService_SetRole_RecordsRoleChange(t *testing.T) {
+	target := makeUser(2, "bob", false, true)
+	repo := &stubAdminUserRepo{
+		users:         []*domain.User{makeUser(1, "admin", true, true), target},
+		countAdminsFn: func() (int64, error) { return 1, nil },
+	}
+	systemLogSvc := &recordingSystemLogService{}
+	svc := service.NewAdminUserService(repo, systemLogSvc)
+
+	if err := svc.SetRole(context.Background(), 1, 2, true); err != nil {
+		t.Fatalf("SetRole: %v", err)
+	}
+
+	entries := systemLogSvc.all()
+	if len(entries) != 1 {
+		t.Fatalf("expected exactly 1 Record call, got %d", len(entries))
+	}
+	e := entries[0]
+	if e.Category != domain.SystemLogCategoryAdminAction || e.Action != "role_changed" {
+		t.Errorf("unexpected category/action: %+v", e)
+	}
+	if e.Actor != "admin@test.com" || e.ActorID != 1 {
+		t.Errorf("expected actor to be the caller (admin@test.com/1), got %+v", e)
+	}
+	if e.Target != "bob@test.com" || e.TargetID != 2 {
+		t.Errorf("expected target to be the affected user (bob@test.com/2), got %+v", e)
+	}
+}
+
+func TestAdminUserService_SetRole_DoesNotRecordOnLastAdminRejection(t *testing.T) {
+	repo := &stubAdminUserRepo{
+		users:         []*domain.User{makeUser(1, "admin", true, true)},
+		countAdminsFn: func() (int64, error) { return 1, nil },
+	}
+	systemLogSvc := &recordingSystemLogService{}
+	svc := service.NewAdminUserService(repo, systemLogSvc)
+
+	err := svc.SetRole(context.Background(), 1, 1, false)
+	if !errors.Is(err, domain.ErrLastAdmin) {
+		t.Fatalf("expected ErrLastAdmin, got %v", err)
+	}
+	if len(systemLogSvc.all()) != 0 {
+		t.Errorf("expected no Record call for a rejected (no-op) action, got %d", len(systemLogSvc.all()))
+	}
+}
+
+func TestAdminUserService_SetActive_RecordsAccountDisabledAndEnabled(t *testing.T) {
+	target := makeUser(2, "bob", false, true)
+	repo := &stubAdminUserRepo{
+		users:         []*domain.User{makeUser(1, "admin", true, true), target},
+		countAdminsFn: func() (int64, error) { return 1, nil },
+	}
+	systemLogSvc := &recordingSystemLogService{}
+	svc := service.NewAdminUserService(repo, systemLogSvc)
+	ctx := context.Background()
+
+	if err := svc.SetActive(ctx, 1, 2, false); err != nil {
+		t.Fatalf("SetActive disable: %v", err)
+	}
+	if err := svc.SetActive(ctx, 1, 2, true); err != nil {
+		t.Fatalf("SetActive enable: %v", err)
+	}
+
+	entries := systemLogSvc.all()
+	if len(entries) != 2 {
+		t.Fatalf("expected exactly 2 Record calls, got %d", len(entries))
+	}
+	if entries[0].Action != "account_disabled" {
+		t.Errorf("expected first entry to be account_disabled, got %s", entries[0].Action)
+	}
+	if entries[1].Action != "account_enabled" {
+		t.Errorf("expected second entry to be account_enabled, got %s", entries[1].Action)
 	}
 }

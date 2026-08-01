@@ -14,6 +14,13 @@ services:
     env_file: .env
     ports:
       - "8080:8080"
+    volumes:
+      # Shared with the loki service below — see its comment. The path here
+      # must match LOKI_RUNTIME_OVERRIDES_PATH in .env (user-data.sh).
+      - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
+    depends_on:
+      loki:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 30s
@@ -29,3 +36,26 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+  # System Logs backing store (011-system-logs, ADR-031). Same image/config
+  # as local dev (compose.yml) — monolithic mode, filesystem storage on the
+  # instance's own EBS volume (no new AWS resource). The backend and this
+  # service share ./loki/runtime-overrides.yaml (bind-mounted into both) so
+  # the backend's retention-sync reconciler can write config Loki hot-reloads.
+  loki:
+    image: grafana/loki:3.2.0
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml -runtime-config.file=/etc/loki/runtime-overrides.yaml
+    volumes:
+      - loki_data:/loki
+      - ./loki/local-config.yaml:/etc/loki/local-config.yaml
+      - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  loki_data:

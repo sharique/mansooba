@@ -33,7 +33,7 @@ type wakingUpBody struct {
 // consecutive start attempts have failed, it instead returns a plain 503
 // (FR-010) — the client's existing error handling treats that as a genuine,
 // non-retryable failure.
-func DBWake(tracker *service.DBLifecycleTracker, client domain.DBInstanceClient, log *zap.Logger) echo.MiddlewareFunc {
+func DBWake(tracker *service.DBLifecycleTracker, client domain.DBInstanceClient, log *zap.Logger, systemLogSvc service.SystemLogService) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			if tracker.CurrentState() == domain.DBInstanceRunning {
@@ -41,14 +41,14 @@ func DBWake(tracker *service.DBLifecycleTracker, client domain.DBInstanceClient,
 			}
 
 			if tracker.TryClaimStart() {
-				service.LogDBLifecycleEvent(log, "db_auto_start", "incoming_request", "initiated", nil)
+				service.LogDBLifecycleEvent(c.Request().Context(), log, systemLogSvc, "db_auto_start", "incoming_request", "initiated", nil)
 				// StartDBInstance only requests the transition — AWS acknowledges
 				// quickly, it does not wait for the instance to become available,
 				// so this synchronous call does not violate FR-007's "respond
 				// immediately, don't block for minutes" requirement.
 				if err := client.StartDBInstance(c.Request().Context()); err != nil {
 					giveUp := tracker.RecordStartFailure()
-					service.LogDBLifecycleEvent(log, "db_auto_start", "incoming_request", "failed", err)
+					service.LogDBLifecycleEvent(c.Request().Context(), log, systemLogSvc, "db_auto_start", "incoming_request", "failed", err)
 					if giveUp {
 						return echo.NewHTTPError(http.StatusServiceUnavailable,
 							"database is currently unavailable, please try again later")

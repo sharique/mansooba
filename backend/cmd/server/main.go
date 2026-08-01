@@ -26,6 +26,7 @@ import (
 	"github.com/sharique/mansooba/internal/handler"
 	apimw "github.com/sharique/mansooba/internal/middleware"
 	"github.com/sharique/mansooba/internal/pkg/attachmentstorage"
+	"github.com/sharique/mansooba/internal/pkg/lokiclient"
 	"github.com/sharique/mansooba/internal/pkg/rdsclient"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
@@ -107,6 +108,34 @@ func main() {
 		log.Fatal("failed to initialize attachment storage", zap.Error(err))
 	}
 
+	// System Logs backing store (011-system-logs, ADR-031) — Grafana Loki,
+	// not the application database. Constructed unconditionally (unlike RDS
+	// auto-stop, this feature has no per-deployment opt-out): if Loki is
+	// unreachable in a given environment, Record calls simply fail
+	// best-effort (FR-012) and are logged as warnings, with no special
+	// nil-handling needed at any call site.
+	lokiClient := lokiclient.New(cfg.LokiBaseURL)
+	systemLogRepo := repository.NewLokiSystemLogRepository(lokiClient)
+	systemLogSvc := service.NewSystemLogService(systemLogRepo, settingRepo, cfg.LokiRuntimeOverridesPath, log)
+
+	// Keep Loki's runtime-overrides file in sync with the admin-configured
+	// system_log_retention_days setting (FR-010, SC-005) — re-read every
+	// tick rather than cached at startup, so a retention change takes effect
+	// without a restart. Mirrors startRevokedTokenCleanup's ticker shape.
+	logRetentionSyncInterval, err := time.ParseDuration(cfg.LokiRetentionSyncInterval)
+	if err != nil {
+		log.Warn("invalid LOKI_RETENTION_SYNC_INTERVAL, defaulting to 1m",
+			zap.String("value", cfg.LokiRetentionSyncInterval), zap.Error(err))
+		logRetentionSyncInterval = time.Minute
+	}
+	// Sync once at startup — a time.Ticker's first tick only fires after a
+	// full interval, and the runtime-overrides file starts empty (T001), so
+	// without this the configured retention wouldn't apply until the first tick.
+	if err := systemLogSvc.SyncRetention(ctx); err != nil {
+		log.Warn("initial system_log_retention_sync failed", zap.Error(err))
+	}
+	startSystemLogRetentionSync(ctx, systemLogSvc, logRetentionSyncInterval, log)
+
 	// Start background goroutine to purge expired revocation records.
 	cleanupInterval, err := time.ParseDuration(cfg.RevokedTokenCleanupInterval)
 	if err != nil {
@@ -164,7 +193,7 @@ func main() {
 
 		dbLifecycleTracker = service.NewDBLifecycleTracker(idleTimeout, cfg.RDSStartFailureBound, time.Now)
 		dbLifecycleTracker.SeedState(initialState)
-		startDBIdleCheck(ctx, dbLifecycleTracker, rdsClient, idleCheckInterval, log)
+		startDBIdleCheck(ctx, dbLifecycleTracker, rdsClient, idleCheckInterval, log, systemLogSvc)
 		log.Info("db idle auto-stop enabled",
 			zap.String("instance", cfg.RDSInstanceIdentifier),
 			zap.Duration("idle_timeout", idleTimeout),
@@ -178,7 +207,7 @@ func main() {
 	}
 
 	// Services
-	authSvc := service.NewAuthService(userRepo, revokedTokenRepo, log, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
+	authSvc := service.NewAuthService(userRepo, revokedTokenRepo, systemLogSvc, log, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	userSvc := service.NewUserService(userRepo)
 	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo)
 	activitySvc := service.NewActivityService(activityRepo, userRepo, issueRepo)
@@ -189,7 +218,7 @@ func main() {
 	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc, notifRepo, userRepo)
 	attachmentSvc := service.NewAttachmentService(attachmentRepo, issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, attachmentStorage)
 	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
-	settingSvc := service.NewSettingService(settingRepo)
+	settingSvc := service.NewSettingService(settingRepo, userRepo, systemLogSvc)
 	issueRelationSvc := service.NewIssueRelationService(issueRelationRepo, issueRepo)
 	var emailSender domain.EmailSender
 	if cfg.SMTPHost != "" {
@@ -201,14 +230,15 @@ func main() {
 	}
 	passwordResetSvc := service.NewPasswordResetService(userRepo, passwordResetRepo, emailSender)
 
-	adminUserSvc := service.NewAdminUserService(userRepo)
+	adminUserSvc := service.NewAdminUserService(userRepo, systemLogSvc)
 
 	// Setup service (wizard)
 	accessTTL, _ := time.ParseDuration(cfg.JWTAccessTTL)
 	setupSvc := service.NewSetupService(userRepo, projectSvc, cfg.JWTSecret, accessTTL, log, db)
 
 	// Handlers
-	healthHandler := handler.NewHealthHandler(sqlDB)
+	healthHandler := handler.NewHealthHandler(sqlDB).WithLoki(lokiClient)
+	systemLogHandler := handler.NewSystemLogHandler(systemLogSvc, userSvc)
 	authHandler := handler.NewAuthHandler(authSvc, userSvc)
 	setupHandler := handler.NewSetupHandler(setupSvc)
 	userHandler := handler.NewUserHandler(userSvc, activitySvc, issueSvc)
@@ -275,7 +305,7 @@ func main() {
 	// hitting a stopped database gets the waking_up signal immediately,
 	// without DBActivity or any handler attempting real (doomed) DB work.
 	if dbLifecycleTracker != nil {
-		e.Use(apimw.DBWake(dbLifecycleTracker, rdsClient, log))
+		e.Use(apimw.DBWake(dbLifecycleTracker, rdsClient, log, systemLogSvc))
 		e.Use(apimw.DBActivity(dbLifecycleTracker))
 	}
 
@@ -436,6 +466,7 @@ func main() {
 	admin := api.Group("/admin")
 	admin.GET("/users", adminUserHandler.ListUsers)
 	admin.PATCH("/users/:id", adminUserHandler.PatchUser)
+	admin.GET("/system-logs", systemLogHandler.List)
 
 	settings := api.Group("/settings")
 	settings.GET("", settingHandler.GetAll)
@@ -500,7 +531,7 @@ func main() {
 // start is pending — polls for it having become available again (spec 010,
 // db-idle-autostop). Mirrors startRevokedTokenCleanup's ticker/select/
 // ctx.Done() shape. The goroutine stops when ctx is cancelled.
-func startDBIdleCheck(ctx context.Context, tracker *service.DBLifecycleTracker, client *rdsclient.Client, interval time.Duration, log *zap.Logger) {
+func startDBIdleCheck(ctx context.Context, tracker *service.DBLifecycleTracker, client *rdsclient.Client, interval time.Duration, log *zap.Logger, systemLogSvc service.SystemLogService) {
 	ticker := time.NewTicker(interval)
 	go func() {
 		defer ticker.Stop()
@@ -510,9 +541,9 @@ func startDBIdleCheck(ctx context.Context, tracker *service.DBLifecycleTracker, 
 				attempted, stopErr := tracker.CheckAndStop(ctx, client)
 				if attempted {
 					if stopErr != nil {
-						service.LogDBLifecycleEvent(log, "db_auto_stop", "idle_timeout", "failed", stopErr)
+						service.LogDBLifecycleEvent(ctx, log, systemLogSvc, "db_auto_stop", "idle_timeout", "failed", stopErr)
 					} else {
-						service.LogDBLifecycleEvent(log, "db_auto_stop", "idle_timeout", "succeeded", nil)
+						service.LogDBLifecycleEvent(ctx, log, systemLogSvc, "db_auto_stop", "idle_timeout", "succeeded", nil)
 					}
 				}
 
@@ -520,7 +551,29 @@ func startDBIdleCheck(ctx context.Context, tracker *service.DBLifecycleTracker, 
 				if pollErr != nil {
 					log.Warn("db_auto_start poll failed", zap.Error(pollErr))
 				} else if justStarted {
-					service.LogDBLifecycleEvent(log, "db_auto_start", "incoming_request", "succeeded", nil)
+					service.LogDBLifecycleEvent(ctx, log, systemLogSvc, "db_auto_start", "incoming_request", "succeeded", nil)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+// startSystemLogRetentionSync launches a background goroutine that
+// periodically reconciles Loki's runtime-overrides file with the current
+// system_log_retention_days setting (011-system-logs, FR-010, SC-005).
+// Mirrors startRevokedTokenCleanup's ticker/select/ctx.Done() shape. The
+// goroutine stops when ctx is cancelled.
+func startSystemLogRetentionSync(ctx context.Context, svc service.SystemLogService, interval time.Duration, log *zap.Logger) {
+	ticker := time.NewTicker(interval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				if err := svc.SyncRetention(ctx); err != nil {
+					log.Warn("system_log_retention_sync failed", zap.Error(err))
 				}
 			case <-ctx.Done():
 				return
