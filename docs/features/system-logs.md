@@ -31,7 +31,8 @@ absent: for `db_lifecycle` entries, which have no human actor, it's the fixed va
 
 Admin-only, via the same `profile.IsAdmin` gate every other System-section page and
 endpoint uses (`GET /api/v1/admin/system-logs`). No separate "read-only auditor" role
-exists.
+exists — the closest thing to one is the optional Grafana instance described below,
+which has its own separate login entirely outside this gate.
 
 ## Filtering and search
 
@@ -45,6 +46,124 @@ query: category becomes a label selector, actor becomes a `| json | actor=~` fie
 filter, and `q` becomes a line filter (`|~`). User-supplied text is always passed
 through `regexp.QuoteMeta` so it behaves as a literal substring match.
 
+## Optional: Grafana for deep log exploration
+
+The in-app System Logs page is deliberately narrow — category, date range, actor,
+and keyword filters only (see [Filtering and search](#filtering-and-search) above).
+That's enough for "did this admin action happen, and who did it," but not for
+open-ended investigation: correlating events across categories, ad-hoc LogQL
+(regex, aggregations, rate-over-time), or a real-time tail.
+
+For that, an optional [Grafana](https://grafana.com/oss/grafana/) instance is
+available, wired to read the same Loki store System Logs already writes to — no
+separate ingestion, no second copy of the data. It's aimed at two audiences beyond
+what the in-app page serves:
+
+- **System admins** who need to go past the built-in filters for a specific
+  investigation (e.g. "show me every `failure` outcome across all categories in
+  the last 24 hours, grouped by actor").
+- **The infra team**, who may not have (or want) an in-app admin account at all —
+  Grafana has its own separate login, entirely outside the application's
+  `profile.IsAdmin` gate, so infra access doesn't require provisioning an
+  application user.
+
+### Enabling it
+
+Not started by default — it's a genuinely optional add-on, gated behind a Docker
+Compose [profile](https://docs.docker.com/compose/how-tos/profiles/):
+
+```bash
+# Local dev (compose.yml)
+docker compose --profile observability up -d grafana
+
+# Production (compose.prod.yml, on the deployed instance)
+docker compose -f compose.prod.yml --profile observability up -d grafana
+```
+
+Loki is pre-provisioned as Grafana's default datasource
+(`grafana/provisioning/datasources/loki.yaml`), and a **"System Logs" dashboard**
+is pre-provisioned too (`grafana/provisioning/dashboards/`) — it's the first thing
+you land on, not something you have to build. It has two panels: a log stream
+(`{app="mansooba"}`, last 24h, newest first) and an entries-by-category graph. No
+LogQL knowledge is required just to look at what's there.
+
+Loki itself has no "show everything" default the way a normal dashboard homepage
+does — every query needs an explicit stream selector — so **Explore** (for queries
+beyond what the dashboard shows) always needs a query typed in, even an empty one
+won't return anything on its own. Example queries to build on:
+
+```logql
+{app="mansooba"}                                    # everything
+{app="mansooba"} | json | outcome="failure"          # every failed action, any category
+{app="mansooba",category="authentication"} | json    # parsed fields (actor, action, ...)
+```
+
+### Container logs (raw stdout/stderr, via Alloy)
+
+System Logs and the Grafana dashboards above only ever contain what this
+application deliberately records — the four categories in
+[Event categories](#event-categories). They say nothing about a container that
+crashed on startup, panicked, or is spewing framework noise; that's a different
+kind of signal, living in each container's own stdout/stderr.
+
+[Grafana Alloy](https://grafana.com/docs/alloy/latest/) (`alloy/config.alloy`)
+tails every container's logs via the Docker Engine API and ships them into the
+*same* Loki instance — but under a different label, `job="dockerlogs"`, never
+`app="mansooba"`. That separation is deliberate: System Logs' own queries
+(`loki_systemlog_repository.go`'s `buildLogQL`) assume every line under
+`app="mansooba"` is the structured JSON `SystemLogEntry` shape and parse it with
+`| json` — mixing in raw, unstructured container output under that same label
+would break that parsing and pollute the audit trail. Same Loki, same Grafana,
+cleanly separate streams.
+
+Unlike Grafana, Alloy runs **by default** (not gated behind the `observability`
+profile) — a log collector only earns its keep if it's actually running when
+something crashes, not just when someone happens to have Grafana open
+afterward. A pre-provisioned **"Container Logs"** dashboard (with a
+`compose_service` filter — `backend`, `frontend`, `loki`, `alloy`, ...) shows the
+raw stream; enabling Grafana is still what you need to actually look at it.
+
+Alloy needs read access to the Docker socket to discover containers and tail
+their logs — the same requirement any Docker-log-shipping tool has (Promtail,
+Fluentd, ...). Docker sockets don't support partial read-only enforcement at the
+bind-mount level, so this is a real privilege-scope trade-off: whoever can reach
+that socket can, in principle, do anything the Docker API allows. Acceptable for
+a single-operator deployment; a more adversarial/multi-tenant environment would
+warrant a docker-socket-proxy in front of it instead.
+
+### Access
+
+| Environment | URL | Credentials |
+|---|---|---|
+| Local dev | http://localhost:3001 | `admin` / `admin` (default — local dev only) |
+| Production | *(no public URL — see below)* | `GF_SECURITY_ADMIN_USER` / `GF_SECURITY_ADMIN_PASSWORD` from `.env` |
+
+In production, Grafana's host port is **deliberately not opened** in the EC2
+security group (`terraform/modules/security`) — an audit-log viewer shouldn't be
+reachable from the public internet by default, the same reasoning that already
+keeps Loki itself off the public security group. Reach it via an SSH tunnel
+instead:
+
+```bash
+ssh -L 3001:localhost:3001 ec2-user@<instance-ip>
+# then open http://localhost:3001 in a local browser
+```
+
+The admin password is fetched from SSM (`/mansooba/GRAFANA_ADMIN_PASSWORD`) at
+instance boot if the operator has set it there, otherwise `user-data.sh` generates
+a fresh random one on every boot — set the SSM parameter for a password that
+survives instance restarts.
+
+### What it does *not* change
+
+Grafana is read-only against Loki and has no write path into System Logs, the
+application, or its database — enabling it cannot affect `Record()`, retention, or
+anything else this feature already does. Alloy only *adds* a second stream
+(`job="dockerlogs"`) via its own independent push path; it never reads from or
+writes to System Logs' own `app="mansooba"` stream. Both are purely additional
+query surfaces over data that already exists (or, for Alloy, data Docker was
+already generating regardless).
+
 ## Retention
 
 Admin-configurable via the existing Settings page (`system_log_retention_days`,
@@ -55,6 +174,14 @@ reconciles Loki's runtime-overrides file with the current setting; Loki's own
 compactor performs the actual expiry. A reduced retention period taking effect
 against already-stored entries is subject to Loki's compaction schedule, not
 instantaneous.
+
+This retention period is a **per-tenant** Loki setting, and this deployment has
+exactly one tenant (`auth_enabled: false` means every write lands in the same
+implicit tenant, `fake`) — so it applies to *every* stream in Loki, not just
+`app="mansooba"`. Lowering `system_log_retention_days` for audit-log-storage
+reasons also shortens how long Alloy's `job="dockerlogs"` container logs stick
+around, even though they aren't System Log entries. There's currently no way to
+give the two streams independent retention without a second Loki tenant.
 
 ## Failure isolation
 

@@ -1,0 +1,16 @@
+# Tells Grafana to load dashboard JSON files from this same directory
+# (011-system-logs) — without this, the datasource is provisioned but
+# there's nothing to look at on opening Grafana; a user has to already know
+# to go to Explore and write LogQL by hand.
+apiVersion: 1
+
+providers:
+  - name: "System Logs"
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards

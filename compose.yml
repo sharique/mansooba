@@ -132,7 +132,66 @@ services:
       retries: 5
       start_period: 10s
 
+  # Optional: ad-hoc LogQL exploration of System Logs, for system admins and
+  # the infra team (docs/features/system-logs.md). The in-app System Logs
+  # page only exposes category/date/actor/keyword filters — Grafana gives
+  # the full LogQL query language on top of the same Loki data, no separate
+  # ingestion or new backing store. Not started by default (most
+  # contributors don't need it) — opt in with:
+  #   docker compose --profile observability up -d grafana
+  # Loki is pre-provisioned as a datasource (grafana/provisioning/), so
+  # there's no manual setup after it starts. Default admin/admin credentials
+  # are fine for local dev only — see compose.prod.yml for production.
+  grafana:
+    image: grafana/grafana:11.2.0
+    profiles: ["observability"]
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      loki:
+        condition: service_healthy
+
+  # Ships raw container stdout/stderr (crashes, panics, startup noise) into
+  # the same Loki instance System Logs uses — under job="dockerlogs", never
+  # app="mansooba" (see alloy/config.alloy's comment for why). Runs by
+  # default, unlike Grafana — a log collector only earns its keep if it's
+  # actually running when something crashes, not just when someone happens
+  # to have Grafana open to look for it afterward.
+  #
+  # Needs read access to the Docker socket to discover containers and tail
+  # their logs via the Docker Engine API — the same requirement any
+  # Docker-log-shipping tool has (Promtail, Fluentd, ...). Docker sockets
+  # don't support partial read-only enforcement at the bind-mount level; in
+  # a more adversarial/multi-tenant environment this would warrant a
+  # docker-socket-proxy in front of it, but for a single-operator deployment
+  # it's an accepted trade-off, the same one Alloy's own docs describe.
+  alloy:
+    image: grafana/alloy:v1.4.3
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    ports:
+      - "12345:12345" # Alloy's own UI — pipeline/component health, not log content
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy/data
+    depends_on:
+      loki:
+        condition: service_healthy
+
 volumes:
   sqlite_data:
   localstack_data:
   loki_data:
+  grafana_data:
+  alloy_data:

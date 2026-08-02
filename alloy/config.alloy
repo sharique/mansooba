@@ -1,0 +1,51 @@
+// Ships raw container stdout/stderr — crashes, panics, framework startup
+// noise — into the same Loki instance System Logs already uses. This is
+// deliberately kept under job="dockerlogs", never app="mansooba": System
+// Logs' own queries (loki_systemlog_repository.go's buildLogQL) assume
+// every line under app="mansooba" is the structured JSON SystemLogEntry
+// shape and parse it with `| json`. Mixing in raw unstructured container
+// output under the same label would break that parsing and pollute the
+// audit trail view. Same Loki, same Grafana — cleanly separate streams.
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Docker Compose stamps every container it creates with a
+// com.docker.compose.service label (e.g. "backend", "loki") — promoting it
+// to compose_service gives queryable, human-readable service names instead
+// of raw container names/IDs (which carry a project-name prefix and, in
+// production, a random suffix).
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "compose_service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+}
+
+loki.source.docker "containers" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  relabel_rules = discovery.relabel.containers.rules
+  labels        = {job = "dockerlogs"}
+  forward_to    = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

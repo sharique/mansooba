@@ -1,0 +1,15 @@
+# Auto-provisions Loki as a Grafana datasource (011-system-logs) so system
+# admins and the infra team can open Grafana and immediately run LogQL
+# queries — no manual "add datasource" step. `http://loki:3100` is the
+# Docker-internal hostname; only reachable from other containers on this
+# compose network, matching how the backend reaches Loki.
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    isDefault: true
+    editable: false
