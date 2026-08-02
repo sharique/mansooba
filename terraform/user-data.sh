@@ -43,6 +43,16 @@ usermod -aG docker ec2-user
 mkdir -p /opt/mansooba
 cd /opt/mansooba
 
+# ── System Logs (011-system-logs, ADR-031) ────────────────────────────────────
+# Loki's -runtime-config.file must point at a file that exists before Loki
+# starts (an empty "overrides: {}" is a valid, inert starting point — the
+# backend's retention-sync reconciler rewrites it after boot). Bind-mounted
+# into both the backend and loki containers via compose.prod.yml.
+mkdir -p /opt/mansooba/loki
+cat > /opt/mansooba/loki/runtime-overrides.yaml <<'EOF'
+overrides: {}
+EOF
+
 # ── Fetch secrets from SSM Parameter Store ───────────────────────────────────
 # The EC2 instance role grants ssm:GetParameter on /mansooba/* (see iam module).
 # Using --with-decryption to read SecureString values.
@@ -67,6 +77,13 @@ RDS_ENDPOINT=$(get_param /mansooba/RDS_ENDPOINT)
 # (ses_smtp_password_v4), NOT the raw IAM secret key.
 SMTP_USER=$(get_param /mansooba/SMTP_USER)
 SMTP_PASS=$(get_param /mansooba/SMTP_PASS)
+
+# Grafana admin password (011-system-logs) — optional feature (the
+# "observability" Compose profile), so this must NOT hard-fail bootstrap
+# when the operator hasn't created the SSM parameter. Falls back to a
+# freshly generated password every boot; set /mansooba/GRAFANA_ADMIN_PASSWORD
+# in SSM for a password that's stable across instance restarts.
+GRAFANA_ADMIN_PASSWORD=$(get_param /mansooba/GRAFANA_ADMIN_PASSWORD 2>/dev/null || head -c 24 /dev/urandom | base64)
 
 # ── Resolve public IP for CORS and magic-link base URL ───────────────────────
 # The instance metadata service (169.254.169.254) provides the public IPv4.
@@ -112,6 +129,24 @@ RDS_INSTANCE_IDENTIFIER=${rds_identifier}
 # "missing region" error whenever auto-stop is enabled.
 AWS_REGION=${aws_region}
 
+# ── System Logs (011-system-logs, ADR-031) ────────────────────────────────────
+# LOKI_BASE_URL uses the compose service name, same pattern as local dev.
+# LOKI_RUNTIME_OVERRIDES_PATH must match the container-side path in
+# compose.prod.yml's volume mounts for both the backend and loki services.
+LOKI_BASE_URL=http://loki:3100
+LOKI_RUNTIME_OVERRIDES_PATH=/etc/loki/runtime-overrides.yaml
+LOKI_RETENTION_SYNC_INTERVAL=5m
+
+# ── Grafana (optional, 011-system-logs) ───────────────────────────────────────
+# Only takes effect if the "observability" Compose profile is started
+# manually (see compose.prod.yml's comment) — the backend never reads
+# these. GF_* are Grafana's own native env var names, read directly by the
+# grafana container via compose.prod.yml's env_file.
+GF_SECURITY_ADMIN_USER=admin
+GF_SECURITY_ADMIN_PASSWORD=$${GRAFANA_ADMIN_PASSWORD}
+GF_AUTH_ANONYMOUS_ENABLED=false
+GF_SERVER_ROOT_URL=http://$${PUBLIC_IP}:3001/
+
 # ── Attachment storage (S3) ────────────────────────────────────────────────────
 # No access key/secret here: the SDK authenticates via the EC2 instance's IAM
 # role (see modules/iam). Leaving STORAGE_ENDPOINT unset means "real AWS S3".
@@ -148,6 +183,33 @@ echo "$${GHCR_PAT}" | docker login ghcr.io -u github-actions --password-stdin
 curl -fsSL \
   "https://raw.githubusercontent.com/sharique/mansooba/main/compose.prod.yml" \
   -o /opt/mansooba/compose.prod.yml
+
+# Loki's static config (011-system-logs) — same file compose.yml uses
+# locally; see its own comment for why max_query_length is overridden.
+# runtime-overrides.yaml was already written above, by this script itself
+# (not fetched — the backend's retention-sync reconciler owns that file).
+curl -fsSL \
+  "https://raw.githubusercontent.com/sharique/mansooba/main/loki/local-config.yaml" \
+  -o /opt/mansooba/loki/local-config.yaml
+
+# Grafana's datasource + dashboard provisioning (optional, 011-system-logs)
+# — only read if the "observability" profile is started; harmless to fetch
+# unconditionally, same reasoning as the Loki config above.
+mkdir -p /opt/mansooba/grafana/provisioning/datasources /opt/mansooba/grafana/provisioning/dashboards
+for f in grafana/provisioning/datasources/loki.yaml \
+         grafana/provisioning/dashboards/dashboards.yaml \
+         grafana/provisioning/dashboards/system-logs.json \
+         grafana/provisioning/dashboards/container-logs.json; do
+  curl -fsSL "https://raw.githubusercontent.com/sharique/mansooba/main/$f" \
+    -o "/opt/mansooba/$f"
+done
+
+# Alloy's Docker-log-collection config (011-system-logs) — unlike Grafana,
+# this one IS started by default, so it must exist before `compose up` runs.
+mkdir -p /opt/mansooba/alloy
+curl -fsSL \
+  "https://raw.githubusercontent.com/sharique/mansooba/main/alloy/config.alloy" \
+  -o /opt/mansooba/alloy/config.alloy
 
 # ── Start the application ─────────────────────────────────────────────────────
 echo "Pulling images and starting Mansooba stack..."

@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/sharique/mansooba/internal/domain"
@@ -19,6 +20,49 @@ import (
 // ──────────────────────────────────────────────────────────────────────────────
 // Stubs
 // ──────────────────────────────────────────────────────────────────────────────
+
+// stubSystemLogService is a no-op service.SystemLogService for tests that
+// don't care about System Logs behavior — shared across this package's test
+// files (auth/admin-user/setting service tests all depend on it now).
+type stubSystemLogService struct{}
+
+func (stubSystemLogService) Record(_ context.Context, _ domain.SystemLogEntry) {}
+func (stubSystemLogService) List(_ context.Context, _ domain.SystemLogListFilter) (domain.SystemLogListResult, error) {
+	return domain.SystemLogListResult{}, nil
+}
+func (stubSystemLogService) SyncRetention(_ context.Context) error { return nil }
+
+var _ service.SystemLogService = stubSystemLogService{}
+
+// recordingSystemLogService captures every Record call synchronously (unlike
+// the real implementation's fire-and-forget goroutine — a synchronous double
+// is simpler for tests to assert against immediately after the call
+// returns, and callers only depend on Record's signature, not its internal
+// concurrency).
+type recordingSystemLogService struct {
+	mu      sync.Mutex
+	entries []domain.SystemLogEntry
+}
+
+func (r *recordingSystemLogService) Record(_ context.Context, entry domain.SystemLogEntry) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.entries = append(r.entries, entry)
+}
+
+func (r *recordingSystemLogService) List(_ context.Context, _ domain.SystemLogListFilter) (domain.SystemLogListResult, error) {
+	return domain.SystemLogListResult{}, nil
+}
+
+func (r *recordingSystemLogService) SyncRetention(_ context.Context) error { return nil }
+
+func (r *recordingSystemLogService) all() []domain.SystemLogEntry {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]domain.SystemLogEntry(nil), r.entries...)
+}
+
+var _ service.SystemLogService = (*recordingSystemLogService)(nil)
 
 type stubUserRepo struct {
 	users  map[string]*domain.User
@@ -126,16 +170,16 @@ func (r *stubRevokedRepo) DeleteExpired(_ context.Context) (int64, error) { retu
 const testSecret = "test-secret-key-that-is-long-enough"
 
 func newTestService(userRepo domain.UserRepository) service.AuthService {
-	return service.NewAuthService(userRepo, newStubRevokedRepo(), zap.NewNop(), testSecret, "15m", "168h")
+	return service.NewAuthService(userRepo, newStubRevokedRepo(), stubSystemLogService{}, zap.NewNop(), testSecret, "15m", "168h")
 }
 
 func newTestServiceWith(userRepo domain.UserRepository, revokedRepo domain.RevokedTokenRepository) service.AuthService {
-	return service.NewAuthService(userRepo, revokedRepo, zap.NewNop(), testSecret, "15m", "168h")
+	return service.NewAuthService(userRepo, revokedRepo, stubSystemLogService{}, zap.NewNop(), testSecret, "15m", "168h")
 }
 
 func newObservedService(userRepo domain.UserRepository, revokedRepo domain.RevokedTokenRepository) (service.AuthService, *observer.ObservedLogs) {
 	core, logs := observer.New(zapcore.WarnLevel)
-	return service.NewAuthService(userRepo, revokedRepo, zap.New(core), testSecret, "15m", "168h"), logs
+	return service.NewAuthService(userRepo, revokedRepo, stubSystemLogService{}, zap.New(core), testSecret, "15m", "168h"), logs
 }
 
 func openServiceTestDB(t *testing.T) *gorm.DB {
@@ -158,7 +202,7 @@ func TestAuthService_Register_Succeeds(t *testing.T) {
 	svc := newTestService(newStubUserRepo())
 	resp, err := svc.Register(context.Background(), dto.RegisterRequest{
 		FullName: "Alice", Email: "alice@example.com", Password: "password123",
-	})
+	}, 0)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -174,8 +218,8 @@ func TestAuthService_Register_DuplicateEmail(t *testing.T) {
 	repo := newStubUserRepo()
 	svc := newTestService(repo)
 	req := dto.RegisterRequest{FullName: "Alice", Email: "alice@example.com", Password: "password123"}
-	_, _ = svc.Register(context.Background(), req)
-	_, err := svc.Register(context.Background(), req)
+	_, _ = svc.Register(context.Background(), req, 0)
+	_, err := svc.Register(context.Background(), req, 0)
 	if !errors.Is(err, domain.ErrConflict) {
 		t.Errorf("expected ErrConflict, got %v", err)
 	}
@@ -186,7 +230,7 @@ func TestAuthService_Login_Succeeds(t *testing.T) {
 	svc := newTestService(repo)
 	_, _ = svc.Register(context.Background(), dto.RegisterRequest{
 		FullName: "Alice", Email: "alice@example.com", Password: "password123",
-	})
+	}, 0)
 	resp, err := svc.Login(context.Background(), dto.LoginRequest{
 		Email: "alice@example.com", Password: "password123",
 	})
@@ -203,7 +247,7 @@ func TestAuthService_Login_WrongPassword(t *testing.T) {
 	svc := newTestService(repo)
 	_, _ = svc.Register(context.Background(), dto.RegisterRequest{
 		FullName: "Alice", Email: "alice@example.com", Password: "password123",
-	})
+	}, 0)
 	_, err := svc.Login(context.Background(), dto.LoginRequest{
 		Email: "alice@example.com", Password: "wrongpassword",
 	})
@@ -241,7 +285,7 @@ func TestAuthService_Register_ResponseContainsRefreshToken(t *testing.T) {
 	svc := newTestService(newStubUserRepo())
 	resp, err := svc.Register(context.Background(), dto.RegisterRequest{
 		FullName: "Alice", Email: "alice@example.com", Password: "password123",
-	})
+	}, 0)
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
@@ -260,7 +304,7 @@ func TestAuthService_Logout_StoresRevocationRecord(t *testing.T) {
 
 	resp, err := svc.Register(ctx, dto.RegisterRequest{
 		FullName: "Alice", Email: "alice@example.com", Password: "password123",
-	})
+	}, 0)
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
@@ -298,7 +342,7 @@ func TestAuthService_Refresh_ReturnsErrTokenRevoked_ForRevokedJTI(t *testing.T) 
 
 	resp, _ := svc.Register(ctx, dto.RegisterRequest{
 		FullName: "Alice", Email: "alice@example.com", Password: "password123",
-	})
+	}, 0)
 	_ = svc.Logout(ctx, resp.RefreshToken)
 
 	_, err := svc.Refresh(ctx, resp.RefreshToken)
@@ -318,7 +362,7 @@ func TestAuthService_Refresh_ReturnsErrRevocationStoreUnavailable_OnStoreError(t
 	ctx := context.Background()
 	resp, _ := workingSvc.Register(ctx, dto.RegisterRequest{
 		FullName: "Alice", Email: "alice@example.com", Password: "password123",
-	})
+	}, 0)
 
 	// Now use the broken store — user exists and is active, but store errors
 	brokenSvc := newTestServiceWith(repo, revokedRepo)
@@ -335,7 +379,7 @@ func TestAuthService_Refresh_ReturnsErrAccountDisabled_ForDisabledUser(t *testin
 
 	resp, _ := svc.Register(ctx, dto.RegisterRequest{
 		FullName: "Alice", Email: "alice@example.com", Password: "password123",
-	})
+	}, 0)
 	user, _ := repo.FindByEmail(ctx, "alice@example.com")
 	user.IsActive = false
 	_ = repo.Update(ctx, user)
@@ -354,7 +398,7 @@ func TestAuthService_Refresh_LogsWARN_OnRevocation(t *testing.T) {
 
 	resp, _ := svc.Register(ctx, dto.RegisterRequest{
 		FullName: "Alice", Email: "alice@example.com", Password: "password123",
-	})
+	}, 0)
 	_ = svc.Logout(ctx, resp.RefreshToken)
 	_, _ = svc.Refresh(ctx, resp.RefreshToken)
 
@@ -391,7 +435,7 @@ func TestAuthService_Login_IsActive_BlockedAtLogin(t *testing.T) {
 
 	_, _ = svc.Register(ctx, dto.RegisterRequest{
 		FullName: "Alice", Email: "alice@example.com", Password: "password123",
-	})
+	}, 0)
 	user, _ := repo.FindByEmail(ctx, "alice@example.com")
 	user.IsActive = false
 	_ = repo.Update(ctx, user)
@@ -401,5 +445,129 @@ func TestAuthService_Login_IsActive_BlockedAtLogin(t *testing.T) {
 	})
 	if !errors.Is(err, domain.ErrAccountDisabled) {
 		t.Errorf("expected ErrAccountDisabled for disabled user at login, got %v", err)
+	}
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 011-system-logs (US1): Record calls at the auth write sites (T021, T022, T023)
+// ──────────────────────────────────────────────────────────────────────────────
+
+func TestAuthService_Login_RecordsSuccess(t *testing.T) {
+	repo := newStubUserRepo()
+	systemLogSvc := &recordingSystemLogService{}
+	svc := service.NewAuthService(repo, newStubRevokedRepo(), systemLogSvc, zap.NewNop(), testSecret, "15m", "168h")
+	ctx := context.Background()
+
+	_, _ = svc.Register(ctx, dto.RegisterRequest{FullName: "Alice", Email: "alice@example.com", Password: "password123"}, 0)
+	systemLogSvc.entries = nil // discard the Register-side entry, isolate Login's
+
+	_, err := svc.Login(ctx, dto.LoginRequest{Email: "alice@example.com", Password: "password123"})
+	if err != nil {
+		t.Fatalf("Login: %v", err)
+	}
+
+	entries := systemLogSvc.all()
+	if len(entries) != 1 {
+		t.Fatalf("expected exactly 1 Record call, got %d", len(entries))
+	}
+	e := entries[0]
+	if e.Category != domain.SystemLogCategoryAuthentication || e.Action != "login_success" || e.Outcome != "success" || e.Actor != "alice@example.com" {
+		t.Errorf("unexpected entry: %+v", e)
+	}
+}
+
+func TestAuthService_Login_RecordsFailure_AndStillReturnsError(t *testing.T) {
+	systemLogSvc := &recordingSystemLogService{}
+	svc := service.NewAuthService(newStubUserRepo(), newStubRevokedRepo(), systemLogSvc, zap.NewNop(), testSecret, "15m", "168h")
+
+	_, err := svc.Login(context.Background(), dto.LoginRequest{Email: "nobody@example.com", Password: "x"})
+	if err == nil {
+		t.Fatal("expected an error for unknown email")
+	}
+
+	entries := systemLogSvc.all()
+	if len(entries) != 1 {
+		t.Fatalf("expected exactly 1 Record call, got %d", len(entries))
+	}
+	if entries[0].Outcome != "failure" || entries[0].Actor != "nobody@example.com" || entries[0].ActorID != 0 {
+		t.Errorf("unexpected entry for unknown-email failure: %+v", entries[0])
+	}
+}
+
+func TestAuthService_Refresh_RecordsRevokedTokenRejection(t *testing.T) {
+	repo := newStubUserRepo()
+	revokedRepo := newStubRevokedRepo()
+	ctx := context.Background()
+
+	// Register via a plain instance to obtain a validly-signed refresh
+	// token, then logout to actually revoke it.
+	setupSvc := service.NewAuthService(repo, revokedRepo, stubSystemLogService{}, zap.NewNop(), testSecret, "15m", "168h")
+	resp, err := setupSvc.Register(ctx, dto.RegisterRequest{FullName: "Alice", Email: "alice@example.com", Password: "password123"}, 0)
+	if err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	if err := setupSvc.Logout(ctx, resp.RefreshToken); err != nil {
+		t.Fatalf("Logout: %v", err)
+	}
+
+	systemLogSvc := &recordingSystemLogService{}
+	svc := service.NewAuthService(repo, revokedRepo, systemLogSvc, zap.NewNop(), testSecret, "15m", "168h")
+
+	_, err = svc.Refresh(ctx, resp.RefreshToken)
+	if !errors.Is(err, domain.ErrTokenRevoked) {
+		t.Fatalf("expected ErrTokenRevoked, got %v", err)
+	}
+
+	entries := systemLogSvc.all()
+	if len(entries) != 1 {
+		t.Fatalf("expected exactly 1 Record call, got %d", len(entries))
+	}
+	if entries[0].Action != "refresh_rejected" || entries[0].Actor != "alice@example.com" {
+		t.Errorf("unexpected entry: %+v", entries[0])
+	}
+}
+
+func TestAuthService_Register_RecordsAccountCreation(t *testing.T) {
+	systemLogSvc := &recordingSystemLogService{}
+	userRepo := newStubUserRepo()
+	svc := service.NewAuthService(userRepo, newStubRevokedRepo(), systemLogSvc, zap.NewNop(), testSecret, "15m", "168h")
+
+	admin := &domain.User{Email: "admin@example.com"}
+	if err := userRepo.Create(context.Background(), admin); err != nil {
+		t.Fatalf("seed admin: %v", err)
+	}
+
+	_, err := svc.Register(context.Background(), dto.RegisterRequest{FullName: "Alice", Email: "alice@example.com", Password: "password123"}, admin.ID)
+	if err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	entries := systemLogSvc.all()
+	if len(entries) != 1 {
+		t.Fatalf("expected exactly 1 Record call, got %d", len(entries))
+	}
+	if entries[0].Category != domain.SystemLogCategoryAdminAction || entries[0].Action != "account_created" || entries[0].Target != "alice@example.com" {
+		t.Errorf("unexpected entry: %+v", entries[0])
+	}
+	if entries[0].Actor != "admin@example.com" || entries[0].ActorID != admin.ID {
+		t.Errorf("expected actor to identify the calling admin, got Actor=%q ActorID=%d", entries[0].Actor, entries[0].ActorID)
+	}
+}
+
+func TestAuthService_Register_ActorFallsBackToUserHash_WhenCallerLookupFails(t *testing.T) {
+	systemLogSvc := &recordingSystemLogService{}
+	svc := service.NewAuthService(newStubUserRepo(), newStubRevokedRepo(), systemLogSvc, zap.NewNop(), testSecret, "15m", "168h")
+
+	_, err := svc.Register(context.Background(), dto.RegisterRequest{FullName: "Alice", Email: "alice@example.com", Password: "password123"}, 999)
+	if err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	entries := systemLogSvc.all()
+	if len(entries) != 1 {
+		t.Fatalf("expected exactly 1 Record call, got %d", len(entries))
+	}
+	if entries[0].Actor != "user#999" {
+		t.Errorf("expected fallback actor label user#999, got %q", entries[0].Actor)
 	}
 }

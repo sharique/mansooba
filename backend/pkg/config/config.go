@@ -87,6 +87,16 @@ type Config struct {
 	// (research.md Decision 6), not a duration — independent of the client's
 	// separate 5-minute retry bound (FR-013).
 	RDSStartFailureBound int `mapstructure:"RDS_START_FAILURE_BOUND"`
+
+	// System Logs (011-system-logs, ADR-031). LokiBaseURL points at the
+	// Grafana Loki instance backing System Logs (e.g. "http://loki:3100" in
+	// docker-compose). LokiRuntimeOverridesPath MUST be the exact path Loki
+	// was started with via -runtime-config.file, or retention changes
+	// (FR-010) never take effect. LokiRetentionSyncInterval controls how
+	// often the reconciler ticker checks the setting for changes.
+	LokiBaseURL               string `mapstructure:"LOKI_BASE_URL"`
+	LokiRuntimeOverridesPath  string `mapstructure:"LOKI_RUNTIME_OVERRIDES_PATH"`
+	LokiRetentionSyncInterval string `mapstructure:"LOKI_RETENTION_SYNC_INTERVAL"`
 }
 
 // Load reads configuration from a .env file and environment variables.
@@ -135,6 +145,9 @@ func Load() *Config {
 	viper.SetDefault("RDS_IDLE_TIMEOUT", "10m")
 	viper.SetDefault("RDS_IDLE_CHECK_INTERVAL", "1m")
 	viper.SetDefault("RDS_START_FAILURE_BOUND", 3)
+	viper.SetDefault("LOKI_BASE_URL", "http://localhost:3100")
+	viper.SetDefault("LOKI_RUNTIME_OVERRIDES_PATH", "./loki/runtime-overrides.yaml")
+	viper.SetDefault("LOKI_RETENTION_SYNC_INTERVAL", "1m")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

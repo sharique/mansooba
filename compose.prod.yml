@@ -14,6 +14,13 @@ services:
     env_file: .env
     ports:
       - "8080:8080"
+    volumes:
+      # Shared with the loki service below — see its comment. The path here
+      # must match LOKI_RUNTIME_OVERRIDES_PATH in .env (user-data.sh).
+      - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
+    depends_on:
+      loki:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 30s
@@ -29,3 +36,76 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+  # System Logs backing store (011-system-logs, ADR-031). Same image/config
+  # as local dev (compose.yml) — monolithic mode, filesystem storage on the
+  # instance's own EBS volume (no new AWS resource). The backend and this
+  # service share ./loki/runtime-overrides.yaml (bind-mounted into both) so
+  # the backend's retention-sync reconciler can write config Loki hot-reloads.
+  loki:
+    image: grafana/loki:3.2.0
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml -runtime-config.file=/etc/loki/runtime-overrides.yaml
+    volumes:
+      - loki_data:/loki
+      - ./loki/local-config.yaml:/etc/loki/local-config.yaml
+      - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Optional: see compose.yml's comment for the full rationale (system
+  # admin / infra-team LogQL access, pre-provisioned Loki datasource). Not
+  # started by default. On the deployed instance:
+  #   docker compose -f compose.prod.yml --profile observability up -d grafana
+  # Deliberately has NO host port opened in the EC2 security group (see
+  # terraform/modules/security) — an audit-log viewer shouldn't be reachable
+  # from the public internet by default. Reach it via an SSH tunnel instead:
+  #   ssh -L 3001:localhost:3001 ec2-user@<instance-ip>
+  # then open http://localhost:3001. Credentials come from .env
+  # (GF_SECURITY_ADMIN_USER/PASSWORD, written by user-data.sh) — see
+  # docs/features/system-logs.md for how the password is provisioned.
+  grafana:
+    image: grafana/grafana:11.2.0
+    restart: unless-stopped
+    profiles: ["observability"]
+    env_file: .env
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      loki:
+        condition: service_healthy
+
+  # See compose.yml's comment for the full rationale. Runs by default (not
+  # profile-gated like Grafana). Its own diagnostic UI (port 12345) follows
+  # Grafana's precedent: mapped on the host but NOT opened in the EC2
+  # security group — reach it via an SSH tunnel if needed:
+  #   ssh -L 12345:localhost:12345 ec2-user@<instance-ip>
+  alloy:
+    image: grafana/alloy:v1.4.3
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    ports:
+      - "12345:12345"
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy/data
+    depends_on:
+      loki:
+        condition: service_healthy
+
+volumes:
+  loki_data:
+  grafana_data:
+  alloy_data:

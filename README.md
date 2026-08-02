@@ -78,5 +78,6 @@ Other ways to run:
 | [Reports](docs/features/reports.md) | Velocity chart data source and rendering approach |
 | [Collaboration](docs/features/collaboration.md) | @mention parsing, notification model, activity feeds |
 | [System admin](docs/features/admin.md) | User management, platform settings, and safety guardrails |
+| [System logs](docs/features/system-logs.md) | Grafana Loki-backed audit trail for auth, admin actions, settings changes, and DB lifecycle events |
 | [Setup wizard](docs/features/setup.md) | First-run wizard flow, sample data import, and seed CLI |
 | [First-run wizard guide](docs/features/first-run-wizard.md) | Step-by-step wizard reference with DEMO conflict, retry behaviour, and CLI output |

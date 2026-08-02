@@ -233,15 +233,20 @@ func (t *DBLifecycleTracker) CheckStartProgress(ctx context.Context, client doma
 
 // LogDBLifecycleEvent emits a structured audit log line for a single
 // automatic stop or start transition (FR-009, data-model.md's Stop/Start
-// Audit Entry). Used by both cmd/server's idle-check ticker (the stop path)
-// and internal/middleware/dbwake.go (the start path) so the two call sites
-// can't drift out of sync in field naming — extracted here rather than
-// duplicated, per tasks.md T023.
+// Audit Entry), and — since 011-system-logs (ADR-031) — also durably
+// records it to System Logs (FR-013). Used by both cmd/server's idle-check
+// ticker (the stop path) and internal/middleware/dbwake.go (the start path)
+// so the two call sites can't drift out of sync in field naming — extracted
+// here rather than duplicated, per tasks.md T023.
 //
 // event is "db_auto_stop" or "db_auto_start"; trigger is "idle_timeout" or
 // "incoming_request"; outcome is "initiated", "succeeded", or "failed". err
-// is only expected (and logged) when outcome is "failed".
-func LogDBLifecycleEvent(log *zap.Logger, event, trigger, outcome string, err error) {
+// is only expected (and logged) when outcome is "failed". The zap log line
+// (unchanged, additive only) is emitted for every outcome including
+// "initiated"; the System Logs entry is only recorded for terminal outcomes
+// ("succeeded"/"failed") — System Logs is a durable record of completed
+// events, not in-progress ones.
+func LogDBLifecycleEvent(ctx context.Context, log *zap.Logger, systemLogSvc SystemLogService, event, trigger, outcome string, err error) {
 	fields := []zap.Field{
 		zap.String("event", event),
 		zap.String("trigger", trigger),
@@ -252,9 +257,24 @@ func LogDBLifecycleEvent(log *zap.Logger, event, trigger, outcome string, err er
 	}
 	if outcome == "failed" {
 		log.Warn(event, fields...)
+	} else {
+		log.Info(event, fields...)
+	}
+
+	if outcome == "initiated" {
 		return
 	}
-	log.Info(event, fields...)
+	detail := "trigger: " + trigger
+	if err != nil {
+		detail += " (" + err.Error() + ")"
+	}
+	systemLogSvc.Record(ctx, domain.SystemLogEntry{
+		Category: domain.SystemLogCategoryDBLifecycle,
+		Action:   event,
+		Outcome:  outcome,
+		Actor:    domain.SystemLogActorSystem,
+		Detail:   detail,
+	})
 }
 
 // RecordStartFailure records that a StartDBInstance call itself failed (not

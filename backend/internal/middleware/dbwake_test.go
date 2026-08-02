@@ -43,6 +43,19 @@ func (c *stubClient) StartCalls() int {
 	return c.startCalls
 }
 
+// stubSystemLogService is a no-op service.SystemLogService — this package
+// tests the middleware's wake-on-hit behavior, not System Logs recording
+// itself (covered by dbinstance_service_test.go's LogDBLifecycleEvent tests).
+type stubSystemLogService struct{}
+
+func (stubSystemLogService) Record(_ context.Context, _ domain.SystemLogEntry) {}
+func (stubSystemLogService) List(_ context.Context, _ domain.SystemLogListFilter) (domain.SystemLogListResult, error) {
+	return domain.SystemLogListResult{}, nil
+}
+func (stubSystemLogService) SyncRetention(_ context.Context) error { return nil }
+
+var _ service.SystemLogService = stubSystemLogService{}
+
 // newStoppedTracker returns a tracker already in the stopped state, reached
 // via its own normal claim/stop transitions (a zero idle timeout means the
 // very first TryClaimStop call succeeds immediately) — this package tests
@@ -82,7 +95,7 @@ func TestDBWake_PassesThroughWhenRunning(t *testing.T) {
 	tr := service.NewDBLifecycleTracker(10*time.Minute, 3, time.Now) // fresh tracker starts running
 	client := &stubClient{}
 
-	rec, called := doRequest(t, middleware.DBWake(tr, client, zap.NewNop()))
+	rec, called := doRequest(t, middleware.DBWake(tr, client, zap.NewNop(), stubSystemLogService{}))
 
 	assert.True(t, called, "the wrapped handler must run when the database is running")
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -95,7 +108,7 @@ func TestDBWake_ReturnsWakingUpAndTriggersStart_WhenStopped(t *testing.T) {
 	tr := newStoppedTracker()
 	client := &stubClient{}
 
-	rec, called := doRequest(t, middleware.DBWake(tr, client, zap.NewNop()))
+	rec, called := doRequest(t, middleware.DBWake(tr, client, zap.NewNop(), stubSystemLogService{}))
 
 	assert.False(t, called, "the wrapped handler must not run while the database is stopped")
 	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
@@ -120,7 +133,7 @@ func TestDBWake_DedupesConcurrentStartAttempts(t *testing.T) {
 	for i := 0; i < requests; i++ {
 		go func() {
 			defer wg.Done()
-			doRequest(t, middleware.DBWake(tr, client, zap.NewNop()))
+			doRequest(t, middleware.DBWake(tr, client, zap.NewNop(), stubSystemLogService{}))
 		}()
 	}
 	wg.Wait()
@@ -134,14 +147,14 @@ func TestDBWake_GivesUpAfterRepeatedStartFailures(t *testing.T) {
 	tr := newStoppedTracker()
 	client := &stubClient{startErr: assert.AnError}
 
-	rec1, _ := doRequest(t, middleware.DBWake(tr, client, zap.NewNop()))
+	rec1, _ := doRequest(t, middleware.DBWake(tr, client, zap.NewNop(), stubSystemLogService{}))
 	assertWakingUp(t, rec1)
 	require.Equal(t, domain.DBInstanceStopped, tr.CurrentState(), "a failed attempt leaves state stopped so the next request can retry")
 
-	rec2, _ := doRequest(t, middleware.DBWake(tr, client, zap.NewNop()))
+	rec2, _ := doRequest(t, middleware.DBWake(tr, client, zap.NewNop(), stubSystemLogService{}))
 	assertWakingUp(t, rec2)
 
-	rec3, called := doRequest(t, middleware.DBWake(tr, client, zap.NewNop()))
+	rec3, called := doRequest(t, middleware.DBWake(tr, client, zap.NewNop(), stubSystemLogService{}))
 
 	assert.False(t, called)
 	assert.Equal(t, http.StatusServiceUnavailable, rec3.Code)

@@ -17,17 +17,17 @@ import (
 )
 
 type stubSprintService struct {
-	listFn       func(ctx context.Context, projectKey string, callerID uint) ([]*dto.SprintResponse, error)
-	createFn     func(ctx context.Context, projectKey string, callerID uint, req dto.CreateSprintRequest) (*dto.SprintResponse, error)
-	getFn        func(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.SprintResponse, error)
-	updateFn     func(ctx context.Context, projectKey string, id uint, callerID uint, req dto.UpdateSprintRequest) (*dto.SprintResponse, error)
-	deleteFn     func(ctx context.Context, projectKey string, id uint, callerID uint) error
-	startFn      func(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.SprintResponse, error)
-	completeFn   func(ctx context.Context, projectKey string, id uint, callerID uint, req dto.CompleteSprintRequest) (*dto.SprintResponse, error)
-	backlogFn    func(ctx context.Context, projectKey string, callerID uint) ([]*domain.Issue, error)
-	getIssuesFn  func(ctx context.Context, projectKey string, id uint, callerID uint) ([]*domain.Issue, error)
-	burndownFn   func(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.BurndownResponse, error)
-	velocityFn   func(ctx context.Context, projectKey string, callerID uint) ([]dto.VelocityDataPoint, error)
+	listFn      func(ctx context.Context, projectKey string, callerID uint) ([]*dto.SprintResponse, error)
+	createFn    func(ctx context.Context, projectKey string, callerID uint, req dto.CreateSprintRequest) (*dto.SprintResponse, error)
+	getFn       func(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.SprintResponse, error)
+	updateFn    func(ctx context.Context, projectKey string, id uint, callerID uint, req dto.UpdateSprintRequest) (*dto.SprintResponse, error)
+	deleteFn    func(ctx context.Context, projectKey string, id uint, callerID uint) error
+	startFn     func(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.SprintResponse, error)
+	completeFn  func(ctx context.Context, projectKey string, id uint, callerID uint, req dto.CompleteSprintRequest) (*dto.SprintResponse, error)
+	backlogFn   func(ctx context.Context, projectKey string, callerID uint) ([]*domain.Issue, error)
+	getIssuesFn func(ctx context.Context, projectKey string, id uint, callerID uint) ([]*domain.Issue, error)
+	burndownFn  func(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.BurndownResponse, error)
+	velocityFn  func(ctx context.Context, projectKey string, callerID uint) ([]dto.VelocityDataPoint, error)
 }
 
 func (s *stubSprintService) List(ctx context.Context, projectKey string, callerID uint) ([]*dto.SprintResponse, error) {

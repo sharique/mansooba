@@ -257,4 +257,3 @@ func toProjectResponse(p *domain.Project) *dto.ProjectResponse {
 		OwnerID:     p.OwnerID,
 	}
 }
-

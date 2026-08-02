@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
@@ -22,12 +23,13 @@ type AdminUserService interface {
 }
 
 type adminUserService struct {
-	userRepo domain.UserRepository
+	userRepo     domain.UserRepository
+	systemLogSvc SystemLogService
 }
 
 // NewAdminUserService returns an AdminUserService backed by the given repository.
-func NewAdminUserService(userRepo domain.UserRepository) AdminUserService {
-	return &adminUserService{userRepo: userRepo}
+func NewAdminUserService(userRepo domain.UserRepository, systemLogSvc SystemLogService) AdminUserService {
+	return &adminUserService{userRepo: userRepo, systemLogSvc: systemLogSvc}
 }
 
 func (s *adminUserService) GetUser(ctx context.Context, id uint) (*dto.AdminUserDTO, error) {
@@ -67,7 +69,7 @@ func (s *adminUserService) ListUsers(ctx context.Context, page, size int) (*dto.
 	}, nil
 }
 
-func (s *adminUserService) SetRole(ctx context.Context, _, targetID uint, isAdmin bool) error {
+func (s *adminUserService) SetRole(ctx context.Context, callerID, targetID uint, isAdmin bool) error {
 	target, err := s.userRepo.FindByID(ctx, targetID)
 	if err != nil {
 		return err
@@ -85,10 +87,24 @@ func (s *adminUserService) SetRole(ctx context.Context, _, targetID uint, isAdmi
 	}
 
 	target.IsAdmin = isAdmin
-	return s.userRepo.UpdateAdminFields(ctx, target)
+	if err := s.userRepo.UpdateAdminFields(ctx, target); err != nil {
+		return err
+	}
+
+	s.systemLogSvc.Record(ctx, domain.SystemLogEntry{
+		Category: domain.SystemLogCategoryAdminAction,
+		Action:   "role_changed",
+		Outcome:  "success",
+		Actor:    s.actorLabel(ctx, callerID),
+		ActorID:  callerID,
+		Target:   target.Email,
+		TargetID: target.ID,
+		Detail:   fmt.Sprintf("is_admin: %t -> %t", !isAdmin, isAdmin),
+	})
+	return nil
 }
 
-func (s *adminUserService) SetActive(ctx context.Context, _, targetID uint, isActive bool) error {
+func (s *adminUserService) SetActive(ctx context.Context, callerID, targetID uint, isActive bool) error {
 	target, err := s.userRepo.FindByID(ctx, targetID)
 	if err != nil {
 		return err
@@ -106,5 +122,34 @@ func (s *adminUserService) SetActive(ctx context.Context, _, targetID uint, isAc
 	}
 
 	target.IsActive = isActive
-	return s.userRepo.UpdateAdminFields(ctx, target)
+	if err := s.userRepo.UpdateAdminFields(ctx, target); err != nil {
+		return err
+	}
+
+	action := "account_disabled"
+	if isActive {
+		action = "account_enabled"
+	}
+	s.systemLogSvc.Record(ctx, domain.SystemLogEntry{
+		Category: domain.SystemLogCategoryAdminAction,
+		Action:   action,
+		Outcome:  "success",
+		Actor:    s.actorLabel(ctx, callerID),
+		ActorID:  callerID,
+		Target:   target.Email,
+		TargetID: target.ID,
+	})
+	return nil
+}
+
+// actorLabel resolves callerID to a human-readable label (email) for
+// System Logs (FR-004). Falls back to a numeric placeholder if the caller's
+// own record can't be read — this must never block the action it's
+// describing (FR-012's best-effort principle extends to this lookup too).
+func (s *adminUserService) actorLabel(ctx context.Context, callerID uint) string {
+	caller, err := s.userRepo.FindByID(ctx, callerID)
+	if err != nil {
+		return fmt.Sprintf("user#%d", callerID)
+	}
+	return caller.Email
 }

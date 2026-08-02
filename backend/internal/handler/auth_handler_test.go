@@ -17,14 +17,14 @@ import (
 
 // stubAuthService is a controllable stand-in for service.AuthService.
 type stubAuthService struct {
-	registerFn func(ctx context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error)
+	registerFn func(ctx context.Context, req dto.RegisterRequest, callerID uint) (*dto.AuthResponse, error)
 	loginFn    func(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, error)
 	refreshFn  func(ctx context.Context, token string) (string, error)
 	logoutFn   func(ctx context.Context, token string) error
 }
 
-func (s *stubAuthService) Register(ctx context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error) {
-	return s.registerFn(ctx, req)
+func (s *stubAuthService) Register(ctx context.Context, req dto.RegisterRequest, callerID uint) (*dto.AuthResponse, error) {
+	return s.registerFn(ctx, req, callerID)
 }
 func (s *stubAuthService) Login(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, error) {
 	return s.loginFn(ctx, req)
@@ -68,7 +68,7 @@ func newEcho() *echo.Echo {
 
 func TestAuthHandler_Register_Returns201(t *testing.T) {
 	svc := &stubAuthService{
-		registerFn: func(_ context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error) {
+		registerFn: func(_ context.Context, req dto.RegisterRequest, _ uint) (*dto.AuthResponse, error) {
 			return &dto.AuthResponse{
 				AccessToken: "test.access.token",
 				User:        dto.UserDTO{ID: 1, Name: req.FullName, Email: req.Email},
@@ -182,7 +182,7 @@ func (s *stubAuthUserService) DeleteAvatar(_ context.Context, _ uint) (*dto.User
 
 func TestAuthHandler_Register_Returns403_ForNonAdmin(t *testing.T) {
 	svc := &stubAuthService{
-		registerFn: func(_ context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error) {
+		registerFn: func(_ context.Context, req dto.RegisterRequest, _ uint) (*dto.AuthResponse, error) {
 			t.Error("Register service should not be called for non-admin")
 			return nil, nil
 		},
@@ -213,7 +213,7 @@ func TestAuthHandler_Register_Returns403_ForNonAdmin(t *testing.T) {
 
 func TestAuthHandler_Register_Returns201_ForAdmin(t *testing.T) {
 	svc := &stubAuthService{
-		registerFn: func(_ context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error) {
+		registerFn: func(_ context.Context, req dto.RegisterRequest, _ uint) (*dto.AuthResponse, error) {
 			return &dto.AuthResponse{
 				AccessToken: "admin.created.token",
 				User:        dto.UserDTO{ID: 2, Name: req.FullName, Email: req.Email},
@@ -246,7 +246,7 @@ func TestAuthHandler_Register_Returns201_ForAdmin(t *testing.T) {
 
 func TestAuthHandler_Register_Returns409_OnDuplicate(t *testing.T) {
 	svc := &stubAuthService{
-		registerFn: func(_ context.Context, req dto.RegisterRequest) (*dto.AuthResponse, error) {
+		registerFn: func(_ context.Context, req dto.RegisterRequest, _ uint) (*dto.AuthResponse, error) {
 			return nil, domain.ErrConflict
 		},
 	}

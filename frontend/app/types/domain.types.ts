@@ -242,6 +242,9 @@ export interface SettingsResponse {
   time_format: string
   locale: string
   week_start_day: string
+  // System Logs retention period, in days, as a string (011-system-logs,
+  // FR-010) — global_settings is a generic key-value store.
+  system_log_retention_days: string
 }
 
 export interface PatchSettingsRequest {
@@ -250,6 +253,35 @@ export interface PatchSettingsRequest {
   time_format?: string
   locale?: string
   week_start_day?: string
+  system_log_retention_days?: string
+}
+
+// ── System Logs ──────────────────────────────────────────────────────────────
+
+export interface SystemLogEntry {
+  id: string
+  event_category: 'authentication' | 'admin_action' | 'settings_change' | 'db_lifecycle'
+  action: string
+  outcome: string
+  actor_label: string
+  target_label: string | null
+  detail: string
+  created_at: string
+}
+
+export interface SystemLogListResponse {
+  entries: SystemLogEntry[]
+  total: number
+  page: number
+  size: number
+}
+
+export interface SystemLogListFilters {
+  category?: string
+  from?: string
+  to?: string
+  actor?: string
+  q?: string
 }
 
 // ── Issue Relations ───────────────────────────────────────────────────────────

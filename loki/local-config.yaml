@@ -1,0 +1,43 @@
+# Loki config for System Logs (011-system-logs, ADR-031) — based on the
+# image's own bundled local-config.yaml (monolithic, filesystem storage),
+# with one addition: limits_config.max_query_length. Loki's own default
+# (30d) rejects the unfiltered/default-range queries this feature issues
+# when an admin applies no date filter (loki_systemlog_repository.go's
+# FindPaginated defaults to a wide range so "no filter" means "everything
+# within retention," not "only the last 30 days"). Set generously above the
+# 90-day default retention so the common case works out of the box; an
+# admin who configures a much longer retention (FR-010 has no fixed
+# maximum) may need to raise this further.
+
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  max_query_length: 8760h # 365 days
+
+ruler:
+  alertmanager_url: http://localhost:9093

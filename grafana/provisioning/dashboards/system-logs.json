@@ -1,0 +1,50 @@
+{
+  "title": "System Logs",
+  "uid": "system-logs",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Entries by category",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "range",
+          "expr": "sum by (category) (count_over_time({app=\"mansooba\"}[5m]))"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "logs",
+      "title": "System Logs (all categories)",
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "queryType": "range",
+          "expr": "{app=\"mansooba\"}"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none",
+        "enableLogDetails": true
+      }
+    }
+  ]
+}

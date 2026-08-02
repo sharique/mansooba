@@ -45,7 +45,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	resp, err := h.svc.Register(c.Request().Context(), req)
+	resp, err := h.svc.Register(c.Request().Context(), req, callerID)
 	if err != nil {
 		if errors.Is(err, domain.ErrConflict) {
 			return echo.NewHTTPError(http.StatusConflict, "email already registered")

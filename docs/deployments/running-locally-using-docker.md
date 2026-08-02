@@ -153,7 +153,20 @@ docker compose down
 docker compose down -v
 ```
 
-App is at **http://localhost:3000** · API at **http://localhost:8080** · LocalStack health check at **http://localhost:4566/_localstack/health** · Mail inbox at **http://localhost:8025**
+App is at **http://localhost:3000** · API at **http://localhost:8080** · LocalStack health check at **http://localhost:4566/_localstack/health** · Mail inbox at **http://localhost:8025** · System Logs backing store (Loki) at **http://localhost:3100**
+
+Grafana (optional, for LogQL exploration of System Logs — see
+[docs/features/system-logs.md](../features/system-logs.md#optional-grafana-for-deep-log-exploration))
+isn't started by default:
+
+```bash
+docker compose --profile observability up -d grafana
+```
+
+Then open **http://localhost:3001** (`admin` / `admin`) — Loki is pre-provisioned as a datasource, with a "System Logs" and a "Container Logs" dashboard ready to go.
+
+Grafana Alloy (raw container stdout/stderr → Loki, `job="dockerlogs"` — see the
+same doc) runs by default, unlike Grafana; nothing to enable there.
 
 LocalStack's community edition has no web console — inspect the bucket with the AWS CLI instead:
 
