@@ -22,12 +22,10 @@ aws ssm put-parameter --name /mansooba/JWT_SECRET \
 aws ssm put-parameter --name /mansooba/DB_PASSWORD \
   --value "your-db-password" \
   --type SecureString --region us-east-1
-
-# GitHub PAT with read:packages scope (create at github.com/settings/tokens)
-aws ssm put-parameter --name /mansooba/GHCR_PAT \
-  --value "ghp_xxxxxxxxxxxx" \
-  --type SecureString --region us-east-1
 ```
+
+> No GitHub PAT needed — the GHCR images are public, so `user-data.sh` pulls
+> them without authenticating.
 
 ### 2. Configure variables
 

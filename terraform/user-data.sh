@@ -8,8 +8,8 @@
 #   1. Installs Docker and the AWS CLI
 #   2. Fetches all secrets from SSM Parameter Store (no secrets in this file)
 #   3. Writes /opt/mansooba/.env with all runtime configuration
-#   4. Logs in to GHCR using the stored PAT
-#   5. Pulls and starts the compose.prod.yml stack
+#   4. Pulls and starts the compose.prod.yml stack (GHCR images are public —
+#      no docker login needed)
 #
 # Debug: sudo tail -f /var/log/user-data.log
 
@@ -69,7 +69,6 @@ get_param() {
 
 JWT_SECRET=$(get_param /mansooba/JWT_SECRET)
 DB_PASSWORD=$(get_param /mansooba/DB_PASSWORD)
-GHCR_PAT=$(get_param /mansooba/GHCR_PAT)
 RDS_ENDPOINT=$(get_param /mansooba/RDS_ENDPOINT)
 
 # SES SMTP credentials — created by the Terraform SES module and stored in SSM.
@@ -170,12 +169,6 @@ APP_BASE_URL=$${APP_BASE_URL}
 EOF
 
 chmod 600 /opt/mansooba/.env
-
-# ── Log in to GHCR ────────────────────────────────────────────────────────────
-# The PAT needs only the read:packages scope.
-# If your GHCR packages are public, this step is optional but harmless.
-echo "Logging in to GHCR..."
-echo "$${GHCR_PAT}" | docker login ghcr.io -u github-actions --password-stdin
 
 # ── Pull compose.prod.yml from GitHub ────────────────────────────────────────
 # Fetches the production compose file from the main branch of the code repo.

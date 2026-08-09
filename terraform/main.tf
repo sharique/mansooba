@@ -92,7 +92,8 @@ module "ses" {
 #   • latest Ubuntu 24.04 LTS AMI (auto-resolved by the module)
 #   • an Elastic IP so the public address survives restarts
 #   • user-data bootstrap script that installs Docker, fetches secrets from SSM,
-#     writes .env, logs in to GHCR, and starts the compose.prod.yml stack
+#     writes .env, and starts the compose.prod.yml stack (GHCR images are
+#     public — no docker login needed)
 #
 # The user_data argument is rendered here (not inside the module) so that
 # all templatefile() variables are in one place.

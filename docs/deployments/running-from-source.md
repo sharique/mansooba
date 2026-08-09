@@ -10,7 +10,7 @@ Use this guide when you want a tight Go + Node dev loop without building Docker 
 
 - [Prerequisites](#prerequisites)
 - [1. Environment](#1-environment)
-- [2. Start Mailpit and LocalStack](#2-start-mailpit-and-localstack)
+- [2. Start Mailpit, LocalStack, and Loki](#2-start-mailpit-localstack-and-loki)
 - [3. Backend](#3-backend)
 - [4. Frontend](#4-frontend)
 - [Running tests](#running-tests)
@@ -58,15 +58,16 @@ working on that feature.
 
 ---
 
-## 2. Start Mailpit and LocalStack
+## 2. Start Mailpit, LocalStack, and Loki
 
 Mailpit captures outbound SMTP so password-reset emails don't reach real inboxes. LocalStack
-provides local S3-compatible storage for issue attachments. Start both from `compose.yml` without
+provides local S3-compatible storage for issue attachments. Loki (011-system-logs) is the backing
+store for System Logs, the admin-only audit trail. Start all three from `compose.yml` without
 starting the rest of the stack:
 
 ```sh
 cd code
-docker compose up mailpit localstack localstack-init -d
+docker compose up mailpit localstack localstack-init loki -d
 ```
 
 Mailpit inbox: **http://localhost:8025**
@@ -81,6 +82,28 @@ export STORAGE_ACCESS_KEY_ID=test
 export STORAGE_SECRET_ACCESS_KEY=test
 export STORAGE_USE_PATH_STYLE=true
 ```
+
+`LOKI_BASE_URL`'s default (`http://localhost:3100`) already works unmodified here, for the same
+reason as `STORAGE_ENDPOINT` above — Loki's container port is published to the host. But
+`LOKI_RUNTIME_OVERRIDES_PATH` defaults to the *relative* path `./loki/runtime-overrides.yaml`,
+resolved against whatever directory the backend process runs from — Step 3 below does `cd backend`
+first, so left at its default this would resolve to `backend/loki/runtime-overrides.yaml`, which
+doesn't exist (the real file, the one Loki's own container has bind-mounted, lives at
+`code/loki/runtime-overrides.yaml`, one level up). Export the correct path as an absolute one so it
+stays right regardless of working directory:
+
+```sh
+export LOKI_RUNTIME_OVERRIDES_PATH="$(pwd)/loki/runtime-overrides.yaml"
+```
+
+Run that while still in `code/` (as above) so the path resolves correctly regardless of which
+directory you're in once you `cd backend` next.
+
+Alloy (which tails Docker containers' own logs into Loki) and Grafana (the optional dashboard UI)
+both still work if started the same way (`docker compose up alloy -d`, `docker compose --profile
+observability up -d grafana`) — but Alloy is much less useful in this guide specifically, since the
+backend and frontend aren't running in Docker at all here and so have no container logs for it to
+collect; it would only pick up Mailpit/LocalStack/Loki's own output.
 
 ---
 

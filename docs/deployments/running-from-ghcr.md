@@ -15,11 +15,10 @@ Images are built and pushed automatically on every merge to `main` via GitHub Ac
 - [Prerequisites](#prerequisites)
 - [Option A — Quick local run (SQLite + LocalStack)](#option-a-quick-local-run-sqlite-localstack)
 - [Option B — Full stack with PostgreSQL (compose.prod.yml)](#option-b-full-stack-with-postgresql-composeprodyml)
-  - [Step 1 — Authenticate to GHCR (if images are private)](#step-1-authenticate-to-ghcr-if-images-are-private)
-  - [Step 2 — Create a `.env` file](#step-2-create-a-env-file)
-  - [Step 3 — Create a local override file](#step-3-create-a-local-override-file)
-  - [Step 4 — Pull and start](#step-4-pull-and-start)
-  - [Step 5 — Verify](#step-5-verify)
+  - [Step 1 — Create a `.env` file](#step-1-create-a-env-file)
+  - [Step 2 — Create a local override file](#step-2-create-a-local-override-file)
+  - [Step 3 — Pull and start](#step-3-pull-and-start)
+  - [Step 4 — Verify](#step-4-verify)
   - [Stopping and cleanup](#stopping-and-cleanup)
 - [Option C — Pin to a specific image version](#option-c-pin-to-a-specific-image-version)
 - [Environment Variables Reference](#environment-variables-reference)
@@ -134,26 +133,16 @@ App is at **http://localhost:3000** · API at **http://localhost:8080** · Local
 
 > SQLite data persists in the `sqlite_data` volume. Stop with `docker compose -f compose.quickstart.yml down` (add `-v` to wipe data too).
 
+> This quickstart intentionally skips System Logs (the Loki-backed audit trail) and
+> Grafana to stay minimal — see Option B for those.
+
 ---
 
 ## Option B — Full stack with PostgreSQL (compose.prod.yml)
 
 Uses `compose.prod.yml` from the repo with a local Postgres and LocalStack container alongside it. Closest to the real production setup.
 
-### Step 1 — Authenticate to GHCR (if images are private)
-
-**If the packages are public** (check at `github.com/sharique` → Packages), skip this step.
-
-**If the packages are private**, log in with a GitHub Personal Access Token:
-
-1. Create a PAT at [github.com/settings/tokens](https://github.com/settings/tokens) → **Tokens (classic)**
-2. Scopes: tick only **`read:packages`**
-3. Log in:
-   ```bash
-   echo "ghp_your_token_here" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-   ```
-
-### Step 2 — Create a `.env` file
+### Step 1 — Create a `.env` file
 
 Create `.env` in the same directory as `compose.prod.yml`. This file is gitignored — never commit real values.
 
@@ -175,13 +164,57 @@ STORAGE_PRESIGN_TTL=1h
 DB_MAX_OPEN_CONNS=25
 DB_MAX_IDLE_CONNS=5
 DB_CONN_MAX_LIFETIME=5m
+
+# System Logs (011-system-logs) — required for compose.prod.yml's loki service
+# to actually be reachable from the backend container. LOKI_BASE_URL must use
+# the Docker-internal service name ("loki"), not "localhost".
+LOKI_BASE_URL=http://loki:3100
+LOKI_RUNTIME_OVERRIDES_PATH=/etc/loki/runtime-overrides.yaml
+LOKI_RETENTION_SYNC_INTERVAL=5m
+
+# Grafana admin login — only used if you turn on the optional grafana service
+# (see Step 2). Pick your own password.
+GF_SECURITY_ADMIN_USER=admin
+GF_SECURITY_ADMIN_PASSWORD=change-me
+GF_AUTH_ANONYMOUS_ENABLED=false
 ```
 
 > The backend supports `DB_DRIVER=sqlite`, `postgres`, or `mysql` / `mariadb`. For local use, any of these work fine — swap the `DB_DRIVER` and `DB_DSN` values and add the matching database container to `compose.override.yml` if using MariaDB. For production (e.g. EC2 + RDS), set `DB_DSN` to the RDS endpoint with `sslmode=require` and replace the LocalStack vars with real AWS S3 access: unset `STORAGE_ENDPOINT`, `STORAGE_PRESIGN_ENDPOINT`, `STORAGE_ACCESS_KEY_ID`, and `STORAGE_SECRET_ACCESS_KEY` entirely, set `STORAGE_USE_PATH_STYLE=false`, and rely on the EC2 instance's IAM role for credentials (see ADR-029) — never a static key in production. On the demo/showcase RDS deployment specifically, also set `RDS_INSTANCE_IDENTIFIER` so the idle auto-stop/wake-on-hit feature (spec 010, ADR-030) can find and manage the instance — `RDS_AUTOSTOP_ENABLED` defaults to `true`, but the feature stays inert until `RDS_INSTANCE_IDENTIFIER` is set AND matches `DB_DSN`'s hostname (see the table below), so `DB_DRIVER=postgres` alone is not enough to activate it, and this is not optional on the real RDS deployment.
 
-### Step 3 — Create a local override file
+### Step 2 — Create a local override file
 
 `compose.prod.yml` connects to an external database and storage. For local use, add Postgres and LocalStack via an override file.
+
+First, fetch `compose.prod.yml` itself along with the static config files its
+`loki`, `alloy`, and `grafana` services need (not secrets — same files the
+production Terraform deployment uses). Run this in the directory where your
+`.env` from Step 1 lives:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sharique/mansooba/main/compose.prod.yml -o compose.prod.yml
+
+mkdir -p loki grafana/provisioning/datasources grafana/provisioning/dashboards alloy
+cat > loki/runtime-overrides.yaml << 'EOF'
+overrides: {}
+EOF
+for f in loki/local-config.yaml \
+         grafana/provisioning/datasources/loki.yaml \
+         grafana/provisioning/dashboards/dashboards.yaml \
+         grafana/provisioning/dashboards/system-logs.json \
+         grafana/provisioning/dashboards/container-logs.json \
+         alloy/config.alloy; do
+  curl -fsSL "https://raw.githubusercontent.com/sharique/mansooba/main/$f" -o "$f"
+done
+```
+
+`compose.prod.yml` already defines `loki` and `alloy` (both start
+automatically — no extra config needed beyond the `.env` vars from Step 1) and
+`grafana` (optional, off by default — see the note after Step 3 for how to
+turn it on). Skipping this fetch step means the `loki`/`alloy` services in
+`compose.prod.yml` fail to start, since their bind-mounted config files won't
+exist.
+
+Then add Postgres and LocalStack via an override file.
 
 Create `compose.override.yml` in the same directory:
 
@@ -255,7 +288,7 @@ volumes:
   localstack_data:
 ```
 
-### Step 4 — Pull and start
+### Step 3 — Pull and start
 
 ```bash
 # Pull the latest images from GHCR
@@ -267,7 +300,20 @@ docker compose -f compose.prod.yml -f compose.override.yml up -d
 
 App is at **http://localhost** (port 80) · API at **http://localhost:8080** · LocalStack health check at **http://localhost:4566/_localstack/health** · Mail inbox at **http://localhost:8025**
 
-### Step 5 — Verify
+`loki` and `alloy` start automatically alongside everything else — that's the
+System Logs audit trail (sign in as an admin, open **System → Logs**) and raw
+container-log collection. `grafana` is defined but not started by default;
+turn it on if you want dashboards instead of the in-app page or raw `docker
+logs`:
+
+```bash
+docker compose -f compose.prod.yml -f compose.override.yml --profile observability up -d grafana
+```
+
+Then open **http://localhost:3001** and log in with the `GF_SECURITY_ADMIN_USER`
+/ `GF_SECURITY_ADMIN_PASSWORD` from your `.env`.
+
+### Step 4 — Verify
 
 ```bash
 # Check all containers are running
@@ -275,9 +321,12 @@ docker compose -f compose.prod.yml -f compose.override.yml ps
 
 # Check backend health (expect all green)
 curl http://localhost:8080/health
-# Expected: {"status":"ok","db":"ok","db_latency_ms":1}
-# Note: this only reports database connectivity, not storage — the backend doesn't
-# check storage at startup, only when an attachment is actually uploaded/downloaded/deleted.
+# Expected: {"status":"ok","db":"ok","db_latency_ms":1,"loki":"ok"}
+# Note: this reports database and Loki connectivity, not storage — the backend
+# doesn't check storage at startup, only when an attachment is actually
+# uploaded/downloaded/deleted. A Loki outage shows "loki":"error" but does NOT
+# flip "status" to "degraded" — the app keeps working without it (best-effort
+# logging, FR-012).
 ```
 
 ### Stopping and cleanup
@@ -351,6 +400,10 @@ services:
 | `SMTP_HOST` | | `mailpit` | SMTP server host — use `mailpit` in the local override |
 | `SMTP_PORT` | | `1025` | SMTP port |
 | `SMTP_FROM` | | `noreply@mansooba.local` | Sender address for outbound email |
+| `LOKI_BASE_URL` | | `http://localhost:3100` | Where the backend pushes/queries System Logs entries (011-system-logs). Must be `http://loki:3100` in Compose — the default only works when the backend runs outside Docker. |
+| `LOKI_RUNTIME_OVERRIDES_PATH` | | — | Must match the path `compose.prod.yml` bind-mounts into both `backend` and `loki` (`/etc/loki/runtime-overrides.yaml`) — this is how retention-setting changes reach Loki without a restart. |
+| `LOKI_RETENTION_SYNC_INTERVAL` | | `1m` | How often the backend reconciles Loki's retention config with the `system_log_retention_days` setting |
+| `GF_SECURITY_ADMIN_USER` / `GF_SECURITY_ADMIN_PASSWORD` | | `admin` / `admin` | Grafana login — only relevant if the optional `grafana` service (Step 3) is started |
 | `RDS_AUTOSTOP_ENABLED` | | `true` | Database idle auto-stop/wake-on-hit (spec 010, ADR-030). Only takes effect when `DB_DSN`'s hostname is confirmed as the specific AWS RDS instance named by `RDS_INSTANCE_IDENTIFIER` — always a no-op otherwise (including local Postgres/MySQL/MariaDB). Any unrecognized value is treated as enabled; only an explicit `false`/`0`/`no` disables it. |
 | `RDS_INSTANCE_IDENTIFIER` | | *(unset)* | The RDS instance identifier to stop/start. Required, and its value MUST match the leading label of `DB_DSN`'s host (e.g. identifier `mansooba-db` requires a DSN host like `mansooba-db.<random>.<region>.rds.amazonaws.com`) — that match is what confirms the feature should actually engage. Also validated at startup: the app fails fast if the identifier can't be described via the AWS API. |
 | `RDS_IDLE_TIMEOUT` | | `10m` | How long the database can sit idle before being automatically stopped |
@@ -370,9 +423,6 @@ host=<hostname> port=5432 user=<user> password=<pass> dbname=<db> sslmode=disabl
 ---
 
 ## Troubleshooting
-
-**`docker pull` returns 401 Unauthorized**  
-The GHCR packages are private. Log in with a `read:packages` PAT (see Step 1 in Option B).
 
 **Backend container exits immediately**  
 `JWT_SECRET` is missing or empty. The backend refuses to start without it:
@@ -404,3 +454,17 @@ services:
     ports:
       - "8081:80"   # access app at http://localhost:8081
 ```
+
+**`loki` or `alloy` won't start / exits immediately**  
+Their config files weren't fetched — see Step 3's `curl` loop. Confirm
+`loki/local-config.yaml` and `alloy/config.alloy` actually exist in the same
+directory as `compose.prod.yml` before starting:
+```bash
+docker compose -f compose.prod.yml -f compose.override.yml logs loki alloy
+```
+
+**System Logs page is empty, or `/health` never shows `"loki":"ok"`**  
+`LOKI_BASE_URL` in `.env` is probably still `http://localhost:3100` (the
+backend's default outside Docker) instead of `http://loki:3100` — `localhost`
+inside the backend container refers to the container itself, not the `loki`
+container. Fix it in `.env` and restart the backend.
