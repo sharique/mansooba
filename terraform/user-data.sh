@@ -71,11 +71,15 @@ JWT_SECRET=$(get_param /mansooba/JWT_SECRET)
 DB_PASSWORD=$(get_param /mansooba/DB_PASSWORD)
 RDS_ENDPOINT=$(get_param /mansooba/RDS_ENDPOINT)
 
-# SES SMTP credentials — created by the Terraform SES module and stored in SSM.
+# SES SMTP credentials — created by the Terraform SES module and stored in
+# SSM, but only when enable_ses = true (main.tf); these parameters simply
+# don't exist otherwise, so this must NOT hard-fail bootstrap. Falls back to
+# empty strings, which combined with smtp_host below being empty too (also
+# gated on enable_ses) correctly triggers the backend's NoopSender path.
 # SMTP_USER is the IAM access key ID; SMTP_PASS is the derived SMTP password
 # (ses_smtp_password_v4), NOT the raw IAM secret key.
-SMTP_USER=$(get_param /mansooba/SMTP_USER)
-SMTP_PASS=$(get_param /mansooba/SMTP_PASS)
+SMTP_USER=$(get_param /mansooba/SMTP_USER 2>/dev/null || true)
+SMTP_PASS=$(get_param /mansooba/SMTP_PASS 2>/dev/null || true)
 
 # Grafana admin password (011-system-logs) — optional feature (the
 # "observability" Compose profile), so this must NOT hard-fail bootstrap
@@ -127,6 +131,13 @@ RDS_INSTANCE_IDENTIFIER=${rds_identifier}
 # for credentials); without this the backend fails fast at startup with a
 # "missing region" error whenever auto-stop is enabled.
 AWS_REGION=${aws_region}
+# The four knobs below are now tracked as Terraform variables (variables.tf)
+# instead of relying on the backend's own hardcoded defaults — see their
+# descriptions there for what each one does.
+RDS_AUTOSTOP_ENABLED=${rds_autostop_enabled}
+RDS_IDLE_TIMEOUT=${rds_idle_timeout}
+RDS_IDLE_CHECK_INTERVAL=${rds_idle_check_interval}
+RDS_START_FAILURE_BOUND=${rds_start_failure_bound}
 
 # ── System Logs (011-system-logs, ADR-031) ────────────────────────────────────
 # LOKI_BASE_URL uses the compose service name, same pattern as local dev.
@@ -153,9 +164,12 @@ STORAGE_BUCKET=${storage_bucket}
 STORAGE_REGION=${aws_region}
 
 # ── Email (AWS SES via SMTP) ──────────────────────────────────────────────────
-# SMTP_HOST is injected by Terraform templatefile() as the SES regional endpoint.
-# SMTP_USER / SMTP_PASS are fetched from SSM (derived SES SMTP credentials).
-# Leaving SMTP_HOST empty would activate NoopSender — all emails silently dropped.
+# SMTP_HOST is injected by Terraform templatefile() as the SES regional endpoint
+# — empty when enable_ses = false (main.tf). SMTP_USER / SMTP_PASS are fetched
+# from SSM (derived SES SMTP credentials), also empty in that case.
+# An empty SMTP_HOST activates the backend's NoopSender: password-reset
+# requests still succeed, but the token is returned directly in the API
+# response instead of emailed, rather than emails being silently dropped.
 SMTP_HOST=${smtp_host}
 SMTP_PORT=${smtp_port}
 SMTP_FROM=${smtp_from}

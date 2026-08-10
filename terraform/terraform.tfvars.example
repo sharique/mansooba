@@ -8,3 +8,17 @@ smtp_from      = "noreply@yourdomain.com"                  # verified SES sender
 
 # Optional: restrict SSH to your IP only (recommended)
 # allowed_ssh_cidr = "1.2.3.4/32"   # replace with: curl ifconfig.me
+
+# Optional: skip SES entirely (no email identity, IAM user, or SMTP SSM
+# params created). The backend falls back to returning password-reset
+# tokens directly in the API response instead of emailing them. When set to
+# false, smtp_from above is ignored and can be left as-is or removed.
+# enable_ses = false
+
+# Optional: RDS idle auto-stop / wake-on-hit (feature 010, ADR-030) — defaults
+# below match the backend's own built-in defaults, so leaving these commented
+# out changes nothing.
+# rds_autostop_enabled    = true
+# rds_idle_timeout        = "10m"
+# rds_idle_check_interval = "1m"
+# rds_start_failure_bound = 3

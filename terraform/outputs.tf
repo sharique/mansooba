@@ -15,11 +15,11 @@ output "ssh_command" {
 }
 
 output "ses_smtp_host" {
-  description = "SES SMTP endpoint written into the backend .env by user-data. For reference only."
-  value       = module.ses.smtp_host
+  description = "SES SMTP endpoint written into the backend .env by user-data. Null when enable_ses is false."
+  value       = var.enable_ses ? module.ses[0].smtp_host : null
 }
 
 output "ses_identity_arn" {
-  description = "ARN of the SES email identity. Useful for scoping IAM send policies or debugging SES permissions."
-  value       = module.ses.identity_arn
+  description = "ARN of the SES email identity. Useful for scoping IAM send policies or debugging SES permissions. Null when enable_ses is false."
+  value       = var.enable_ses ? module.ses[0].identity_arn : null
 }

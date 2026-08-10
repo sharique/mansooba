@@ -100,6 +100,13 @@ You will need:
 
 SES starts in **sandbox mode**, meaning it can only send email *to* addresses you've verified. This is fine for testing. You can request to leave sandbox mode later (Step 2.3) when you're ready to send to real users.
 
+> **Don't want email at all?** Skip this entire step. In Step 8's startup
+> script, leave `SMTP_HOST`, `SMTP_FROM`, `SMTP_USER`, and `SMTP_PASS` blank
+> instead of filling them in. The backend detects the empty `SMTP_HOST` and
+> falls back to returning password-reset tokens directly in the API response
+> instead of emailing them — the same behavior the Terraform deployment gets
+> from setting `enable_ses = false`.
+
 ### 2.1 Verify your sender email address
 
 This is the "From" address that will appear in password-reset emails.
@@ -397,6 +404,16 @@ RDS_INSTANCE_IDENTIFIER=mansooba-db
 # auto-stop is enabled (the AWS SDK does not infer region from the EC2 instance
 # automatically; only credentials come from the instance role).
 AWS_REGION=us-east-1
+
+# These four match the backend's own built-in defaults — spelled out here so
+# they're visible/trackable instead of silently relying on whatever the
+# backend happens to default to. Same variables the Terraform deployment
+# exposes as rds_autostop_enabled/rds_idle_timeout/rds_idle_check_interval/
+# rds_start_failure_bound.
+RDS_AUTOSTOP_ENABLED=true
+RDS_IDLE_TIMEOUT=10m
+RDS_IDLE_CHECK_INTERVAL=1m
+RDS_START_FAILURE_BOUND=3
 
 # No access key/secret here — the server authenticates to S3 using the
 # mansooba-ec2-role IAM role from Step 6, not a password.

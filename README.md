@@ -54,6 +54,7 @@ Other ways to run:
 - [Pre-built GHCR images](docs/deployments/running-from-ghcr.md) — no Go toolchain needed
 - [From source](docs/deployments/running-from-source.md) — Go + Node, no Docker
 - [Deploy to AWS (beginner, console-only)](docs/deployments/deploy-to-aws-beginner.md) — no Terraform, no CLI
+- [Deploy to AWS (Terraform)](docs/deployments/deploy-to-aws-terraform.md) — Infrastructure-as-Code, ~20 min hands-on
 
 ---
 
