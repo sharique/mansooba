@@ -187,6 +187,35 @@ Relations are symmetric and stored once per pair (`task_a_id < task_b_id`). The 
 |--------|------|:----:|-------------|
 | GET | `/admin/users` | ✓ (admin) | List all users |
 | PATCH | `/admin/users/:id` | ✓ (admin) | Update `is_admin` and/or `is_active`; rejects demoting/disabling the last active admin |
+| GET | `/admin/system-logs` | ✓ (admin) | Query the System Logs audit trail (011-system-logs) — see below |
+
+**System Logs query params** (all optional): `category` (one of `authentication`,
+`admin_action`, `settings_change`, `db_lifecycle`), `from`/`to` (RFC3339 timestamps;
+400 if `from` is after `to`), `actor`, `q` (free-text search across actor/target/
+action/detail), `page` (default 1), `size` (default 20). Backed by
+[Grafana Loki](https://grafana.com/oss/loki/), not the application database — see
+[docs/features/system-logs.md](../features/system-logs.md).
+
+**Response:**
+```json
+{
+  "entries": [
+    {
+      "id": "1785621457992207195-e0b354",
+      "event_category": "authentication",
+      "action": "login_success",
+      "outcome": "success",
+      "actor_label": "admin@example.com",
+      "target_label": null,
+      "detail": "",
+      "created_at": "2026-08-01T21:57:37.992207195Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "size": 20
+}
+```
 
 ---
 
@@ -206,6 +235,7 @@ Relations are symmetric and stored once per pair (`task_a_id < task_b_id`). The 
 | `time_format` | `12h` or `24h` |
 | `locale` | Locale string |
 | `week_start_day` | Which day the week starts on |
+| `system_log_retention_days` | How long System Logs entries are retained (011-system-logs); default `90`, minimum `1`. Changing it is itself an auditable `settings_change` entry. |
 
 There is no organisation-wide timezone — timezone is a per-user field on `User`, not a
 global setting.
@@ -224,17 +254,20 @@ global setting.
   "status": "ok",
   "db": "ok",
   "db_latency_ms": 1,
-  "storage": "ok"
+  "loki": "ok"
 }
 ```
 
-**Response (503 — degraded):**
+`loki` (011-system-logs) is omitted entirely unless the backend was wired with a
+Loki client (`WithLoki`); when present, `"error"` means Loki is unreachable but,
+unlike a database failure, does **not** flip the overall `status` to `503` — the
+application keeps working normally without it (best-effort logging, FR-012).
+
+**Response (503 — degraded, database unreachable):**
 ```json
 {
   "status": "degraded",
-  "db": "ok",
-  "db_latency_ms": 2,
-  "storage": "error",
+  "db": "error",
   "error": "<reason>"
 }
 ```

@@ -11,6 +11,7 @@
 | Object storage | AWS S3 in prod, LocalStack in local dev (aws-sdk-go-v2) |
 | Auth | JWT (golang-jwt/jwt) |
 | Logging | Zap |
+| Audit log / observability | Grafana Loki (System Logs backing store, 011-system-logs), optional Grafana + Alloy for LogQL exploration and container log aggregation |
 | Config | Viper (env vars + `.env` file) |
 | Frontend framework | Nuxt 4 + Vue 3 |
 | State management | Pinia |
@@ -55,8 +56,11 @@ code/
 │       ├── types/             # TypeScript domain, API, auth, setup types
 │       └── utils/             # chart helpers, issue style maps
 │
-├── compose.yml                # Dev stack: SQLite + LocalStack + backend + frontend
+├── compose.yml                # Dev stack: SQLite + LocalStack + Mailpit + backend +
+│                              # frontend + Loki + Alloy (default) + Grafana (opt-in)
 ├── compose.prod.yml           # Prod stack: pulls GHCR images, connects to external DB
+├── loki/, alloy/, grafana/    # System Logs backing store + log shipping + optional
+│                              # dashboards (011-system-logs) — see docs/features/system-logs.md
 ├── terraform/                 # AWS infra (EC2 + RDS + S3 + SES + IAM)
 └── docs/                      # Architecture and operational guides
 ```

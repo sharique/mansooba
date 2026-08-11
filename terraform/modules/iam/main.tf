@@ -22,8 +22,10 @@ resource "aws_iam_role" "ec2" {
 #   aws ssm get-parameter --name /mansooba/JWT_SECRET --with-decryption
 #
 # Scoped to the specific path prefix and region to follow least-privilege.
-# Covers all current parameters: JWT_SECRET, DB_PASSWORD, GHCR_PAT,
-# RDS_ENDPOINT, SMTP_USER, SMTP_PASS.
+# Covers all current parameters: JWT_SECRET, DB_PASSWORD, RDS_ENDPOINT,
+# SMTP_USER, SMTP_PASS, and the optional GRAFANA_ADMIN_PASSWORD
+# (011-system-logs — falls back to a generated password if absent, so its
+# absence doesn't fail bootstrap).
 
 resource "aws_iam_role_policy" "ssm_read" {
   name = "${var.name_prefix}-ssm-read"

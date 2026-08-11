@@ -69,7 +69,7 @@ module "iam" {
 }
 
 # ── Email (SES) ───────────────────────────────────────────────────────────────
-# Creates:
+# Creates (only when var.enable_ses is true — default):
 #   • an SES email identity for the sender address (verification email is sent
 #     to smtp_from — you must click the link before SES can send from it)
 #   • an IAM user with ses:SendRawEmail permission (required for SMTP auth)
@@ -79,8 +79,14 @@ module "iam" {
 # After apply: check your inbox at var.smtp_from and click "Verify this email".
 # To send to arbitrary addresses (not just verified ones), request production
 # access in the SES Console → Account dashboard → Request production access.
+#
+# Set enable_ses = false to skip all of this entirely — the backend already
+# handles no SMTP config gracefully (NoopSender: password-reset tokens are
+# returned directly in the API response instead of emailed), so this is a
+# legitimate way to run without email, not just a local-dev shortcut.
 
 module "ses" {
+  count           = var.enable_ses ? 1 : 0
   source          = "./modules/ses"
   aws_region      = var.aws_region
   smtp_from       = var.smtp_from
@@ -92,7 +98,8 @@ module "ses" {
 #   • latest Ubuntu 24.04 LTS AMI (auto-resolved by the module)
 #   • an Elastic IP so the public address survives restarts
 #   • user-data bootstrap script that installs Docker, fetches secrets from SSM,
-#     writes .env, logs in to GHCR, and starts the compose.prod.yml stack
+#     writes .env, and starts the compose.prod.yml stack (GHCR images are
+#     public — no docker login needed)
 #
 # The user_data argument is rendered here (not inside the module) so that
 # all templatefile() variables are in one place.
@@ -105,12 +112,16 @@ module "compute" {
   instance_profile_name = module.iam.instance_profile_name
   ssh_public_key        = var.ssh_public_key
   user_data = templatefile("${path.root}/user-data.sh", {
-    aws_region     = var.aws_region
-    smtp_host      = module.ses.smtp_host
-    smtp_port      = module.ses.smtp_port
-    smtp_from      = module.ses.smtp_from
-    storage_bucket = module.storage.bucket_name
-    rds_identifier = module.database.rds_identifier
+    aws_region              = var.aws_region
+    smtp_host               = var.enable_ses ? module.ses[0].smtp_host : ""
+    smtp_port               = var.enable_ses ? module.ses[0].smtp_port : ""
+    smtp_from               = var.enable_ses ? module.ses[0].smtp_from : ""
+    storage_bucket          = module.storage.bucket_name
+    rds_identifier          = module.database.rds_identifier
+    rds_autostop_enabled    = var.rds_autostop_enabled
+    rds_idle_timeout        = var.rds_idle_timeout
+    rds_idle_check_interval = var.rds_idle_check_interval
+    rds_start_failure_bound = var.rds_start_failure_bound
   })
 }
 

@@ -2,6 +2,10 @@
 
 Provisions: VPC, public/private subnets, EC2 t2.micro, RDS PostgreSQL db.t3.micro, IAM, security groups, Elastic IP.
 
+> Quick reference — for the full walkthrough (with troubleshooting for
+> real-world snags like pre-existing resources or expired SSO sessions), see
+> [docs/deployments/deploy-to-aws-terraform.md](../docs/deployments/deploy-to-aws-terraform.md).
+
 **Free tier eligible** — EC2 t2.micro + RDS db.t3.micro are free for 12 months on a new AWS account.
 
 ## Prerequisites
@@ -22,12 +26,10 @@ aws ssm put-parameter --name /mansooba/JWT_SECRET \
 aws ssm put-parameter --name /mansooba/DB_PASSWORD \
   --value "your-db-password" \
   --type SecureString --region us-east-1
-
-# GitHub PAT with read:packages scope (create at github.com/settings/tokens)
-aws ssm put-parameter --name /mansooba/GHCR_PAT \
-  --value "ghp_xxxxxxxxxxxx" \
-  --type SecureString --region us-east-1
 ```
+
+> No GitHub PAT needed — the GHCR images are public, so `user-data.sh` pulls
+> them without authenticating.
 
 ### 2. Configure variables
 
@@ -38,6 +40,17 @@ cp terraform.tfvars.example terraform.tfvars
 # - ssh_public_key (cat ~/.ssh/mansooba.pub)
 # - db_password (must match the SSM value)
 ```
+
+By default this also provisions SES (email identity + SMTP IAM user) for
+password-reset emails. To skip email entirely — the backend falls back to
+returning the reset token directly in the API response instead — set
+`enable_ses = false` in `terraform.tfvars` and drop `smtp_from` (unused when
+disabled).
+
+RDS idle auto-stop/wake-on-hit (feature 010, ADR-030) is also configurable —
+`rds_autostop_enabled`, `rds_idle_timeout`, `rds_idle_check_interval`, and
+`rds_start_failure_bound` in `terraform.tfvars` — see `terraform.tfvars.example`
+for the defaults, which match the backend's own built-in behavior.
 
 ### 3. Init and apply
 

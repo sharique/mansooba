@@ -17,25 +17,24 @@
   - [2.1 Verify your sender email address](#21-verify-your-sender-email-address)
   - [2.2 Create SMTP credentials](#22-create-smtp-credentials)
   - [2.3 (Optional) Request production access](#23-optional-request-production-access)
-- [Step 3 — Create a GitHub token (to download Docker images)](#step-3-create-a-github-token-to-download-docker-images)
-- [Step 4 — Set up firewall rules (Security Groups)](#step-4-set-up-firewall-rules-security-groups)
-  - [4.1 Open the Security Groups page](#41-open-the-security-groups-page)
-  - [4.2 Create the web server security group](#42-create-the-web-server-security-group)
-  - [4.3 Create the database security group](#43-create-the-database-security-group)
-- [Step 5 — Create the database (RDS)](#step-5-create-the-database-rds)
-- [Step 6 — Create an SSH key pair (to log into your server)](#step-6-create-an-ssh-key-pair-to-log-into-your-server)
-- [Step 7 — Create an S3 bucket and IAM Role for EC2](#step-7-create-an-s3-bucket-and-iam-role-for-ec2)
-  - [7.1 Create the attachments bucket](#71-create-the-attachments-bucket)
-  - [7.2 Create the IAM role](#72-create-the-iam-role)
-  - [7.3 Grant the role access to the attachments bucket](#73-grant-the-role-access-to-the-attachments-bucket)
-  - [7.4 Grant the role permission to stop and start the database](#74-grant-the-role-permission-to-stop-and-start-the-database)
-- [Step 8 — Wait for RDS to finish, then copy its address](#step-8-wait-for-rds-to-finish-then-copy-its-address)
-- [Step 9 — Fill in your startup script template](#step-9-fill-in-your-startup-script-template)
-- [Step 10 — Launch your EC2 server](#step-10-launch-your-ec2-server)
-- [Step 11 — Assign a permanent IP address](#step-11-assign-a-permanent-ip-address)
-- [Step 12 — Update the app URL in the configuration](#step-12-update-the-app-url-in-the-configuration)
-- [Step 13 — Wait for the app to start](#step-13-wait-for-the-app-to-start)
-- [Step 14 — Open the app](#step-14-open-the-app)
+- [Step 3 — Set up firewall rules (Security Groups)](#step-3-set-up-firewall-rules-security-groups)
+  - [3.1 Open the Security Groups page](#31-open-the-security-groups-page)
+  - [3.2 Create the web server security group](#32-create-the-web-server-security-group)
+  - [3.3 Create the database security group](#33-create-the-database-security-group)
+- [Step 4 — Create the database (RDS)](#step-4-create-the-database-rds)
+- [Step 5 — Create an SSH key pair (to log into your server)](#step-5-create-an-ssh-key-pair-to-log-into-your-server)
+- [Step 6 — Create an S3 bucket and IAM Role for EC2](#step-6-create-an-s3-bucket-and-iam-role-for-ec2)
+  - [6.1 Create the attachments bucket](#61-create-the-attachments-bucket)
+  - [6.2 Create the IAM role](#62-create-the-iam-role)
+  - [6.3 Grant the role access to the attachments bucket](#63-grant-the-role-access-to-the-attachments-bucket)
+  - [6.4 Grant the role permission to stop and start the database](#64-grant-the-role-permission-to-stop-and-start-the-database)
+- [Step 7 — Wait for RDS to finish, then copy its address](#step-7-wait-for-rds-to-finish-then-copy-its-address)
+- [Step 8 — Fill in your startup script template](#step-8-fill-in-your-startup-script-template)
+- [Step 9 — Launch your EC2 server](#step-9-launch-your-ec2-server)
+- [Step 10 — Assign a permanent IP address](#step-10-assign-a-permanent-ip-address)
+- [Step 11 — Update the app URL in the configuration](#step-11-update-the-app-url-in-the-configuration)
+- [Step 12 — Wait for the app to start](#step-12-wait-for-the-app-to-start)
+- [Step 13 — Open the app](#step-13-open-the-app)
 - [Day-to-day operations](#day-to-day-operations)
   - [Update to a new version](#update-to-a-new-version)
   - [View the application logs](#view-the-application-logs)
@@ -48,7 +47,6 @@
   - [Attaching a file to an issue fails, or the download link doesn't work](#attaching-a-file-to-an-issue-fails-or-the-download-link-doesnt-work)
   - [The database never seems to stop, or logs show "db idle auto-stop disabled"](#the-database-never-seems-to-stop-or-logs-show-db-idle-auto-stop-disabled)
   - [RDS shows "Stopped" in the console, or the app briefly shows a "waking up" message](#rds-shows-stopped-in-the-console-or-the-app-briefly-shows-a-waking-up-message)
-  - [`docker login` failed in the startup log](#docker-login-failed-in-the-startup-log)
 - [Quick reference — what everything is](#quick-reference-what-everything-is)
 
 ---
@@ -73,7 +71,6 @@ EC2 instance  ──  a virtual computer in the cloud running Mansooba
 ## Before you start — collect these things
 
 You will need:
-- [ ] A **GitHub account** with access to the `sharique/mansooba` repository
 - [ ] An **AWS account** — sign up at [aws.amazon.com](https://aws.amazon.com) (credit card required, but free tier means no charge)
 - [ ] A **plain text editor** on your computer — Notepad on Windows, TextEdit on Mac (set to plain text: Format → Make Plain Text), or any code editor
 
@@ -102,6 +99,13 @@ You will need:
 **SES** (Simple Email Service) is AWS's email service. It's free for up to 3,000 emails per month when sent from an EC2 server — no credit card charge, no external account needed.
 
 SES starts in **sandbox mode**, meaning it can only send email *to* addresses you've verified. This is fine for testing. You can request to leave sandbox mode later (Step 2.3) when you're ready to send to real users.
+
+> **Don't want email at all?** Skip this entire step. In Step 8's startup
+> script, leave `SMTP_HOST`, `SMTP_FROM`, `SMTP_USER`, and `SMTP_PASS` blank
+> instead of filling them in. The backend detects the empty `SMTP_HOST` and
+> falls back to returning password-reset tokens directly in the API response
+> instead of emailing them — the same behavior the Terraform deployment gets
+> from setting `enable_ses = false`.
 
 ### 2.1 Verify your sender email address
 
@@ -157,38 +161,19 @@ You can skip this now and come back after testing.
 
 ---
 
-## Step 3 — Create a GitHub token (to download Docker images)
-
-The server needs to download Mansooba's Docker images from GitHub. A Personal Access Token gives it read permission.
-
-1. Go to [github.com/settings/tokens](https://github.com/settings/tokens)
-2. Click **Generate new token (classic)**
-3. Note (a label for yourself): `mansooba-server`
-4. Expiration: **1 year**
-5. Under **Select scopes** check only: **`read:packages`**
-6. Scroll down → **Generate token**
-7. Copy the token (starts with `ghp_`) — it won't be shown again
-
-**Write this down:**
-```
-GitHub token:   ________________________________
-```
-
----
-
-## Step 4 — Set up firewall rules (Security Groups)
+## Step 3 — Set up firewall rules (Security Groups)
 
 A **Security Group** is AWS's firewall. You'll create two:
 - One for the web server — allows web traffic from the internet
 - One for the database — allows traffic from the web server only (not the internet)
 
-### 4.1 Open the Security Groups page
+### 3.1 Open the Security Groups page
 
 1. In the AWS Console search bar type `EC2` → open **EC2**
 2. In the left sidebar scroll down to **Network & Security** → click **Security Groups**
 3. Make sure your region (top-right corner) is set to **US East (N. Virginia)** — `us-east-1`
 
-### 4.2 Create the web server security group
+### 3.2 Create the web server security group
 
 1. Click **Create security group**
 2. Fill in:
@@ -206,7 +191,7 @@ A **Security Group** is AWS's firewall. You'll create two:
 4. Leave **Outbound rules** unchanged (Allow All is fine)
 5. Click **Create security group**
 
-### 4.3 Create the database security group
+### 3.3 Create the database security group
 
 1. Click **Create security group** again
 2. Fill in:
@@ -223,7 +208,7 @@ A **Security Group** is AWS's firewall. You'll create two:
 
 ---
 
-## Step 5 — Create the database (RDS)
+## Step 4 — Create the database (RDS)
 
 **RDS** is AWS's managed database. "Managed" means AWS handles backups and restarts — you just point the app at it.
 
@@ -255,7 +240,7 @@ RDS master password:   ________________________________
 
 ---
 
-## Step 6 — Create an SSH key pair (to log into your server)
+## Step 5 — Create an SSH key pair (to log into your server)
 
 An SSH key is like a password for the server, but stored as a file. You create it in AWS and the private half downloads to your computer automatically.
 
@@ -275,23 +260,23 @@ Move it to a safe folder on your computer:
 
 ---
 
-## Step 7 — Create an S3 bucket and IAM Role for EC2
+## Step 6 — Create an S3 bucket and IAM Role for EC2
 
 Mansooba stores file attachments (things people attach to issues) in an S3 bucket rather than on the server itself. The server needs a **bucket** to store them in, and an **IAM Role** — a set of permissions — that lets it read and write to that bucket without you ever typing in a password for it.
 
-### 7.1 Create the attachments bucket
+### 6.1 Create the attachments bucket
 
 1. In the search bar type `S3` → open **S3**
 2. Click **Create bucket**
 3. Bucket name: `mansooba-attachments`
-   *(Bucket names must be globally unique across all AWS customers — if this is taken, try `mansooba-attachments-yourname` and remember to use that exact name in Step 9 below.)*
+   *(Bucket names must be globally unique across all AWS customers — if this is taken, try `mansooba-attachments-yourname` and remember to use that exact name in Step 8 below.)*
 4. AWS Region: make sure it matches the region you've used everywhere else — **US East (N. Virginia)** `us-east-1`
 5. Leave **Block all public access** checked (the default) — attachments should never be publicly reachable
 6. Under **Bucket Versioning**, leave **Disable** selected
 7. Under **Default encryption**, leave **Server-side encryption with Amazon S3 managed keys (SSE-S3)** selected
 8. Click **Create bucket**
 
-### 7.2 Create the IAM role
+### 6.2 Create the IAM role
 
 1. In the search bar type `IAM` → open **IAM**
 2. In the left sidebar click **Roles** → **Create role**
@@ -302,7 +287,7 @@ Mansooba stores file attachments (things people attach to issues) in an S3 bucke
 6. Role name: `mansooba-ec2-role`
 7. Click **Create role**
 
-### 7.3 Grant the role access to the attachments bucket
+### 6.3 Grant the role access to the attachments bucket
 
 The managed policy above only covers pulling container images — it doesn't grant any S3 access. Add a second, narrowly-scoped policy just for the attachments bucket:
 
@@ -321,16 +306,16 @@ The managed policy above only covers pulling container images — it doesn't gra
      ]
    }
    ```
-   *(If you had to use a different bucket name in Step 7.1, replace `mansooba-attachments` here too.)*
+   *(If you had to use a different bucket name in Step 6.1, replace `mansooba-attachments` here too.)*
 4. Click **Next**
 5. Policy name: `mansooba-s3-attachments`
 6. Click **Create policy**
 
 > This grants only upload, download, and delete on objects inside this one bucket — nothing else in your AWS account.
 
-### 7.4 Grant the role permission to stop and start the database
+### 6.4 Grant the role permission to stop and start the database
 
-Mansooba can automatically stop the RDS database after 10 minutes of no activity and start it again the moment it's needed, to save cost on an always-on demo. This needs one more narrowly-scoped policy, the same way as Step 7.3:
+Mansooba can automatically stop the RDS database after 10 minutes of no activity and start it again the moment it's needed, to save cost on an always-on demo. This needs one more narrowly-scoped policy, the same way as Step 6.3:
 
 1. Still in **IAM** → **Roles** → `mansooba-ec2-role` → **Permissions** tab → **Add permissions** → **Create inline policy**
 2. Click the **JSON** tab and replace the contents with:
@@ -355,7 +340,7 @@ Mansooba can automatically stop the RDS database after 10 minutes of no activity
 
 ---
 
-## Step 8 — Wait for RDS to finish, then copy its address
+## Step 7 — Wait for RDS to finish, then copy its address
 
 1. Go back to **RDS** → **Databases**
 2. Click `mansooba-db`
@@ -370,7 +355,7 @@ RDS endpoint:   ________________________________
 
 ---
 
-## Step 9 — Fill in your startup script template
+## Step 8 — Fill in your startup script template
 
 Open your plain text editor. Copy the entire block below, paste it in, then replace every `FILL_IN_...` placeholder with your actual values.
 
@@ -394,9 +379,6 @@ curl -SL "https://github.com/docker/compose/releases/download/v2.27.1/docker-com
   -o /usr/local/lib/docker/cli-plugins/docker-compose
 chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
-# ── Log in to GitHub Container Registry ─────────────
-echo "FILL_IN_GITHUB_TOKEN" | docker login ghcr.io -u sharique --password-stdin
-
 # ── Create app directory ─────────────────────────────
 mkdir -p /opt/mansooba
 cd /opt/mansooba
@@ -413,7 +395,7 @@ APP_ENV=production
 DB_DRIVER=postgres
 DB_DSN=host=FILL_IN_RDS_ENDPOINT user=mansooba password=FILL_IN_DB_PASSWORD dbname=mansooba port=5432 sslmode=require
 
-# Must match the DB instance identifier from Step 5 exactly — it has to be the
+# Must match the DB instance identifier from Step 4 exactly — it has to be the
 # leading label of the RDS endpoint above (mansooba-db.cxxxxxxxx...) for the
 # auto-stop/wake-on-hit feature to recognize this is really that RDS instance.
 RDS_INSTANCE_IDENTIFIER=mansooba-db
@@ -423,8 +405,18 @@ RDS_INSTANCE_IDENTIFIER=mansooba-db
 # automatically; only credentials come from the instance role).
 AWS_REGION=us-east-1
 
+# These four match the backend's own built-in defaults — spelled out here so
+# they're visible/trackable instead of silently relying on whatever the
+# backend happens to default to. Same variables the Terraform deployment
+# exposes as rds_autostop_enabled/rds_idle_timeout/rds_idle_check_interval/
+# rds_start_failure_bound.
+RDS_AUTOSTOP_ENABLED=true
+RDS_IDLE_TIMEOUT=10m
+RDS_IDLE_CHECK_INTERVAL=1m
+RDS_START_FAILURE_BOUND=3
+
 # No access key/secret here — the server authenticates to S3 using the
-# mansooba-ec2-role IAM role from Step 7, not a password.
+# mansooba-ec2-role IAM role from Step 6, not a password.
 STORAGE_BUCKET=mansooba-attachments
 STORAGE_REGION=us-east-1
 
@@ -437,7 +429,40 @@ SMTP_PASS=FILL_IN_SES_SMTP_PASSWORD
 APP_BASE_URL=FILL_IN_LATER
 CORS_ORIGINS=FILL_IN_LATER
 REVOKED_TOKEN_CLEANUP_INTERVAL=15m
+
+# System Logs — a durable audit trail (logins, admin actions, settings
+# changes) backed by Grafana Loki, started automatically below. Recommended:
+# it's what makes "who changed this setting, and when" answerable at all.
+LOKI_BASE_URL=http://loki:3100
+LOKI_RUNTIME_OVERRIDES_PATH=/etc/loki/runtime-overrides.yaml
+LOKI_RETENTION_SYNC_INTERVAL=5m
+
+# Grafana admin login — only used if you turn Grafana on (see the note after
+# this script). Pick your own password; the placeholder below is just an
+# example, not a requirement.
+GF_SECURITY_ADMIN_USER=admin
+GF_SECURITY_ADMIN_PASSWORD=FILL_IN_GRAFANA_PASSWORD
+GF_AUTH_ANONYMOUS_ENABLED=false
 ENV
+
+# ── Fetch Loki, Alloy, and Grafana config from the repo ─────────────
+# These are static config files (not secrets) — same ones the main
+# Terraform-based deployment uses. Loki is the audit-log backing store;
+# Alloy tails every container's logs into it; both start automatically.
+# Grafana (a way to browse those logs) is included but off by default —
+# see the note after this script for how to turn it on.
+mkdir -p loki grafana/provisioning/datasources grafana/provisioning/dashboards alloy
+cat > loki/runtime-overrides.yaml << 'EOF'
+overrides: {}
+EOF
+for f in loki/local-config.yaml \
+         grafana/provisioning/datasources/loki.yaml \
+         grafana/provisioning/dashboards/dashboards.yaml \
+         grafana/provisioning/dashboards/system-logs.json \
+         grafana/provisioning/dashboards/container-logs.json \
+         alloy/config.alloy; do
+  curl -fsSL "https://raw.githubusercontent.com/sharique/mansooba/main/$f" -o "$f"
+done
 
 # ── Write Docker Compose file ────────────────────────
 cat > compose.prod.yml << 'COMPOSE'
@@ -448,6 +473,11 @@ services:
     env_file: .env
     ports:
       - "8080:8080"
+    volumes:
+      - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
+    depends_on:
+      loki:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 30s
@@ -463,6 +493,59 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+  loki:
+    image: grafana/loki:3.2.0
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml -runtime-config.file=/etc/loki/runtime-overrides.yaml
+    volumes:
+      - loki_data:/loki
+      - ./loki/local-config.yaml:/etc/loki/local-config.yaml
+      - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  alloy:
+    image: grafana/alloy:v1.4.3
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy/data
+    depends_on:
+      loki:
+        condition: service_healthy
+
+  # Optional — see the note after this script for how to turn this on.
+  # Not opened to the internet in Step 3's firewall rules on purpose; you
+  # reach it through an SSH tunnel instead.
+  grafana:
+    image: grafana/grafana:11.2.0
+    restart: unless-stopped
+    profiles: ["observability"]
+    env_file: .env
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      loki:
+        condition: service_healthy
+
+volumes:
+  loki_data:
+  grafana_data:
+  alloy_data:
 COMPOSE
 
 # ── Pull images and start ────────────────────────────
@@ -472,27 +555,54 @@ docker compose -f compose.prod.yml up -d
 echo "=== Bootstrap complete ==="
 ```
 
+**Loki and Alloy start automatically** — no extra step needed. They give you a
+durable audit trail of logins, admin actions, and settings changes (Loki), plus
+every container's raw logs in one place (Alloy) — genuinely useful for a
+production deployment, and lightweight enough that there's no real reason to
+skip them.
+
+**Grafana is optional but recommended** — it's the easiest way to actually
+*look at* what Loki and Alloy are collecting, with pre-built dashboards so
+there's no query language to learn. It's left off by default so the server
+starts leaner; turn it on once you're logged into the server (Step 12 or
+later):
+
+```bash
+cd /opt/mansooba
+sudo docker compose -f compose.prod.yml --profile observability up -d grafana
+```
+
+Since Grafana's port isn't opened to the internet (see Step 3), reach it from
+your own computer through an SSH tunnel using the same key from Step 5:
+
+```bash
+ssh -i ~/.ssh/mansooba-key.pem -L 3001:localhost:3001 -N ec2-user@FILL_IN_YOUR_IP
+```
+
+Then open `http://localhost:3001` in your browser and log in with the
+`GF_SECURITY_ADMIN_USER` / `GF_SECURITY_ADMIN_PASSWORD` you set above.
+
 **Replace these placeholders:**
 
 | Placeholder | Replace with |
 |-------------|-------------|
-| `FILL_IN_GITHUB_TOKEN` | Your GitHub token from Step 3 (e.g. `ghp_abc123...`) |
 | `FILL_IN_RANDOM_SECRET` | Any long random string — mash the keyboard for 40+ characters, e.g. `x7Kp2mNqR9vL4wJ8cT6yH3bF1sA5uE0d` |
-| `FILL_IN_RDS_ENDPOINT` | Your RDS endpoint from Step 8 |
-| `FILL_IN_DB_PASSWORD` | Your RDS master password from Step 5 |
+| `FILL_IN_RDS_ENDPOINT` | Your RDS endpoint from Step 7 |
+| `FILL_IN_DB_PASSWORD` | Your RDS master password from Step 4 |
 | `FILL_IN_SES_SENDER_EMAIL` | Your verified SES sender email from Step 2.1 |
 | `FILL_IN_SES_SMTP_USERNAME` | The SMTP username from Step 2.2 |
 | `FILL_IN_SES_SMTP_PASSWORD` | The SMTP password from Step 2.2 |
+| `FILL_IN_GRAFANA_PASSWORD` | Any password you'll remember — only matters if you turn Grafana on later |
 
-Leave `FILL_IN_LATER` for now — you'll update the app after getting the IP in Step 11.
+Leave `FILL_IN_LATER` for now — you'll update the app after getting the IP in Step 10.
 
-> `STORAGE_BUCKET` and `STORAGE_REGION` don't need replacing unless you had to pick a different bucket name in Step 7.1 due to a name collision — if so, update `STORAGE_BUCKET` to match.
+> `STORAGE_BUCKET` and `STORAGE_REGION` don't need replacing unless you had to pick a different bucket name in Step 6.1 due to a name collision — if so, update `STORAGE_BUCKET` to match.
 
 Save this file as `startup-script.txt` on your Desktop (you'll copy-paste it in the next step).
 
 ---
 
-## Step 10 — Launch your EC2 server
+## Step 9 — Launch your EC2 server
 
 1. In the search bar type `EC2` → open **EC2**
 2. Click **Launch instances** (the orange button)
@@ -503,7 +613,7 @@ Save this file as `startup-script.txt` on your Desktop (you'll copy-paste it in 
    - Select **Amazon Linux 2023 AMI** (the top result, labelled "Free tier eligible")
    - Architecture: **64-bit (x86)**
 5. **Instance type:** `t2.micro` (should be pre-selected, it's free tier)
-6. **Key pair:** Select `mansooba-key` (the one you created in Step 6)
+6. **Key pair:** Select `mansooba-key` (the one you created in Step 5)
 7. **Network settings:** Click **Edit**
    - VPC: default
    - Subnet: any (leave as default)
@@ -511,7 +621,7 @@ Save this file as `startup-script.txt` on your Desktop (you'll copy-paste it in 
    - Firewall: **Select existing security group** → choose `mansooba-ec2-sg`
 8. **Configure storage:** leave as default (8 GB is fine)
 9. Expand **Advanced details** at the bottom
-10. Find **IAM instance profile** → select `mansooba-ec2-role` (the role you created in Step 7.2)
+10. Find **IAM instance profile** → select `mansooba-ec2-role` (the role you created in Step 6.2)
     *(Skip this and the server has no permission to talk to S3 — file attachments will fail with an "IMDS role" error even though the role exists.)*
 11. Scroll down to **User data**
 12. Open your `startup-script.txt` file, select all, copy → paste it into the **User data** box
@@ -521,7 +631,7 @@ Save this file as `startup-script.txt` on your Desktop (you'll copy-paste it in 
 
 ---
 
-## Step 11 — Assign a permanent IP address
+## Step 10 — Assign a permanent IP address
 
 Without this step the server's IP address changes every restart.
 
@@ -538,7 +648,7 @@ Server IP address:   ________________________________
 
 ---
 
-## Step 12 — Update the app URL in the configuration
+## Step 11 — Update the app URL in the configuration
 
 The startup script used `FILL_IN_LATER` for the app URL. Now that you have the real IP, update the config file on the server:
 
@@ -548,7 +658,7 @@ The startup script used `FILL_IN_LATER` for the app URL. Now that you have the r
 4. In the terminal that opens, run:
 
 ```bash
-# Replace 54.123.45.67 with your actual IP from Step 11
+# Replace 54.123.45.67 with your actual IP from Step 10
 sudo sed -i 's|FILL_IN_LATER|http://54.123.45.67|g' /opt/mansooba/.env
 sudo docker compose -f /opt/mansooba/compose.prod.yml restart backend
 ```
@@ -557,7 +667,7 @@ sudo docker compose -f /opt/mansooba/compose.prod.yml restart backend
 
 ---
 
-## Step 13 — Wait for the app to start
+## Step 12 — Wait for the app to start
 
 The startup script runs in the background after launch and takes **3–5 minutes** the first time.
 
@@ -584,7 +694,7 @@ You should see two rows — one for `mansooba-backend`, one for `mansooba-fronte
 
 ---
 
-## Step 14 — Open the app
+## Step 13 — Open the app
 
 Open your browser and go to:
 
@@ -625,6 +735,12 @@ In EC2 Instance Connect:
 sudo docker logs mansooba-backend --tail 50
 sudo docker logs mansooba-frontend --tail 50
 ```
+
+For security/admin events specifically (who logged in, who changed what), sign
+in to the app as an admin and open **System → Logs** — that's the curated
+audit trail, not raw container output. For everything else across every
+container in one place, turn on Grafana (see Step 8) and open the **Container
+Logs** dashboard.
 
 ### Restart the app
 
@@ -669,7 +785,7 @@ The startup script might still be running. In EC2 Instance Connect, check:
 sudo cat /var/log/user-data.log
 ```
 
-Look for error lines or check if the script finished. If it finished but the app still doesn't load, check the security group allows port 80 (Step 4.2).
+Look for error lines or check if the script finished. If it finished but the app still doesn't load, check the security group allows port 80 (Step 3.2).
 
 ### The database shows an error
 
@@ -708,9 +824,9 @@ sudo docker logs mansooba-backend | grep -i s3
 sudo grep STORAGE /opt/mansooba/.env
 ```
 
-Confirm `STORAGE_BUCKET` in `.env` matches the exact bucket name from Step 7.1, and that the `mansooba-s3-attachments` inline policy from Step 7.3 is still attached to `mansooba-ec2-role` (**IAM** → **Roles** → `mansooba-ec2-role` → **Permissions** tab).
+Confirm `STORAGE_BUCKET` in `.env` matches the exact bucket name from Step 6.1, and that the `mansooba-s3-attachments` inline policy from Step 6.3 is still attached to `mansooba-ec2-role` (**IAM** → **Roles** → `mansooba-ec2-role` → **Permissions** tab).
 
-**Error mentions "no EC2 IMDS role found" or "no credentials":** the instance itself has no IAM role attached — Step 10.10 was skipped, or the instance was launched before Step 7 existed. Fix it without recreating the instance: EC2 console → select `mansooba-app` → **Actions** → **Security** → **Modify IAM role** → choose `mansooba-ec2-role` → **Update IAM role**. No restart needed; retry the upload after ~30–60 seconds.
+**Error mentions "no EC2 IMDS role found" or "no credentials":** the instance itself has no IAM role attached — Step 9.10 was skipped, or the instance was launched before Step 6 existed. Fix it without recreating the instance: EC2 console → select `mansooba-app` → **Actions** → **Security** → **Modify IAM role** → choose `mansooba-ec2-role` → **Update IAM role**. No restart needed; retry the upload after ~30–60 seconds.
 
 ### The database never seems to stop, or logs show `"db idle auto-stop disabled"`
 
@@ -720,13 +836,13 @@ Check what the backend logged at startup:
 sudo docker logs mansooba-backend 2>&1 | grep "db idle auto-stop"
 ```
 
-If you see `"db idle auto-stop disabled"` with `dsn_host` looking correct (it should end in `.rds.amazonaws.com` and start with your DB instance identifier), the most common cause is **`RDS_INSTANCE_IDENTIFIER` accidentally set to the full RDS endpoint instead of just the instance name** — an easy mix-up since both values come from the same place (Step 8):
+If you see `"db idle auto-stop disabled"` with `dsn_host` looking correct (it should end in `.rds.amazonaws.com` and start with your DB instance identifier), the most common cause is **`RDS_INSTANCE_IDENTIFIER` accidentally set to the full RDS endpoint instead of just the instance name** — an easy mix-up since both values come from the same place (Step 7):
 
 ```
 # WRONG — this is the RDS endpoint, not the identifier:
 RDS_INSTANCE_IDENTIFIER=mansooba-db.cxxxxxxxx.us-east-1.rds.amazonaws.com
 
-# RIGHT — just the instance identifier from Step 5:
+# RIGHT — just the instance identifier from Step 4:
 RDS_INSTANCE_IDENTIFIER=mansooba-db
 ```
 
@@ -740,29 +856,18 @@ cd /opt/mansooba && sudo docker compose -f compose.prod.yml up -d --force-recrea
 
 ### RDS shows "Stopped" in the console, or the app briefly shows a "waking up" message
 
-This is expected, not a fault — it's the auto-stop/wake-on-hit feature from Step 7.4 saving cost by stopping the database after 10 minutes of no traffic. The next request wakes it back up automatically within about a minute. If the app is stuck on "waking up" for much longer than that:
+This is expected, not a fault — it's the auto-stop/wake-on-hit feature from Step 6.4 saving cost by stopping the database after 10 minutes of no traffic. The next request wakes it back up automatically within about a minute. If the app is stuck on "waking up" for much longer than that:
 
 ```bash
 sudo docker logs mansooba-backend | grep -E 'db_auto_(stop|start)'
 ```
 
-If you see a permissions error here, confirm the `mansooba-rds-lifecycle` inline policy from Step 7.4 is attached to `mansooba-ec2-role`, and that the account ID and DB instance identifier in its JSON match your actual database (**RDS** → **Databases** → `mansooba-db` → **Configuration** tab → **ARN**).
+If you see a permissions error here, confirm the `mansooba-rds-lifecycle` inline policy from Step 6.4 is attached to `mansooba-ec2-role`, and that the account ID and DB instance identifier in its JSON match your actual database (**RDS** → **Databases** → `mansooba-db` → **Configuration** tab → **ARN**).
 
 To turn this feature off entirely (e.g. so the database never stops):
 ```bash
 echo 'RDS_AUTOSTOP_ENABLED=false' | sudo tee -a /opt/mansooba/.env
 cd /opt/mansooba && sudo docker compose -f compose.prod.yml up -d --force-recreate backend
-```
-
-### `docker login` failed in the startup log
-
-Your GitHub token is wrong or missing the `read:packages` scope. Re-do Step 3, then in EC2 Instance Connect:
-
-```bash
-echo "YOUR_NEW_TOKEN" | sudo docker login ghcr.io -u sharique --password-stdin
-cd /opt/mansooba
-sudo docker compose -f compose.prod.yml pull
-sudo docker compose -f compose.prod.yml up -d
 ```
 
 ---
@@ -782,3 +887,6 @@ sudo docker compose -f compose.prod.yml up -d
 | **User data** | A startup script EC2 runs once when the server first boots |
 | **EC2 Instance Connect** | A browser-based terminal — log into your server without installing SSH |
 | **SES Sandbox mode** | Default SES mode — can only send to verified email addresses |
+| **Loki** | Stores the System Logs audit trail (logins, admin actions, settings changes) — starts automatically |
+| **Alloy** | Collects every container's raw logs into Loki — starts automatically |
+| **Grafana** | Optional dashboard for browsing what Loki and Alloy collected — off by default, recommended to turn on |
