@@ -100,6 +100,14 @@
       </div>
     </div>
 
+    <!-- Change Password -->
+    <div v-if="activeTab === 'profile'" class="card bg-base-100 shadow border border-base-200 mt-6">
+      <div class="card-body gap-4">
+        <h2 class="card-title text-base">Change Password</h2>
+        <ChangePasswordForm />
+      </div>
+    </div>
+
     <!-- My Activity Tab -->
     <div v-if="activeTab === 'activity'">
       <div v-if="loadingActivity" class="skeleton h-32 w-full" />
@@ -119,6 +127,7 @@
 import { useAuthStore } from '~/stores/auth.store'
 import { authService } from '~/services/auth.service'
 import UserAvatar from '~/components/common/UserAvatar.vue'
+import ChangePasswordForm from '~/components/settings/ChangePasswordForm.vue'
 
 const authStore = useAuthStore()
 const { showSuccess, showError } = useToast()

@@ -99,3 +99,49 @@ func TestSendPasswordReset_TokenValueUnmodified(t *testing.T) {
 	body := string(*captured)
 	assert.Contains(t, body, token, "original token value must appear verbatim in the plain-text body")
 }
+
+// ─── T023 (012-change-password): SendPasswordChanged / SendSuspiciousActivityAlert ───
+//
+// These tests will not compile until SMTPSender gains SendPasswordChanged
+// and SendSuspiciousActivityAlert methods (research.md Decision 4) — the
+// expected TDD red state. See specs/012-change-password/IMPLEMENTATION_GUIDE.md.
+
+func TestSendPasswordChanged_SendsToRecipient(t *testing.T) {
+	s, captured := captureSender("http://example.com")
+	err := s.SendPasswordChanged(context.Background(), "user@test.com")
+	require.NoError(t, err)
+
+	body := string(*captured)
+	assert.Contains(t, body, "user@test.com", "message must be addressed to the recipient")
+	assert.Contains(t, body, "text/plain", "message must retain a text/plain MIME part, matching SendPasswordReset's convention")
+}
+
+func TestSendPasswordChanged_NeverIncludesAPasswordValue(t *testing.T) {
+	s, captured := captureSender("http://example.com")
+	err := s.SendPasswordChanged(context.Background(), "user@test.com")
+	require.NoError(t, err)
+
+	body := string(*captured)
+	assert.NotContains(t, body, "OldPassword", "confirmation email must never include the old password value")
+	assert.NotContains(t, body, "NewPassword", "confirmation email must never include the new password value")
+}
+
+func TestSendSuspiciousActivityAlert_SendsToRecipient(t *testing.T) {
+	s, captured := captureSender("http://example.com")
+	err := s.SendSuspiciousActivityAlert(context.Background(), "user@test.com")
+	require.NoError(t, err)
+
+	body := string(*captured)
+	assert.Contains(t, body, "user@test.com", "message must be addressed to the recipient")
+}
+
+func TestSendSuspiciousActivityAlert_DistinctFromPasswordChangedEmail(t *testing.T) {
+	changedSender, changedBody := captureSender("http://example.com")
+	require.NoError(t, changedSender.SendPasswordChanged(context.Background(), "user@test.com"))
+
+	alertSender, alertBody := captureSender("http://example.com")
+	require.NoError(t, alertSender.SendSuspiciousActivityAlert(context.Background(), "user@test.com"))
+
+	assert.NotEqual(t, string(*changedBody), string(*alertBody),
+		"the suspicious-activity alert must be a distinct message from the success-confirmation email (FR-013)")
+}

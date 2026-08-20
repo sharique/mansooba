@@ -11,4 +11,11 @@ type EmailSender interface {
 	// to is the recipient email; token is the raw 64-char hex value.
 	// The no-op implementation returns nil immediately.
 	SendPasswordReset(ctx context.Context, to, token string) error
+
+	// SendPasswordChanged confirms a successful password change (FR-009).
+	SendPasswordChanged(ctx context.Context, to string) error
+
+	// SendSuspiciousActivityAlert warns of 3 consecutive failed
+	// change-password attempts (FR-013).
+	SendSuspiciousActivityAlert(ctx context.Context, to string) error
 }

@@ -29,4 +29,8 @@ var (
 	// it to HTTP 502, distinct from a per-file rejection reason on upload.
 	ErrAttachmentCapReached         = errors.New("attachment cap reached")
 	ErrAttachmentStorageUnavailable = errors.New("attachment storage unavailable")
+
+	// Password-change errors (feature 012).
+	ErrCurrentPasswordMismatch  = errors.New("current password is incorrect")
+	ErrNewPasswordSameAsCurrent = errors.New("new password must differ from current password")
 )

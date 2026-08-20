@@ -13,6 +13,7 @@ vi.mock('~/services/auth.service', () => ({
     updateMe: vi.fn(),
     getMyActivity: vi.fn(),
     getMyIssues: vi.fn(),
+    changePassword: vi.fn(),
   },
 }))
 
@@ -70,5 +71,18 @@ describe('auth store', () => {
     await store.updateProfile({ full_name: 'Alice B', timezone: 'America/New_York' })
     expect(store.profile?.name).toBe('Alice B')
     expect(store.profile?.timezone).toBe('America/New_York')
+  })
+
+  // T013 (012-change-password): will not compile/run until
+  // useAuthStore().changePassword and authService.changePassword exist —
+  // the expected TDD red state. See
+  // specs/012-change-password/IMPLEMENTATION_GUIDE.md.
+  it('changePassword delegates to authService.changePassword with both passwords', async () => {
+    vi.mocked(authService.changePassword).mockResolvedValue(undefined)
+
+    const store = useAuthStore()
+    await store.changePassword('OldPassword1', 'NewPassword2')
+
+    expect(authService.changePassword).toHaveBeenCalledWith('OldPassword1', 'NewPassword2')
   })
 })

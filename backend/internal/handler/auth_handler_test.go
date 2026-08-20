@@ -17,10 +17,11 @@ import (
 
 // stubAuthService is a controllable stand-in for service.AuthService.
 type stubAuthService struct {
-	registerFn func(ctx context.Context, req dto.RegisterRequest, callerID uint) (*dto.AuthResponse, error)
-	loginFn    func(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, error)
-	refreshFn  func(ctx context.Context, token string) (string, error)
-	logoutFn   func(ctx context.Context, token string) error
+	registerFn    func(ctx context.Context, req dto.RegisterRequest, callerID uint) (*dto.AuthResponse, error)
+	loginFn       func(ctx context.Context, req dto.LoginRequest) (*dto.AuthResponse, error)
+	refreshFn     func(ctx context.Context, token string) (string, error)
+	logoutFn      func(ctx context.Context, token string) error
+	issueTokensFn func(ctx context.Context, userID uint) (*dto.AuthResponse, error)
 }
 
 func (s *stubAuthService) Register(ctx context.Context, req dto.RegisterRequest, callerID uint) (*dto.AuthResponse, error) {
@@ -31,6 +32,12 @@ func (s *stubAuthService) Login(ctx context.Context, req dto.LoginRequest) (*dto
 }
 func (s *stubAuthService) Refresh(ctx context.Context, token string) (string, error) {
 	return s.refreshFn(ctx, token)
+}
+func (s *stubAuthService) IssueTokens(ctx context.Context, userID uint) (*dto.AuthResponse, error) {
+	if s.issueTokensFn != nil {
+		return s.issueTokensFn(ctx, userID)
+	}
+	return &dto.AuthResponse{AccessToken: "test.access.token"}, nil
 }
 func (s *stubAuthService) Logout(ctx context.Context, token string) error {
 	if s.logoutFn != nil {

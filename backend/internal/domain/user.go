@@ -21,6 +21,9 @@ type User struct {
 	IsActive  bool      `gorm:"not null;default:true"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
+
+	TokenValidAfter                  *time.Time // nil = no session-invalidation boundary (ADR-032)
+	ConsecutiveFailedPasswordChanges int        `gorm:"not null;default:0"`
 }
 
 // UserRepository defines the persistence contract for User.

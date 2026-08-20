@@ -134,3 +134,95 @@ func (s SMTPSender) SendPasswordReset(_ context.Context, to, token string) error
 
 	return send(addr, nil, s.From, []string{to}, buf.Bytes())
 }
+
+// sendHTML builds and sends a multipart/alternative (text/plain + text/html)
+// message, following the exact MIME construction SendPasswordReset established
+// (RFC 2046 §5.1.4 part ordering, manual textproto.MIMEHeader — no template
+// engine, per research.md Decision 4).
+func (s SMTPSender) sendHTML(to, subject, plainBody, htmlBody string) error {
+	addr := s.Host + ":" + s.Port
+	send := s.sendMailFn
+	if send == nil {
+		send = smtp.SendMail
+	}
+
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+
+	headers := textproto.MIMEHeader{}
+	headers.Set("To", to)
+	headers.Set("From", s.From)
+	headers.Set("Subject", subject)
+	headers.Set("MIME-Version", "1.0")
+	headers.Set("Content-Type", "multipart/alternative; boundary="+mw.Boundary())
+	for k, vs := range headers {
+		for _, v := range vs {
+			fmt.Fprintf(&buf, "%s: %s\r\n", k, v)
+		}
+	}
+	fmt.Fprintf(&buf, "\r\n")
+
+	pw, _ := mw.CreatePart(textproto.MIMEHeader{
+		"Content-Type":              {"text/plain; charset=utf-8"},
+		"Content-Transfer-Encoding": {"7bit"},
+	})
+	fmt.Fprint(pw, plainBody)
+
+	hw, _ := mw.CreatePart(textproto.MIMEHeader{
+		"Content-Type":              {"text/html; charset=utf-8"},
+		"Content-Transfer-Encoding": {"7bit"},
+	})
+	fmt.Fprint(hw, htmlBody)
+
+	mw.Close()
+	return send(addr, nil, s.From, []string{to}, buf.Bytes())
+}
+
+func (s SMTPSender) SendPasswordChanged(_ context.Context, to string) error {
+	plainBody := "Your Mansooba account password was just changed.\r\n\r\n" +
+		"If you made this change, no action is needed.\r\n" +
+		"If you did NOT make this change, contact your administrator immediately.\r\n"
+	htmlBody := passwordEventHTML("Your password was changed",
+		"Your Mansooba account password was just changed. If this was you, no action is needed.",
+		"If you did <strong>not</strong> make this change, contact your administrator immediately.")
+	return s.sendHTML(to, "Your Mansooba password was changed", plainBody, htmlBody)
+}
+
+func (s SMTPSender) SendSuspiciousActivityAlert(_ context.Context, to string) error {
+	plainBody := "There have been 3 consecutive failed attempts to change your Mansooba account password.\r\n\r\n" +
+		"If this wasn't you, someone may be trying to access your account — consider changing your password and contacting your administrator.\r\n"
+	htmlBody := passwordEventHTML("Suspicious activity on your account",
+		"There have been 3 consecutive failed attempts to change your Mansooba account password.",
+		"If this wasn't you, consider changing your password and contacting your administrator.")
+	return s.sendHTML(to, "Suspicious activity on your Mansooba account", plainBody, htmlBody)
+}
+
+// passwordEventHTML renders the shared card layout SendPasswordReset already
+// uses (teal header, white card, footer), swapped in with different copy —
+// deliberately not a template engine (research.md Decision 4), just a second
+// small Sprintf using the same structure.
+func passwordEventHTML(heading, lead, notice string) string {
+	return fmt.Sprintf(`<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /></head>
+<body style="margin:0;padding:0;background-color:#f0f4f4;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0f4f4;">
+  <tr><td align="center" style="padding:40px 16px;">
+    <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%%;background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+      <tr><td style="background-color:#2a8080;padding:24px 40px;">
+        <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.3px;">Mansooba</span>
+      </td></tr>
+      <tr><td style="padding:40px 40px 32px;">
+        <p style="margin:0 0 16px;font-size:16px;color:#2d3a40;line-height:1.6;"><strong>%s</strong></p>
+        <p style="margin:0 0 16px;font-size:16px;color:#2d3a40;line-height:1.6;">%s</p>
+        <p style="margin:0;font-size:13px;color:#6b7b80;line-height:1.5;">%s</p>
+      </td></tr>
+      <tr><td style="padding:14px 40px;background:#f8fbfb;border-top:1px solid #e8eeee;">
+        <p style="margin:0;font-size:12px;color:#b0bec5;text-align:center;">Mansooba &middot; Project Management</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>`, heading, lead, notice)
+}
