@@ -285,7 +285,8 @@ func main() {
 
 	e.Use(echomw.Recover())
 	e.Use(echomw.CORSWithConfig(echomw.CORSConfig{
-		AllowOrigins: strings.Split(cfg.CORSOrigins, ","),
+		AllowOrigins:     strings.Split(cfg.CORSOrigins, ","),
+		AllowCredentials: true,
 	}))
 
 	// Body limit — reject payloads > BodySizeLimit with 413

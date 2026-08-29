@@ -13,6 +13,11 @@
         :class="['tab', activeTab === 'activity' && 'tab-active']"
         @click="activeTab = 'activity'"
       >My Activity</button>
+      <button
+        role="tab"
+        :class="['tab', activeTab === 'password' && 'tab-active']"
+        @click="activeTab = 'password'"
+      >Change password</button>
     </div>
 
     <!-- Profile Tab -->
@@ -101,7 +106,7 @@
     </div>
 
     <!-- Change Password -->
-    <div v-if="activeTab === 'profile'" class="card bg-base-100 shadow border border-base-200 mt-6">
+    <div v-if="activeTab === 'password'" class="card bg-base-100 shadow border border-base-200 mt-6">
       <div class="card-body gap-4">
         <h2 class="card-title text-base">Change Password</h2>
         <ChangePasswordForm />
@@ -132,7 +137,7 @@ import ChangePasswordForm from '~/components/settings/ChangePasswordForm.vue'
 const authStore = useAuthStore()
 const { showSuccess, showError } = useToast()
 
-const activeTab = ref<'profile' | 'activity'>('profile')
+const activeTab = ref<'profile' | 'activity' | 'password'>('profile')
 const saving = ref(false)
 const uploading = ref(false)
 const loadingActivity = ref(false)

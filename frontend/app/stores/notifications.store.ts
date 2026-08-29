@@ -21,5 +21,14 @@ export const useNotificationsStore = defineStore('notifications', () => {
     unread.value = unread.value.filter(n => n.id !== id)
   }
 
-  return { unread, unreadCount, error, fetchUnread, markRead }
+  // Pinia's setup-syntax stores don't get an auto-generated $reset() (that's
+  // an options-store-only feature) — calling .$reset() on a setup store
+  // throws. resetDomainStores() (auth.service.ts) calls $reset() uniformly
+  // across stores on logout, so this store defines its own.
+  function $reset() {
+    unread.value = []
+    error.value = null
+  }
+
+  return { unread, unreadCount, error, fetchUnread, markRead, $reset }
 })
