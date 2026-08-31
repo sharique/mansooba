@@ -19,3 +19,11 @@ var _ domain.EmailSender = NoopSender{}
 func (NoopSender) SendPasswordReset(_ context.Context, _, _ string) error {
 	return nil
 }
+
+func (NoopSender) SendPasswordChanged(_ context.Context, _ string) error {
+	return nil
+}
+
+func (NoopSender) SendSuspiciousActivityAlert(_ context.Context, _ string) error {
+	return nil
+}

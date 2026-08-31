@@ -31,6 +31,13 @@ type AuthService interface {
 	// Logout revokes the supplied refresh token so the Refresh endpoint will reject it.
 	// If the token is invalid or already expired, Logout returns nil (idempotent).
 	Logout(ctx context.Context, refreshToken string) error
+	// IssueTokens mints a fresh access/refresh token pair for an already-verified
+	// caller (no password check) — used by PasswordChangeHandler (ADR-032) to
+	// keep the session that performed a password change active: since
+	// TokenValidAfter invalidates every refresh token issued before the
+	// change, including the one the acting session already holds, that
+	// session needs a replacement pair issued *after* the new boundary.
+	IssueTokens(ctx context.Context, userID uint) (*dto.AuthResponse, error)
 }
 
 type authService struct {
@@ -211,6 +218,21 @@ func (s *authService) Refresh(ctx context.Context, refreshToken string) (string,
 		return "", domain.ErrTokenRevoked
 	}
 
+	if user.TokenValidAfter != nil && claims.IssuedAt.Time.Before(*user.TokenValidAfter) {
+		s.log.Warn("refresh rejected: session invalidated by password change",
+			zap.Uint("user_id", userID),
+		)
+		s.systemLogSvc.Record(ctx, domain.SystemLogEntry{
+			Category: domain.SystemLogCategoryAuthentication,
+			Action:   "refresh_rejected",
+			Outcome:  "failure",
+			Actor:    user.Email,
+			ActorID:  userID,
+			Detail:   "session invalidated by password change",
+		})
+		return "", domain.ErrTokenRevoked
+	}
+
 	return generateAccessToken(userID, s.jwtSecret, s.accessTTL)
 }
 
@@ -256,6 +278,14 @@ func (s *authService) Logout(ctx context.Context, refreshToken string) error {
 }
 
 // buildResponse generates both access and refresh tokens for the given user.
+func (s *authService) IssueTokens(ctx context.Context, userID uint) (*dto.AuthResponse, error) {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return s.buildResponse(ctx, user)
+}
+
 func (s *authService) buildResponse(ctx context.Context, user *domain.User) (*dto.AuthResponse, error) {
 	accessToken, err := generateAccessToken(user.ID, s.jwtSecret, s.accessTTL)
 	if err != nil {

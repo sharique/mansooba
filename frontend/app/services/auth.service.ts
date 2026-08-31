@@ -90,4 +90,12 @@ export const authService = {
     const { $api } = useNuxtApp()
     return $api('/auth/reset-password', { method: 'POST', body: { token, password } })
   },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ message: string }> {
+    const { $api } = useNuxtApp()
+    return $api('/auth/me/password', {
+      method: 'PUT',
+      body: { current_password: currentPassword, new_password: newPassword },
+    })
+  },
 }

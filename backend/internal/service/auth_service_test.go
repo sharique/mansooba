@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
@@ -569,5 +570,93 @@ func TestAuthService_Register_ActorFallsBackToUserHash_WhenCallerLookupFails(t *
 	}
 	if entries[0].Actor != "user#999" {
 		t.Errorf("expected fallback actor label user#999, got %q", entries[0].Actor)
+	}
+}
+
+// ─── T021 (012-change-password): TokenValidAfter session invalidation ────────
+//
+// These tests will not compile until domain.User gains a TokenValidAfter
+// *time.Time field (research.md Decision 1 / data-model.md) — the expected
+// TDD red state. See specs/012-change-password/IMPLEMENTATION_GUIDE.md.
+
+func TestAuthService_Refresh_ReturnsErrTokenRevoked_ForTokenIssuedBeforeTokenValidAfter(t *testing.T) {
+	repo := newStubUserRepo()
+	svc := newTestService(repo)
+	ctx := context.Background()
+
+	resp, err := svc.Register(ctx, dto.RegisterRequest{
+		FullName: "Alice", Email: "alice@example.com", Password: "password123",
+	}, 0)
+	if err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	// Simulate a password change that happened strictly after this refresh
+	// token was issued — the token must now be rejected even though it was
+	// never individually logged out.
+	user, _ := repo.FindByEmail(ctx, "alice@example.com")
+	validAfter := time.Now().Add(1 * time.Minute)
+	user.TokenValidAfter = &validAfter
+	_ = repo.Update(ctx, user)
+
+	_, err = svc.Refresh(ctx, resp.RefreshToken)
+	if !errors.Is(err, domain.ErrTokenRevoked) {
+		t.Errorf("expected ErrTokenRevoked for a token issued before TokenValidAfter, got %v", err)
+	}
+}
+
+func TestAuthService_Refresh_Succeeds_ForTokenIssuedAfterTokenValidAfter(t *testing.T) {
+	repo := newStubUserRepo()
+	svc := newTestService(repo)
+	ctx := context.Background()
+
+	// TokenValidAfter set in the past, before Register ever issues a token —
+	// a token minted after this boundary must still be accepted.
+	validAfter := time.Now().Add(-1 * time.Hour)
+	resp, err := svc.Register(ctx, dto.RegisterRequest{
+		FullName: "Alice", Email: "alice@example.com", Password: "password123",
+	}, 0)
+	if err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	user, _ := repo.FindByEmail(ctx, "alice@example.com")
+	user.TokenValidAfter = &validAfter
+	_ = repo.Update(ctx, user)
+
+	if _, err := svc.Refresh(ctx, resp.RefreshToken); err != nil {
+		t.Errorf("expected success for a token issued after TokenValidAfter, got %v", err)
+	}
+}
+
+func TestAuthService_Refresh_RecordsSessionInvalidationRejection(t *testing.T) {
+	repo := newStubUserRepo()
+	ctx := context.Background()
+
+	setupSvc := newTestService(repo)
+	resp, err := setupSvc.Register(ctx, dto.RegisterRequest{
+		FullName: "Alice", Email: "alice@example.com", Password: "password123",
+	}, 0)
+	if err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+	user, _ := repo.FindByEmail(ctx, "alice@example.com")
+	validAfter := time.Now().Add(1 * time.Minute)
+	user.TokenValidAfter = &validAfter
+	_ = repo.Update(ctx, user)
+
+	systemLogSvc := &recordingSystemLogService{}
+	svc := service.NewAuthService(repo, newStubRevokedRepo(), systemLogSvc, zap.NewNop(), testSecret, "15m", "168h")
+
+	_, err = svc.Refresh(ctx, resp.RefreshToken)
+	if !errors.Is(err, domain.ErrTokenRevoked) {
+		t.Fatalf("expected ErrTokenRevoked, got %v", err)
+	}
+
+	entries := systemLogSvc.all()
+	if len(entries) != 1 {
+		t.Fatalf("expected exactly 1 Record call, got %d", len(entries))
+	}
+	if entries[0].Action != "refresh_rejected" || entries[0].Detail != "session invalidated by password change" {
+		t.Errorf("unexpected entry: %+v", entries[0])
 	}
 }

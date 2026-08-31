@@ -50,6 +50,40 @@ display name, email, timezone, and an optional avatar photo.
 - Unauthenticated requests → 401; non-admin requests → 403
 - New account credentials are shared directly with the user by the admin
 
+### Self-service password change
+
+Distinct from the password-reset flow above — this is for an already-authenticated user
+changing their own password from Settings → Profile, not a forgotten-password recovery.
+See spec [012-change-password](../../../specs/012-change-password/spec.md) and
+[ADR-032](../../../docs/decisions/ADR-032-password-change-session-invalidation.md).
+
+1. User submits their current password + a new one (meeting the same complexity policy
+   as registration) at `PUT /api/v1/auth/me/password`
+2. The current password is verified with bcrypt; the new password must differ from it
+   (checked against the current password only — no history is kept)
+3. On success:
+   - the new password is persisted
+   - `TokenValidAfter` is set on the user record, which invalidates every other active
+     session's refresh token on its next use (ADR-032) — the acting session's own tokens
+     are reissued in the same response (a fresh `access_token` in the JSON body, a fresh
+     `refresh_token` cookie) so it stays logged in
+   - a confirmation email is sent (best-effort; delivery failure doesn't fail the request)
+   - the change is recorded in System Logs (`password_change_success`)
+4. On failure (wrong current password, weak/reused new password): the attempt is
+   rejected, recorded in System Logs with a reason (`password_change_failed`), and a
+   per-account counter of consecutive failures increments — reaching 3 in a row triggers
+   a separate suspicious-activity alert email, distinct from the success-confirmation one
+5. Rate-limited per source IP (`AUTH_RATE_LIMIT`), same as `/auth/login` — unlike this
+   endpoint's `authMe` siblings (`/me`, `/me/avatar`, etc.), which are unrated
+
+**Why the acting session needs reissued tokens**: `TokenValidAfter` invalidates every
+refresh token issued *before* the change — including the one the acting session already
+holds, since it was necessarily issued before this request. Without reissuing, the user
+who just changed their password would also get logged out the next time their own
+session tries to refresh. See ADR-032 for the full design rationale, including why the
+comparison is truncated to whole-second precision (matches `jwt.NewNumericDate`'s own
+truncation).
+
 ### First-run admin bootstrap (the one true self-service path)
 
 Registration above is admin-only in steady state, but the very first admin account has
@@ -70,6 +104,7 @@ See [api.md](../arch/api.md) for the full endpoint list. Key auth routes:
 - `POST /api/v1/auth/forgot-password`
 - `POST /api/v1/auth/reset-password`
 - `GET/PUT /api/v1/auth/me`
+- `PUT /api/v1/auth/me/password` (rate-limited, unlike its `/me` siblings)
 - `GET /api/v1/auth/me/activity`
 - `GET /api/v1/auth/me/issues`
 - `POST /api/v1/auth/me/avatar`

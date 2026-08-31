@@ -83,6 +83,14 @@ export default defineNuxtPlugin(() => {
 
   const rawFetch = $fetch.create({
     baseURL: config.public.apiBaseUrl as string,
+    // The frontend and backend are different origins (different ports count
+    // as cross-origin for both CORS and the browser's cookie same-origin
+    // policy, even on localhost). Without this, the browser silently drops
+    // the Set-Cookie response header on login and never sends the
+    // refresh_token cookie back on refresh/logout — no visible error, the
+    // refresh token mechanism just quietly never works. Paired with the
+    // backend's AllowCredentials: true (main.go's CORS middleware).
+    credentials: 'include',
     onRequest({ options }) {
       if (authStore.accessToken) {
         const headers = new Headers(options.headers as HeadersInit)
@@ -95,7 +103,7 @@ export default defineNuxtPlugin(() => {
         try {
           const { access_token } = await $fetch<{ access_token: string }>(
             '/auth/refresh',
-            { baseURL: config.public.apiBaseUrl as string, method: 'POST' },
+            { baseURL: config.public.apiBaseUrl as string, method: 'POST', credentials: 'include' },
           )
           authStore.accessToken = access_token
         }

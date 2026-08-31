@@ -229,6 +229,7 @@ func main() {
 		log.Info("email delivery disabled — token returned in API response only")
 	}
 	passwordResetSvc := service.NewPasswordResetService(userRepo, passwordResetRepo, emailSender)
+	passwordChangeSvc := service.NewPasswordChangeService(userRepo, systemLogSvc, emailSender)
 
 	adminUserSvc := service.NewAdminUserService(userRepo, systemLogSvc)
 
@@ -256,6 +257,7 @@ func main() {
 	issueHandler = issueHandler.WithRelationRepo(issueRelationRepo)
 	adminUserHandler := handler.NewAdminUserHandler(adminUserSvc, userSvc)
 	passwordResetHandler := handler.NewPasswordResetHandler(passwordResetSvc)
+	passwordChangeHandler := handler.NewPasswordChangeHandler(passwordChangeSvc, authSvc)
 
 	// Echo
 	e := echo.New()
@@ -283,7 +285,8 @@ func main() {
 
 	e.Use(echomw.Recover())
 	e.Use(echomw.CORSWithConfig(echomw.CORSConfig{
-		AllowOrigins: strings.Split(cfg.CORSOrigins, ","),
+		AllowOrigins:     strings.Split(cfg.CORSOrigins, ","),
+		AllowCredentials: true,
 	}))
 
 	// Body limit — reject payloads > BodySizeLimit with 413
@@ -400,6 +403,31 @@ func main() {
 	authMe.GET("/me/issues", userHandler.GetMyIssues)
 	authMe.POST("/me/avatar", userHandler.UploadAvatar)
 	authMe.DELETE("/me/avatar", userHandler.DeleteAvatar)
+
+	// Change-password is rate-limited per source IP, unlike authMe's other
+	// routes — mirrors the setupAuth pattern (the only existing precedent for
+	// "JWT-protected + rate-limited" in this codebase).
+	authMePasswordLimited := authMe.Group("")
+	authMePasswordLimited.Use(echomw.RateLimiterWithConfig(echomw.RateLimiterConfig{
+		Skipper: echomw.DefaultSkipper,
+		Store: echomw.NewRateLimiterMemoryStoreWithConfig(
+			echomw.RateLimiterMemoryStoreConfig{
+				Rate:      rate.Limit(cfg.AuthRateLimit),
+				Burst:     cfg.AuthRateLimit,
+				ExpiresIn: 3 * time.Minute,
+			},
+		),
+		IdentifierExtractor: func(ctx echo.Context) (string, error) {
+			return ctx.RealIP(), nil
+		},
+		ErrorHandler: func(context echo.Context, err error) error {
+			return context.JSON(http.StatusForbidden, map[string]string{"error": "forbidden"})
+		},
+		DenyHandler: func(context echo.Context, identifier string, err error) error {
+			return context.JSON(http.StatusTooManyRequests, map[string]string{"error": "Too many attempts. Please wait a minute and try again."})
+		},
+	}))
+	authMePasswordLimited.PUT("/me/password", passwordChangeHandler.ChangePassword)
 
 	// Public static file serving for uploaded avatars.
 	// Intentionally unauthenticated — browser <img> tags fetch images as

@@ -82,7 +82,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
 	}
 
-	h.setRefreshCookie(c, resp.RefreshToken)
+	setRefreshCookie(c, resp.RefreshToken)
 	return c.JSON(http.StatusOK, resp)
 }
 
@@ -133,7 +133,9 @@ func (h *AuthHandler) Logout(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-func (h *AuthHandler) setRefreshCookie(c echo.Context, value string) {
+// setRefreshCookie is a package-level helper (not a method) so
+// PasswordChangeHandler can reuse it too — see its ChangePassword.
+func setRefreshCookie(c echo.Context, value string) {
 	secure := os.Getenv("APP_ENV") != "development"
 	c.SetCookie(&http.Cookie{
 		Name:     "refresh_token",

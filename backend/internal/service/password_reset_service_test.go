@@ -79,6 +79,10 @@ func (r *stubPasswordResetRepo) PurgeExpired(_ context.Context, cutoff time.Time
 type stubNoopEmailSender struct{}
 
 func (stubNoopEmailSender) SendPasswordReset(_ context.Context, _, _ string) error { return nil }
+func (stubNoopEmailSender) SendPasswordChanged(_ context.Context, _ string) error  { return nil }
+func (stubNoopEmailSender) SendSuspiciousActivityAlert(_ context.Context, _ string) error {
+	return nil
+}
 
 func newPRSvc(userRepo domain.UserRepository, resetRepo domain.PasswordResetRepository) service.PasswordResetService {
 	return service.NewPasswordResetService(userRepo, resetRepo, stubNoopEmailSender{})

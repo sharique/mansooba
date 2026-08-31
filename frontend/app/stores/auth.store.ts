@@ -32,6 +32,9 @@ export const useAuthStore = defineStore('auth', {
     async updateProfile(patch: UpdateProfilePatch) {
       this.profile = await authService.updateMe(patch)
     },
+    async changePassword(currentPassword: string, newPassword: string) {
+      await authService.changePassword(currentPassword, newPassword)
+    },
     async fetchMyActivity(limit = 20, offset = 0) {
       this.myActivity = await authService.getMyActivity(limit, offset)
     },
