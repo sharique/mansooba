@@ -1,7 +1,7 @@
 # ── VPC ───────────────────────────────────────────────────────────────────────
 # A dedicated VPC isolates Mansooba from any other resources in the account.
 # DNS support and hostnames are enabled so RDS generates a resolvable endpoint
-# (e.g. mansooba-db.cxxx.us-east-1.rds.amazonaws.com) rather than just an IP.
+# (e.g. mansooba-db.cxxx.eu-central-1.rds.amazonaws.com) rather than just an IP.
 
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr

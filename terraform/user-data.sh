@@ -90,9 +90,13 @@ GRAFANA_ADMIN_PASSWORD=$(get_param /mansooba/GRAFANA_ADMIN_PASSWORD 2>/dev/null 
 
 # ── Resolve public IP for CORS and magic-link base URL ───────────────────────
 # The instance metadata service (169.254.169.254) provides the public IPv4.
-# This is the same IP the Elastic IP will point to; using it directly avoids
-# a Terraform circular dependency between the EIP and an SSM parameter.
-PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+# IMDSv2 is required on this account (token-less requests get a silent 401
+# whose empty body would otherwise leave PUBLIC_IP blank), so fetch a token
+# first.
+IMDS_TOKEN=$(curl -fsS -X PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+PUBLIC_IP=$(curl -fsS -H "X-aws-ec2-metadata-token: $IMDS_TOKEN" \
+  http://169.254.169.254/latest/meta-data/public-ipv4)
 APP_BASE_URL="http://$${PUBLIC_IP}"
 
 # ── Write .env ────────────────────────────────────────────────────────────────

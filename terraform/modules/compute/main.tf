@@ -33,13 +33,14 @@ resource "aws_key_pair" "deployer" {
 # once on first boot as root and starts the Docker Compose stack.
 
 resource "aws_instance" "app" {
-  ami                    = data.aws_ami.latest_linux.id
-  instance_type          = var.instance_type
-  subnet_id              = var.subnet_id
-  vpc_security_group_ids = [var.security_group_id]
-  iam_instance_profile   = var.instance_profile_name
-  key_name               = aws_key_pair.deployer.key_name
-  user_data              = var.user_data
+  ami                         = data.aws_ami.latest_linux.id
+  instance_type               = var.instance_type
+  subnet_id                   = var.subnet_id
+  vpc_security_group_ids      = [var.security_group_id]
+  iam_instance_profile        = var.instance_profile_name
+  key_name                    = aws_key_pair.deployer.key_name
+  user_data                   = var.user_data
+  associate_public_ip_address = true
 
   root_block_device {
     volume_size = var.root_volume_size_gb
@@ -56,15 +57,15 @@ resource "aws_instance" "app" {
   }
 }
 
-# ── Elastic IP ────────────────────────────────────────────────────────────────
-# Gives the EC2 instance a static public IP that survives stop/start cycles.
-# Without an EIP, AWS assigns a new IP every time the instance restarts,
-# which would break DNS records and GitHub Secrets pointing to the host.
-# An EIP attached to a running instance is free; charges apply if it's
-# allocated but not attached.
-
-resource "aws_eip" "app" {
-  instance = aws_instance.app.id
-  domain   = "vpc"
-  tags     = { Name = "${var.name_prefix}-eip" }
-}
+# ── Public IP ─────────────────────────────────────────────────────────────────
+# No Elastic IP here on purpose: some AWS accounts (notably org-managed ones,
+# e.g. under a bootcamp/school AWS Organization) have an SCP that explicitly
+# denies ec2:AllocateAddress, which fails `terraform apply` on `aws_eip`
+# with an UnauthorizedOperation error that no IAM permission — not even
+# AdministratorAccess — can override.
+#
+# Instead the instance gets AWS's normal auto-assigned public IP
+# (associate_public_ip_address above + map_public_ip_on_launch on the public
+# subnet, see modules/networking). Trade-off: that IP changes on every
+# stop/start, unlike an EIP. If your account is allowed to allocate EIPs,
+# see terraform/README.md for how to add one back.

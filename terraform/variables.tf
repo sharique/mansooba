@@ -1,7 +1,13 @@
 variable "aws_region" {
   description = "AWS region to deploy all resources into. Must match the region used in `aws configure`."
   type        = string
-  default     = "us-east-1"
+  default     = "eu-central-1"
+}
+
+variable "s3_name_prefix" {
+  description = "Prefix applied to named resources (e.g. the S3 attachments bucket)."
+  type        = string
+  default     = "mansooba"
 }
 
 variable "ssh_public_key" {
