@@ -94,7 +94,7 @@ it only touches `STORAGE_*` config when a file is actually uploaded, downloaded,
 | `STORAGE_BUCKET` | `mansooba-attachments` | Bucket name |
 | `STORAGE_ACCESS_KEY_ID` | *(unset)* | LocalStack only — use `test`; leave unset in production (the EC2 instance's IAM role is used instead, see ADR-029) |
 | `STORAGE_SECRET_ACCESS_KEY` | *(unset)* | LocalStack only — use `test` |
-| `STORAGE_REGION` | `us-east-1` | AWS region (LocalStack ignores this; any string works) |
+| `STORAGE_REGION` | `eu-central-1` | AWS region (LocalStack ignores this; any string works) |
 | `STORAGE_PRESIGN_TTL` | `1h` | How long pre-signed download URLs remain valid |
 | `STORAGE_USE_PATH_STYLE` | `false` | Set `true` for LocalStack and most self-hosted S3 alternatives |
 

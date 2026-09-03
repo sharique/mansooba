@@ -52,7 +52,7 @@ services:
       - "4566:4566"
     environment:
       SERVICES: s3
-      DEFAULT_REGION: us-east-1
+      DEFAULT_REGION: eu-central-1
       ACTIVATE_PRO: "0"
     volumes:
       - localstack_data:/var/lib/localstack
@@ -71,11 +71,11 @@ services:
     environment:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
-      AWS_DEFAULT_REGION: us-east-1
+      AWS_DEFAULT_REGION: eu-central-1
     entrypoint: >
       /bin/sh -c "
       aws --endpoint-url http://localstack:4566 s3api head-bucket --bucket mansooba-attachments 2>/dev/null ||
-      aws --endpoint-url http://localstack:4566 s3 mb s3://mansooba-attachments --region us-east-1 &&
+      aws --endpoint-url http://localstack:4566 s3 mb s3://mansooba-attachments --region eu-central-1 &&
       echo 'bucket ready'
       "
 
@@ -158,7 +158,7 @@ STORAGE_PRESIGN_ENDPOINT=http://localhost:4566
 STORAGE_BUCKET=mansooba-attachments
 STORAGE_ACCESS_KEY_ID=test
 STORAGE_SECRET_ACCESS_KEY=test
-STORAGE_REGION=us-east-1
+STORAGE_REGION=eu-central-1
 STORAGE_USE_PATH_STYLE=true
 STORAGE_PRESIGN_TTL=1h
 DB_MAX_OPEN_CONNS=25
@@ -242,7 +242,7 @@ services:
       - "4566:4566"
     environment:
       SERVICES: s3
-      DEFAULT_REGION: us-east-1
+      DEFAULT_REGION: eu-central-1
       ACTIVATE_PRO: "0"
     volumes:
       - localstack_data:/var/lib/localstack
@@ -261,11 +261,11 @@ services:
     environment:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
-      AWS_DEFAULT_REGION: us-east-1
+      AWS_DEFAULT_REGION: eu-central-1
     entrypoint: >
       /bin/sh -c "
       aws --endpoint-url http://localstack:4566 s3api head-bucket --bucket mansooba-attachments 2>/dev/null ||
-      aws --endpoint-url http://localstack:4566 s3 mb s3://mansooba-attachments --region us-east-1 &&
+      aws --endpoint-url http://localstack:4566 s3 mb s3://mansooba-attachments --region eu-central-1 &&
       echo 'bucket ready'
       "
 
@@ -391,7 +391,7 @@ services:
 | `STORAGE_PRESIGN_ENDPOINT` | | *(unset, falls back to `STORAGE_ENDPOINT`)* | Overrides the host baked into presigned download URLs — needed when `STORAGE_ENDPOINT` is a Docker-internal hostname the browser can't resolve |
 | `STORAGE_BUCKET` | | `mansooba-attachments` | S3/LocalStack bucket name |
 | `STORAGE_ACCESS_KEY_ID` / `STORAGE_SECRET_ACCESS_KEY` | | *(unset)* | LocalStack only (`test`/`test`); leave unset in production — the EC2 instance's IAM role is used instead (ADR-029) |
-| `STORAGE_REGION` | | `us-east-1` | AWS region (LocalStack ignores this) |
+| `STORAGE_REGION` | | `eu-central-1` | AWS region (LocalStack ignores this) |
 | `STORAGE_PRESIGN_TTL` | | `1h` | Pre-signed download URL expiry |
 | `STORAGE_USE_PATH_STYLE` | | `false` | Set `true` for LocalStack; `false` for AWS S3 |
 | `DB_MAX_OPEN_CONNS` | | `25` | Max open DB connections |

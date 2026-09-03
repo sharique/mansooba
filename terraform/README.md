@@ -64,6 +64,42 @@ docker ps                          # should show backend + frontend
 curl http://localhost:8080/health  # {"status":"ok","db":"ok"}
 ```
 
+## Accessing Grafana
+
+Grafana (optional, off by default) browses System Logs / container logs —
+it's not part of the core app. Start it:
+
+```bash
+terraform output ssh_command | bash
+sudo docker compose -f /opt/mansooba/compose.prod.yml --profile observability up -d grafana
+```
+
+Its port (3001) is deliberately **not** opened in the EC2 security group
+(see `modules/security`) — an audit-log viewer shouldn't be reachable from
+the public internet by default. Reach it through an SSH tunnel instead, run
+from your **local machine** (a second terminal, not the SSH session above):
+
+```bash
+ssh -i ~/.ssh/mansooba -L 3001:localhost:3001 ec2-user@$(terraform output -raw ec2_public_ip)
+```
+
+Then open `http://localhost:3001`. Log in with `admin` / whatever
+`GF_SECURITY_ADMIN_PASSWORD` ended up as — set
+`/mansooba/GRAFANA_ADMIN_PASSWORD` in SSM before the instance's *first* boot
+for a stable password, otherwise check what was generated:
+
+```bash
+grep GF_SECURITY_ADMIN_PASSWORD /opt/mansooba/.env
+```
+
+Since the instance has no Elastic IP (see below), re-run the tunnel command
+with the current IP any time the instance has stopped/started in between.
+
+Want Grafana reachable directly over the internet instead of tunneling every
+time? Open port 3001 in `modules/security` — that trades convenience for
+exposing Grafana's login page publicly, which the default setup deliberately
+avoids.
+
 ## Adding a static IP back (Elastic IP)
 
 By default `modules/compute` gives the EC2 instance AWS's normal
