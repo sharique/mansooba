@@ -1,10 +1,10 @@
 output "ec2_public_ip" {
-  description = "Elastic IP of the EC2 instance. Use this to SSH in and as the EC2_HOST GitHub Secret for CD."
+  description = "Auto-assigned public IP of the EC2 instance (no Elastic IP — see modules/compute/main.tf). Use this to SSH in and as the EC2_HOST GitHub Secret for CD; note it changes on stop/start."
   value       = module.compute.public_ip
 }
 
 output "rds_endpoint" {
-  description = "RDS PostgreSQL hostname. After apply, store this in SSM: aws ssm put-parameter --name /mansooba/RDS_ENDPOINT --value <value> --type String"
+  description = "RDS PostgreSQL hostname. Written automatically to SSM at /mansooba/RDS_ENDPOINT by aws_ssm_parameter.rds_endpoint — no manual step needed."
   value       = module.database.rds_endpoint
   sensitive   = true
 }

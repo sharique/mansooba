@@ -11,30 +11,30 @@
 ## Contents
 
 - [What you'll build](#what-youll-build)
-- [Before you start — collect these things](#before-you-start-collect-these-things)
-- [Step 1 — Create your AWS account](#step-1-create-your-aws-account)
-- [Step 2 — Set up email with AWS SES](#step-2-set-up-email-with-aws-ses)
+- [Before you start — collect these things](#before-you-start--collect-these-things)
+- [Step 1 — Create your AWS account](#step-1--create-your-aws-account)
+- [Step 2 — Set up email with AWS SES](#step-2--set-up-email-with-aws-ses)
   - [2.1 Verify your sender email address](#21-verify-your-sender-email-address)
   - [2.2 Create SMTP credentials](#22-create-smtp-credentials)
   - [2.3 (Optional) Request production access](#23-optional-request-production-access)
-- [Step 3 — Set up firewall rules (Security Groups)](#step-3-set-up-firewall-rules-security-groups)
+- [Step 3 — Set up firewall rules (Security Groups)](#step-3--set-up-firewall-rules-security-groups)
   - [3.1 Open the Security Groups page](#31-open-the-security-groups-page)
   - [3.2 Create the web server security group](#32-create-the-web-server-security-group)
   - [3.3 Create the database security group](#33-create-the-database-security-group)
-- [Step 4 — Create the database (RDS)](#step-4-create-the-database-rds)
-- [Step 5 — Create an SSH key pair (to log into your server)](#step-5-create-an-ssh-key-pair-to-log-into-your-server)
-- [Step 6 — Create an S3 bucket and IAM Role for EC2](#step-6-create-an-s3-bucket-and-iam-role-for-ec2)
+- [Step 4 — Create the database (RDS)](#step-4--create-the-database-rds)
+- [Step 5 — Create an SSH key pair (to log into your server)](#step-5--create-an-ssh-key-pair-to-log-into-your-server)
+- [Step 6 — Create an S3 bucket and IAM Role for EC2](#step-6--create-an-s3-bucket-and-iam-role-for-ec2)
   - [6.1 Create the attachments bucket](#61-create-the-attachments-bucket)
   - [6.2 Create the IAM role](#62-create-the-iam-role)
   - [6.3 Grant the role access to the attachments bucket](#63-grant-the-role-access-to-the-attachments-bucket)
   - [6.4 Grant the role permission to stop and start the database](#64-grant-the-role-permission-to-stop-and-start-the-database)
-- [Step 7 — Wait for RDS to finish, then copy its address](#step-7-wait-for-rds-to-finish-then-copy-its-address)
-- [Step 8 — Fill in your startup script template](#step-8-fill-in-your-startup-script-template)
-- [Step 9 — Launch your EC2 server](#step-9-launch-your-ec2-server)
-- [Step 10 — Assign a permanent IP address](#step-10-assign-a-permanent-ip-address)
-- [Step 11 — Update the app URL in the configuration](#step-11-update-the-app-url-in-the-configuration)
-- [Step 12 — Wait for the app to start](#step-12-wait-for-the-app-to-start)
-- [Step 13 — Open the app](#step-13-open-the-app)
+- [Step 7 — Wait for RDS to finish, then copy its address](#step-7--wait-for-rds-to-finish-then-copy-its-address)
+- [Step 8 — Fill in your startup script template](#step-8--fill-in-your-startup-script-template)
+- [Step 9 — Launch your EC2 server](#step-9--launch-your-ec2-server)
+- [Step 10 — Assign a permanent IP address](#step-10--assign-a-permanent-ip-address)
+- [Step 11 — Update the app URL in the configuration](#step-11--update-the-app-url-in-the-configuration)
+- [Step 12 — Wait for the app to start](#step-12--wait-for-the-app-to-start)
+- [Step 13 — Open the app](#step-13--open-the-app)
 - [Day-to-day operations](#day-to-day-operations)
   - [Update to a new version](#update-to-a-new-version)
   - [View the application logs](#view-the-application-logs)
@@ -47,7 +47,7 @@
   - [Attaching a file to an issue fails, or the download link doesn't work](#attaching-a-file-to-an-issue-fails-or-the-download-link-doesnt-work)
   - [The database never seems to stop, or logs show "db idle auto-stop disabled"](#the-database-never-seems-to-stop-or-logs-show-db-idle-auto-stop-disabled)
   - [RDS shows "Stopped" in the console, or the app briefly shows a "waking up" message](#rds-shows-stopped-in-the-console-or-the-app-briefly-shows-a-waking-up-message)
-- [Quick reference — what everything is](#quick-reference-what-everything-is)
+- [Quick reference — what everything is](#quick-reference--what-everything-is)
 
 ---
 
@@ -112,7 +112,7 @@ SES starts in **sandbox mode**, meaning it can only send email *to* addresses yo
 This is the "From" address that will appear in password-reset emails.
 
 1. In the AWS Console search bar type `SES` → open **Amazon Simple Email Service**
-2. Make sure your region (top-right corner) is **US East (N. Virginia)** — `us-east-1`
+2. Make sure your region (top-right corner) is **Europe (Frankfurt)** — `eu-central-1`
 3. In the left sidebar click **Verified identities** → **Create identity**
 4. Identity type: **Email address**
 5. Email address: enter your email (e.g. `noreply@yourdomain.com` or any email you own)
@@ -136,7 +136,7 @@ SES provides an SMTP server you can point the backend at. AWS can generate the c
 1. In the SES left sidebar click **SMTP settings**
 2. You'll see the SMTP server hostname — write it down:
    ```
-   SMTP hostname:   email-smtp.us-east-1.amazonaws.com
+   SMTP hostname:   email-smtp.eu-central-1.amazonaws.com
    ```
 3. Click **Create SMTP credentials**
 4. IAM user name: leave as default (e.g. `ses-smtp-user.XXXX`) → **Create user**
@@ -171,7 +171,7 @@ A **Security Group** is AWS's firewall. You'll create two:
 
 1. In the AWS Console search bar type `EC2` → open **EC2**
 2. In the left sidebar scroll down to **Network & Security** → click **Security Groups**
-3. Make sure your region (top-right corner) is set to **US East (N. Virginia)** — `us-east-1`
+3. Make sure your region (top-right corner) is set to **Europe (Frankfurt)** — `eu-central-1`
 
 ### 3.2 Create the web server security group
 
@@ -270,7 +270,7 @@ Mansooba stores file attachments (things people attach to issues) in an S3 bucke
 2. Click **Create bucket**
 3. Bucket name: `mansooba-attachments`
    *(Bucket names must be globally unique across all AWS customers — if this is taken, try `mansooba-attachments-yourname` and remember to use that exact name in Step 8 below.)*
-4. AWS Region: make sure it matches the region you've used everywhere else — **US East (N. Virginia)** `us-east-1`
+4. AWS Region: make sure it matches the region you've used everywhere else — **Europe (Frankfurt)** `eu-central-1`
 5. Leave **Block all public access** checked (the default) — attachments should never be publicly reachable
 6. Under **Bucket Versioning**, leave **Disable** selected
 7. Under **Default encryption**, leave **Server-side encryption with Amazon S3 managed keys (SSE-S3)** selected
@@ -326,7 +326,7 @@ Mansooba can automatically stop the RDS database after 10 minutes of no activity
        {
          "Effect": "Allow",
          "Action": ["rds:StartDBInstance", "rds:StopDBInstance", "rds:DescribeDBInstances"],
-         "Resource": "arn:aws:rds:us-east-1:YOUR_ACCOUNT_ID:db:mansooba-db"
+         "Resource": "arn:aws:rds:eu-central-1:YOUR_ACCOUNT_ID:db:mansooba-db"
        }
      ]
    }
@@ -346,7 +346,7 @@ Mansooba can automatically stop the RDS database after 10 minutes of no activity
 2. Click `mansooba-db`
 3. Wait until **Status** shows **Available** (reload the page every minute or two)
 4. Under **Connectivity & security** find the **Endpoint** field
-5. Copy the endpoint — it looks like: `mansooba-db.cxxxxxxxx.us-east-1.rds.amazonaws.com`
+5. Copy the endpoint — it looks like: `mansooba-db.cxxxxxxxx.eu-central-1.rds.amazonaws.com`
 
 **Write this down:**
 ```
@@ -403,7 +403,7 @@ RDS_INSTANCE_IDENTIFIER=mansooba-db
 # Required for the RDS SDK client — without this, the app fails to start once
 # auto-stop is enabled (the AWS SDK does not infer region from the EC2 instance
 # automatically; only credentials come from the instance role).
-AWS_REGION=us-east-1
+AWS_REGION=eu-central-1
 
 # These four match the backend's own built-in defaults — spelled out here so
 # they're visible/trackable instead of silently relying on whatever the
@@ -418,9 +418,9 @@ RDS_START_FAILURE_BOUND=3
 # No access key/secret here — the server authenticates to S3 using the
 # mansooba-ec2-role IAM role from Step 6, not a password.
 STORAGE_BUCKET=mansooba-attachments
-STORAGE_REGION=us-east-1
+STORAGE_REGION=eu-central-1
 
-SMTP_HOST=email-smtp.us-east-1.amazonaws.com
+SMTP_HOST=email-smtp.eu-central-1.amazonaws.com
 SMTP_PORT=587
 SMTP_FROM=FILL_IN_SES_SENDER_EMAIL
 SMTP_USER=FILL_IN_SES_SMTP_USERNAME
@@ -840,7 +840,7 @@ If you see `"db idle auto-stop disabled"` with `dsn_host` looking correct (it sh
 
 ```
 # WRONG — this is the RDS endpoint, not the identifier:
-RDS_INSTANCE_IDENTIFIER=mansooba-db.cxxxxxxxx.us-east-1.rds.amazonaws.com
+RDS_INSTANCE_IDENTIFIER=mansooba-db.cxxxxxxxx.eu-central-1.rds.amazonaws.com
 
 # RIGHT — just the instance identifier from Step 4:
 RDS_INSTANCE_IDENTIFIER=mansooba-db

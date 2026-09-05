@@ -1,5 +1,5 @@
 output "rds_endpoint" {
-  description = "Hostname of the RDS PostgreSQL instance. Store in SSM as /mansooba/RDS_ENDPOINT."
+  description = "Hostname of the RDS PostgreSQL instance. Root main.tf writes this to SSM at /mansooba/RDS_ENDPOINT automatically (aws_ssm_parameter.rds_endpoint)."
   value       = aws_db_instance.postgres.address
   sensitive   = true
 }

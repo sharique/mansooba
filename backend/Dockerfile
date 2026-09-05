@@ -20,10 +20,13 @@ RUN go build -ldflags="-s -w" -o /app/server ./cmd/server
 
 # ── final ──────────────────────────────────────────────────────────────────────
 # Alpine keeps the image small (~10 MB). ca-certificates is needed for any
-# TLS outbound calls (e.g. future webhook integrations).
+# TLS outbound calls (e.g. future webhook integrations). tzdata is needed
+# because Alpine ships no IANA timezone database at all — without it,
+# Go's time.LoadLocation() fails for every real zone name (only "UTC"
+# works), which is exactly what broke profile timezone updates.
 FROM alpine:3.19
 
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
 COPY --from=builder /app/server .

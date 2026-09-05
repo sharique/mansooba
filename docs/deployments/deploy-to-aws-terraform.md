@@ -12,13 +12,11 @@
 
 - [What you'll build](#what-youll-build)
 - [Prerequisites](#prerequisites)
-- [Step 1 — Install Terraform and the AWS CLI](#step-1-install-terraform-and-the-aws-cli)
-- [Step 2 — Generate an SSH key pair](#step-2-generate-an-ssh-key-pair)
-- [Step 3 — Store secrets in SSM Parameter Store](#step-3-store-secrets-in-ssm-parameter-store)
-- [Step 4 — Configure terraform.tfvars](#step-4-configure-terraformtfvars)
-- [Step 5 — Init, plan, and apply](#step-5-init-plan-and-apply)
-- [Step 6 — Store the RDS endpoint in SSM](#step-6-store-the-rds-endpoint-in-ssm)
-- [Step 7 — Verify](#step-7-verify)
+- [Step 1 — Install Terraform and the AWS CLI](#step-1--install-terraform-and-the-aws-cli)
+- [Step 2 — Generate an SSH key pair](#step-2--generate-an-ssh-key-pair)
+- [Step 3 — Configure terraform.tfvars](#step-3--configure-terraformtfvars)
+- [Step 4 — Init, plan, and apply](#step-4--init-plan-and-apply)
+- [Step 5 — Verify](#step-5--verify)
 - [Day-to-day operations](#day-to-day-operations)
   - [Update to a new version](#update-to-a-new-version)
   - [View logs](#view-logs)
@@ -31,6 +29,7 @@
   - [Plan wants to replace the SSH key pair](#plan-wants-to-replace-the-ssh-key-pair)
   - [SES verification email never arrives](#ses-verification-email-never-arrives)
   - [App doesn't load after apply finishes](#app-doesnt-load-after-apply-finishes)
+  - [Elastic IP allocation denied by an SCP](#elastic-ip-allocation-denied-by-an-scp)
 - [Quick reference](#quick-reference)
 
 ---
@@ -55,6 +54,13 @@ EC2 instance  ──  a virtual computer in the cloud running Mansooba
 Everything is defined in `terraform/*.tf` — reading `main.tf` top to bottom is the
 fastest way to see exactly what gets created and why (each module has a comment
 block explaining its purpose).
+
+> **No Elastic IP by default.** The EC2 instance gets AWS's normal
+> auto-assigned public IP, which changes on stop/start. This is deliberate —
+> some AWS accounts (org-managed ones especially) have a policy that blocks
+> Elastic IP allocation entirely, and `terraform apply` would fail on it
+> otherwise. See [terraform/README.md](../../terraform/README.md#adding-a-static-ip-back-elastic-ip)
+> if you want one back and your account allows it.
 
 ---
 
@@ -90,32 +96,7 @@ private half never leaves your machine.
 
 ---
 
-## Step 3 — Store secrets in SSM Parameter Store
-
-Terraform provisions infrastructure, but doesn't write application secrets
-into its own state file — those go into SSM directly, so they never end up in
-`terraform.tfstate` or version control.
-
-```bash
-aws ssm put-parameter --name /mansooba/JWT_SECRET \
-  --value "$(openssl rand -hex 32)" \
-  --type SecureString --region us-east-1
-
-aws ssm put-parameter --name /mansooba/DB_PASSWORD \
-  --value "your-db-password" \
-  --type SecureString --region us-east-1
-```
-
-> No GitHub PAT needed — the GHCR images are public, so the EC2 boot script
-> pulls them without authenticating.
-
-**Write down the DB password** — you'll need it again in Step 4, and Terraform
-has no way to read it back out of SSM for you (`SecureString` values aren't
-returned by `aws ssm describe-parameters`, only `get-parameter --with-decryption`).
-
----
-
-## Step 4 — Configure terraform.tfvars
+## Step 3 — Configure terraform.tfvars
 
 ```bash
 cd terraform
@@ -125,11 +106,22 @@ cp terraform.tfvars.example terraform.tfvars
 Edit `terraform.tfvars`:
 
 ```hcl
-aws_region     = "us-east-1"
+aws_region     = "eu-central-1"
 ssh_public_key = "ssh-ed25519 AAAA... your-key-comment"   # cat ~/.ssh/mansooba.pub
-db_password    = "your-db-password"                        # must match Step 3's SSM value exactly
+db_password    = "your-db-password"                        # Terraform writes this to SSM for you (see Step 4)
 smtp_from      = "noreply@yourdomain.com"                  # verified SES sender; AWS emails you a verification link
 ```
+
+> No GitHub PAT needed — the GHCR images are public, so the EC2 boot script
+> pulls them without authenticating.
+>
+> No separate `aws ssm put-parameter` step exists for `JWT_SECRET` or
+> `DB_PASSWORD` — `main.tf` generates `JWT_SECRET` (`random_password.jwt_secret`)
+> and writes both, plus the RDS endpoint once it exists, to SSM automatically
+> (`aws_ssm_parameter.jwt_secret` / `.db_password` / `.rds_endpoint`).
+> `module.compute` explicitly depends on all three, so they always exist
+> before the instance boots and fetches them — see the "Secrets in SSM
+> Parameter Store" section near the bottom of `main.tf`.
 
 Two things worth deciding now rather than after `apply`:
 
@@ -145,16 +137,18 @@ defaults shown — uncomment and change only the ones you want to override.
 
 ---
 
-## Step 5 — Init, plan, and apply
+## Step 4 — Init, plan, and apply
 
 ```bash
 terraform init
-terraform plan    # review what it's about to create — should be ~20-25 resources
+terraform plan    # review what it's about to create — should be ~24-29 resources
 terraform apply   # type "yes" to confirm
 ```
 
 `apply` takes about 8–10 minutes, almost entirely waiting for RDS to finish
-provisioning. Terraform prints progress as each resource completes.
+provisioning. Terraform prints progress as each resource completes, and by
+the time the instance launches, `JWT_SECRET`, `DB_PASSWORD`, and
+`RDS_ENDPOINT` are already in SSM for it to fetch at boot — no follow-up step.
 
 > If this isn't a fresh AWS account — e.g. you previously created any of this
 > infrastructure by hand — `apply` will fail with `AlreadyExists` errors
@@ -163,31 +157,7 @@ provisioning. Terraform prints progress as each resource completes.
 
 ---
 
-## Step 6 — Store the RDS endpoint in SSM
-
-RDS's hostname isn't known until after it's created, so this is a separate,
-manual step after `apply` finishes:
-
-```bash
-RDS_ENDPOINT=$(terraform output -raw rds_endpoint)
-aws ssm put-parameter --name /mansooba/RDS_ENDPOINT \
-  --value "$RDS_ENDPOINT" \
-  --type String --region us-east-1
-```
-
-The running EC2 instance won't pick this up automatically — restart the
-backend so it reads the new value:
-
-```bash
-terraform output ssh_command | bash
-# Inside EC2:
-cd /opt/mansooba
-sudo docker compose -f compose.prod.yml up -d --force-recreate backend
-```
-
----
-
-## Step 7 — Verify
+## Step 5 — Verify
 
 ```bash
 terraform output ssh_command | bash
@@ -348,8 +318,55 @@ terraform output ssh_command | bash
 sudo tail -100 /var/log/user-data.log   # the bootstrap script's own log
 ```
 
-Look for the last line reached — a script that stops partway usually means
-one of the SSM parameters from Step 3 is missing or misspelled.
+Look for the last line reached. `JWT_SECRET`/`DB_PASSWORD`/`RDS_ENDPOINT` are
+now written to SSM automatically before the instance ever boots (Step 3), so
+a `ParameterNotFound` error here almost always means one of the three
+`aws_ssm_parameter` resources in `main.tf` was skipped or removed from state
+— e.g. a targeted `apply -target=module.compute` that bypassed them, or the
+parameter was deleted manually outside Terraform. Check with:
+
+```bash
+aws ssm get-parameter --name /mansooba/JWT_SECRET --region eu-central-1
+aws ssm get-parameter --name /mansooba/DB_PASSWORD --region eu-central-1
+aws ssm get-parameter --name /mansooba/RDS_ENDPOINT --region eu-central-1
+```
+
+then `terraform apply` (no `-target`) to recreate whichever is missing, and
+`terraform apply -replace=module.compute.aws_instance.app` to force the
+instance to re-run its bootstrap script now that the parameters exist —
+`ignore_changes = [ami, user_data]` on `aws_instance.app` means a plain
+`apply` won't touch an already-running instance.
+
+### Elastic IP allocation denied by an SCP
+
+```
+Error: creating EC2 EIP: operation error EC2: AllocateAddress, https response
+error StatusCode: 403 ... UnauthorizedOperation: You are not authorized to
+perform this operation ... with an explicit deny in a service control policy
+```
+
+This build doesn't provision an Elastic IP at all (see [What you'll
+build](#what-youll-build)) — the instance uses AWS's normal auto-assigned
+public IP instead, specifically to avoid this error. If you're seeing it
+anyway, you're on an older checkout; pull the latest `terraform/` changes.
+
+If you added an `aws_eip` resource back yourself (see
+[terraform/README.md](../../terraform/README.md#adding-a-static-ip-back-elastic-ip))
+and now hit this, decode the failure to confirm the cause:
+
+```bash
+aws sts decode-authorization-message --encoded-message "<the long string after 'Encoded authorization failure message:'>"
+```
+
+Look for `"explicitDeny":true` and an SCP statement denying
+`ec2:AllocateAddress` (often named something like `DenyElasticIPCreation`).
+That's an AWS Organizations Service Control Policy attached above your
+account — it overrides even `AdministratorAccess`, and no IAM change on your
+end can fix it. This is common on org-managed accounts (school/bootcamp AWS
+Organizations in particular) that block EIPs to prevent idle-IP charges.
+Your only path forward is asking whoever manages the AWS Organization for an
+exception, or dropping the Elastic IP and accepting a public IP that changes
+on stop/start (the default here).
 
 ---
 
