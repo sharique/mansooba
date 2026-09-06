@@ -1,7 +1,8 @@
-# ── AMI: latest Ubuntu 24.04 LTS ─────────────────────────────────────────────
-# Dynamically resolves the most recent Ubuntu 24.04 (Noble) AMI published by
-# Canonical (owner ID 099720109477). This avoids hardcoding an AMI ID that
-# would go stale as Canonical releases security patches.
+# ── AMI: latest Amazon Linux 2023 ────────────────────────────────────────────
+# Dynamically resolves the most recent Amazon Linux 2023 AMI published by AWS
+# itself. This avoids hardcoding an AMI ID that would go stale as new AL2023
+# releases ship security patches. user-data.sh's dnf-based bootstrap and the
+# ec2-user SSH login below both assume this AMI family, not Ubuntu.
 #
 # Note: the compute resource has `ignore_changes = [ami]` so that Terraform
 # never replaces the running instance when a newer AMI is published.
@@ -19,7 +20,8 @@ data "aws_ami" "latest_linux" {
 
 # ── SSH Key Pair ──────────────────────────────────────────────────────────────
 # Uploads the public half of your local SSH key to AWS so EC2 can install it
-# in ubuntu's authorized_keys. The private key stays on your machine only.
+# in ec2-user's authorized_keys (Amazon Linux's default user). The private
+# key stays on your machine only.
 
 resource "aws_key_pair" "deployer" {
   key_name   = "${var.name_prefix}-deployer"
@@ -50,9 +52,9 @@ resource "aws_instance" "app" {
   tags = { Name = "${var.name_prefix}-app" }
 
   lifecycle {
-    # Prevent instance replacement when Canonical releases a new Ubuntu AMI or
-    # when the user-data script changes. To force a replacement (e.g. to reprovision
-    # from scratch), run: terraform apply -replace=aws_instance.app
+    # Prevent instance replacement when AWS releases a new Amazon Linux 2023
+    # AMI or when the user-data script changes. To force a replacement (e.g.
+    # to reprovision from scratch), run: terraform apply -replace=aws_instance.app
     ignore_changes = [ami, user_data]
   }
 }
