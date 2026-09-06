@@ -1,12 +1,14 @@
 # Mansooba
 
-*Mansooba (منصوبہ) — Urdu for "plan" or "project"*
+*Mansooba (منصوبہ) - Urdu for "plan" or "project"*
 
-A project management app for teams — track issues, run sprints, and collaborate, all in
-one place. Built as a learning and portfolio project using a spec-driven approach.
+A full-featured project management app for teams: plan sprints, track and triage issues,
+and collaborate through comments, mentions, and activity feeds - all built with a
+spec-driven engineering process.
 
 **Backend:** Go + Echo v4 · GORM · SQLite / PostgreSQL  
-**Frontend:** Nuxt 4 · Pinia · Tailwind CSS v4 · DaisyUI
+**Frontend:** Nuxt 4 · Pinia · Tailwind CSS v4 · DaisyUI  
+**DevOps:** Docker · GitHub Actions CI/CD · Terraform · AWS (EC2, RDS, S3, IAM, SES) · Grafana Loki
 
 ### Demo
 
@@ -22,15 +24,16 @@ one place. Built as a learning and portfolio project using a spec-driven approac
 
 | Feature | What you can do |
 |---|---|
-| **Authentication** | Sign in, reset your password by email, manage your profile and avatar |
+| **Authentication** | Sign in, reset your password by email, change it from your profile, manage your profile and avatar |
 | **Projects** | Create projects, invite teammates, and control who can manage them |
 | **Issues** | Track tasks, bugs, stories, and epics with labels, priorities, and related-issue links |
+| **Attachments** | Attach files to issues, stored in S3 and access-controlled per project |
 | **Sprints** | Plan and run time-boxed sprints with a kanban board, burndown chart, and velocity chart |
 | **Backlog** | Triage unscheduled work and pull it into upcoming sprints |
 | **Collaboration** | Comment on issues, @mention teammates, and follow per-issue activity feeds |
 | **My Desk** | See your assigned issues, notifications, and pinned projects at a glance |
 | **Reports** | Visualise sprint velocity across your project history |
-| **System Admin** | Manage users, configure platform settings, and onboard new team members |
+| **System Admin** | Manage users, configure platform settings, onboard new team members, and review the Grafana Loki-backed audit trail |
 | **First-Run Wizard** | Six-step guided setup gets a fresh install ready in minutes |
 
 ---
@@ -51,10 +54,10 @@ On first visit the setup wizard walks you through creating the admin account.
 
 Other ways to run:
 - [Docker with PostgreSQL or hot-reload dev mode](docs/deployments/running-locally-using-docker.md)
-- [Pre-built GHCR images](docs/deployments/running-from-ghcr.md) — no Go toolchain needed
-- [From source](docs/deployments/running-from-source.md) — Go + Node, no Docker
-- [Deploy to AWS (beginner, console-only)](docs/deployments/deploy-to-aws-beginner.md) — no Terraform, no CLI
-- [Deploy to AWS (Terraform)](docs/deployments/deploy-to-aws-terraform.md) — Infrastructure-as-Code, ~20 min hands-on
+- [Pre-built GHCR images](docs/deployments/running-from-ghcr.md) - no Go toolchain needed
+- [From source](docs/deployments/running-from-source.md) - Go + Node, no Docker
+- [Deploy to AWS (beginner, console-only)](docs/deployments/deploy-to-aws-beginner.md) - no Terraform, no CLI
+- [Deploy to AWS (Terraform)](docs/deployments/deploy-to-aws-terraform.md) - Infrastructure-as-Code, ~20 min hands-on
 
 ---
 
