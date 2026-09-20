@@ -10,6 +10,8 @@ export const useGlobalSettingsStore = defineStore('global-settings', {
     locale: 'en-US',
     week_start_day: 'monday',
     system_log_retention_days: '90',
+    demo_banner_enabled: 'false',
+    demo_banner_message: 'This is a demo instance. Data may be reset at any time.',
     loaded: false,
   }),
   actions: {
@@ -21,6 +23,8 @@ export const useGlobalSettingsStore = defineStore('global-settings', {
       this.locale = data.locale
       this.week_start_day = data.week_start_day
       this.system_log_retention_days = data.system_log_retention_days
+      this.demo_banner_enabled = data.demo_banner_enabled
+      this.demo_banner_message = data.demo_banner_message
       this.loaded = true
     },
     async patch(payload: PatchSettingsRequest) {
@@ -31,6 +35,8 @@ export const useGlobalSettingsStore = defineStore('global-settings', {
       this.locale = data.locale
       this.week_start_day = data.week_start_day
       this.system_log_retention_days = data.system_log_retention_days
+      this.demo_banner_enabled = data.demo_banner_enabled
+      this.demo_banner_message = data.demo_banner_message
     },
   },
 })

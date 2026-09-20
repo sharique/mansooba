@@ -12,17 +12,21 @@ import (
 
 // SetupHandler exposes the first-run wizard endpoints.
 type SetupHandler struct {
-	svc service.SetupService
+	svc        service.SetupService
+	settingSvc service.SettingService
 }
 
-// NewSetupHandler creates a SetupHandler backed by the given service.
-func NewSetupHandler(svc service.SetupService) *SetupHandler {
-	return &SetupHandler{svc: svc}
+// NewSetupHandler creates a SetupHandler backed by the given services.
+// settingSvc is read (not written) here purely to surface the demo-instance
+// banner's state on this already-public endpoint — see Status()
+// (013-demo-instance-banner, research.md Decision 1).
+func NewSetupHandler(svc service.SetupService, settingSvc service.SettingService) *SetupHandler {
+	return &SetupHandler{svc: svc, settingSvc: settingSvc}
 }
 
 // Status godoc
 // @Summary      Check whether first-run setup is required
-// @Description  Returns true when no admin account exists (fresh install). Public — no auth required.
+// @Description  Returns true when no admin account exists (fresh install), plus the demo-instance banner's current state. Public — no auth required.
 // @Tags         setup
 // @Produce      json
 // @Success      200 {object} dto.SetupStatusResponse
@@ -33,7 +37,15 @@ func (h *SetupHandler) Status(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, dto.SetupStatusResponse{SetupRequired: required})
+	settings, err := h.settingSvc.GetAll(c.Request().Context())
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, dto.SetupStatusResponse{
+		SetupRequired:     required,
+		DemoBannerEnabled: settings.DemoBannerEnabled == "true",
+		DemoBannerMessage: settings.DemoBannerMessage,
+	})
 }
 
 // CreateAdmin godoc

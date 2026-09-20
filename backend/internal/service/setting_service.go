@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sharique/mansooba/internal/domain"
@@ -28,6 +29,8 @@ var canonicalDefaults = map[string]string{
 	domain.SettingKeyLocale:                 "en-US",
 	domain.SettingKeyWeekStartDay:           "monday",
 	domain.SettingKeySystemLogRetentionDays: "90",
+	domain.SettingKeyDemoBannerEnabled:      "false",
+	domain.SettingKeyDemoBannerMessage:      "This is a demo instance. Data may be reset at any time.",
 }
 
 var validDateFormats = map[string]bool{"YYYY-MM-DD": true, "DD/MM/YYYY": true, "MM/DD/YYYY": true, "D-MMM-YYYY": true}
@@ -64,6 +67,29 @@ func (s *settingServiceImpl) GetAll(ctx context.Context) (*dto.SettingsResponse,
 }
 
 func (s *settingServiceImpl) Patch(ctx context.Context, userID uint, req dto.PatchSettingsRequest) (*dto.SettingsResponse, error) {
+	// FR-007: the banner may never end up enabled with an empty/whitespace
+	// message. Only "effective" enabled/message matter here — the value
+	// being set in this request if present, otherwise whatever is already
+	// stored — since a single-field PATCH (e.g. just demo_banner_enabled)
+	// must be validated against the message that already exists.
+	if req.DemoBannerEnabled != nil || req.DemoBannerMessage != nil {
+		current, err := s.GetAll(ctx)
+		if err != nil {
+			return nil, err
+		}
+		effectiveEnabled := current.DemoBannerEnabled
+		if req.DemoBannerEnabled != nil {
+			effectiveEnabled = *req.DemoBannerEnabled
+		}
+		effectiveMessage := current.DemoBannerMessage
+		if req.DemoBannerMessage != nil {
+			effectiveMessage = *req.DemoBannerMessage
+		}
+		if effectiveEnabled == "true" && strings.TrimSpace(effectiveMessage) == "" {
+			return nil, ErrInvalidSettingValue
+		}
+	}
+
 	updates := map[string]*string{
 		domain.SettingKeyOrganizationName:       req.OrganizationName,
 		domain.SettingKeyDateFormat:             req.DateFormat,
@@ -71,6 +97,8 @@ func (s *settingServiceImpl) Patch(ctx context.Context, userID uint, req dto.Pat
 		domain.SettingKeyLocale:                 req.Locale,
 		domain.SettingKeyWeekStartDay:           req.WeekStartDay,
 		domain.SettingKeySystemLogRetentionDays: req.SystemLogRetentionDays,
+		domain.SettingKeyDemoBannerEnabled:      req.DemoBannerEnabled,
+		domain.SettingKeyDemoBannerMessage:      req.DemoBannerMessage,
 	}
 
 	var actorLabel string
@@ -147,6 +175,16 @@ func validateSettingValue(key, value string) error {
 		if err != nil || n < 1 {
 			return ErrInvalidSettingValue
 		}
+	case domain.SettingKeyDemoBannerEnabled:
+		if value != "true" && value != "false" {
+			return ErrInvalidSettingValue
+		}
+	case domain.SettingKeyDemoBannerMessage:
+		// Inclusive at 280 (spec.md FR-008 Clarifications): exactly 280
+		// runes is accepted, 281+ is rejected.
+		if len([]rune(value)) > 280 {
+			return ErrInvalidSettingValue
+		}
 	}
 	return nil
 }
@@ -159,5 +197,7 @@ func toSettingsResponse(m map[string]string) *dto.SettingsResponse {
 		Locale:                 m[domain.SettingKeyLocale],
 		WeekStartDay:           m[domain.SettingKeyWeekStartDay],
 		SystemLogRetentionDays: m[domain.SettingKeySystemLogRetentionDays],
+		DemoBannerEnabled:      m[domain.SettingKeyDemoBannerEnabled],
+		DemoBannerMessage:      m[domain.SettingKeyDemoBannerMessage],
 	}
 }

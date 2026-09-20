@@ -147,6 +147,26 @@ func TestSettingHandler_Patch_ByNonAdmin_Returns403(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 }
 
+// 013-demo-instance-banner (US2): the pre-existing admin guard already
+// covers the two new demo-banner fields — no new authorization code needed.
+func TestSettingHandler_Patch_DemoBannerByNonAdmin_Returns403(t *testing.T) {
+	patchCalled := false
+	h := newSettingHandler(nil, func(_ uint, req dto.PatchSettingsRequest) (*dto.SettingsResponse, error) {
+		patchCalled = true
+		return defaultSettings(), nil
+	}, false) // isAdmin = false
+	e := newSettingEcho(h, false)
+
+	body := `{"demo_banner_enabled":"true"}`
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/settings", strings.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+	assert.False(t, patchCalled, "Patch must never be invoked for a non-admin caller")
+}
+
 func TestSettingHandler_Patch_InvalidDateFormat_Returns400(t *testing.T) {
 	h := newSettingHandler(nil, func(_ uint, req dto.PatchSettingsRequest) (*dto.SettingsResponse, error) {
 		return nil, service.ErrInvalidSettingValue
