@@ -2,6 +2,8 @@ import type { AuthResponse } from '~/types/auth.types'
 
 export interface SetupStatusResponse {
   setup_required: boolean
+  demo_banner_enabled: boolean
+  demo_banner_message: string
 }
 
 export interface SetupAdminRequest {

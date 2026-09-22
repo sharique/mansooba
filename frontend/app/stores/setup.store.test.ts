@@ -23,7 +23,28 @@ vi.mock('#app', () => ({
   defineNuxtRouteMiddleware: vi.fn(),
 }))
 
+import { setupService } from '~/services/setup.service'
 import { useSetupStore } from './setup.store'
+
+describe('setup store — demo banner (013-demo-instance-banner)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  test('checkSetupStatus populates demoBannerEnabled/demoBannerMessage from the response', async () => {
+    vi.mocked(setupService.getStatus).mockResolvedValueOnce({
+      setup_required: false,
+      demo_banner_enabled: true,
+      demo_banner_message: 'Custom text',
+    })
+
+    const store = useSetupStore()
+    await store.checkSetupStatus()
+
+    expect(store.demoBannerEnabled).toBe(true)
+    expect(store.demoBannerMessage).toBe('Custom text')
+  })
+})
 
 describe('setup store — seed actions', () => {
   beforeEach(() => {

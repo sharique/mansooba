@@ -14,6 +14,10 @@ const (
 	// SettingKeySystemLogRetentionDays is the admin-configurable retention
 	// period (in days) for System Log entries (011-system-logs, FR-010).
 	SettingKeySystemLogRetentionDays = "system_log_retention_days"
+	// SettingKeyDemoBannerEnabled and SettingKeyDemoBannerMessage back the
+	// site-wide demo-instance banner (013-demo-instance-banner, FR-001/FR-002).
+	SettingKeyDemoBannerEnabled = "demo_banner_enabled"
+	SettingKeyDemoBannerMessage = "demo_banner_message"
 )
 
 // GlobalSetting stores a single platform-wide configuration key-value pair.

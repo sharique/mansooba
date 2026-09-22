@@ -245,6 +245,9 @@ export interface SettingsResponse {
   // System Logs retention period, in days, as a string (011-system-logs,
   // FR-010) — global_settings is a generic key-value store.
   system_log_retention_days: string
+  // "true"/"false" as a string, same reason as above (013-demo-instance-banner).
+  demo_banner_enabled: string
+  demo_banner_message: string
 }
 
 export interface PatchSettingsRequest {
@@ -254,6 +257,8 @@ export interface PatchSettingsRequest {
   locale?: string
   week_start_day?: string
   system_log_retention_days?: string
+  demo_banner_enabled?: string
+  demo_banner_message?: string
 }
 
 // ── System Logs ──────────────────────────────────────────────────────────────

@@ -44,6 +44,13 @@ func (s *stubSetupService) SeedData(ctx context.Context, adminID uint) (*dto.Set
 	return nil, nil
 }
 
+// defaultStubSettingSvc returns a stubSettingService whose GetAll reports the
+// demo banner disabled (013-demo-instance-banner) — the sensible default for
+// every pre-existing setup-handler test that isn't itself testing the banner.
+func defaultStubSettingSvc() *stubSettingService {
+	return &stubSettingService{getAllFn: func() (*dto.SettingsResponse, error) { return defaultSettings(), nil }}
+}
+
 // --- GET /setup/status ---
 
 func TestSetupHandler_Status_Returns200_WhenRequired(t *testing.T) {
@@ -51,7 +58,7 @@ func TestSetupHandler_Status_Returns200_WhenRequired(t *testing.T) {
 		setupRequiredFn: func(_ context.Context) (bool, error) { return true, nil },
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.GET("/setup/status", h.Status)
 
 	req := httptest.NewRequest(http.MethodGet, "/setup/status", nil)
@@ -75,7 +82,7 @@ func TestSetupHandler_Status_Returns200_WhenNotRequired(t *testing.T) {
 		setupRequiredFn: func(_ context.Context) (bool, error) { return false, nil },
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.GET("/setup/status", h.Status)
 
 	req := httptest.NewRequest(http.MethodGet, "/setup/status", nil)
@@ -92,6 +99,79 @@ func TestSetupHandler_Status_Returns200_WhenNotRequired(t *testing.T) {
 	}
 }
 
+// --- GET /setup/status: demo banner fields (013-demo-instance-banner) ---
+
+func TestSetupHandler_Status_IncludesDemoBannerFields_WhenEnabled(t *testing.T) {
+	svc := &stubSetupService{setupRequiredFn: func(_ context.Context) (bool, error) { return false, nil }}
+	settingSvc := &stubSettingService{getAllFn: func() (*dto.SettingsResponse, error) {
+		resp := defaultSettings()
+		resp.DemoBannerEnabled = "true"
+		resp.DemoBannerMessage = "Custom text"
+		return resp, nil
+	}}
+	e := newEcho()
+	h := handler.NewSetupHandler(svc, settingSvc)
+	e.GET("/setup/status", h.Status)
+
+	req := httptest.NewRequest(http.MethodGet, "/setup/status", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var resp dto.SetupStatusResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("could not decode: %v", err)
+	}
+	if !resp.DemoBannerEnabled {
+		t.Error("expected demo_banner_enabled=true")
+	}
+	if resp.DemoBannerMessage != "Custom text" {
+		t.Errorf("expected demo_banner_message=%q, got %q", "Custom text", resp.DemoBannerMessage)
+	}
+}
+
+func TestSetupHandler_Status_DemoBannerDisabled(t *testing.T) {
+	svc := &stubSetupService{setupRequiredFn: func(_ context.Context) (bool, error) { return false, nil }}
+	settingSvc := &stubSettingService{getAllFn: func() (*dto.SettingsResponse, error) {
+		resp := defaultSettings()
+		resp.DemoBannerEnabled = "false"
+		return resp, nil
+	}}
+	e := newEcho()
+	h := handler.NewSetupHandler(svc, settingSvc)
+	e.GET("/setup/status", h.Status)
+
+	req := httptest.NewRequest(http.MethodGet, "/setup/status", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	var resp dto.SetupStatusResponse
+	json.NewDecoder(rec.Body).Decode(&resp) //nolint:errcheck
+	if resp.DemoBannerEnabled {
+		t.Error("expected demo_banner_enabled=false")
+	}
+}
+
+func TestSetupHandler_Status_SettingServiceError_Returns500(t *testing.T) {
+	svc := &stubSetupService{setupRequiredFn: func(_ context.Context) (bool, error) { return false, nil }}
+	settingSvc := &stubSettingService{getAllFn: func() (*dto.SettingsResponse, error) {
+		return nil, errors.New("db error")
+	}}
+	e := newEcho()
+	h := handler.NewSetupHandler(svc, settingSvc)
+	e.GET("/setup/status", h.Status)
+
+	req := httptest.NewRequest(http.MethodGet, "/setup/status", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 // --- POST /setup/admin ---
 
 func TestSetupHandler_CreateAdmin_Returns201(t *testing.T) {
@@ -104,7 +184,7 @@ func TestSetupHandler_CreateAdmin_Returns201(t *testing.T) {
 		},
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.POST("/setup/admin", h.CreateAdmin)
 
 	body := `{"full_name":"Alice Admin","email":"alice@example.com","password":"Secret123"}`
@@ -132,7 +212,7 @@ func TestSetupHandler_CreateAdmin_Returns400_OnMissingFields(t *testing.T) {
 		},
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.POST("/setup/admin", h.CreateAdmin)
 
 	body := `{"email":"alice@example.com"}`
@@ -153,7 +233,7 @@ func TestSetupHandler_CreateAdmin_Returns409_WhenAdminExists(t *testing.T) {
 		},
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.POST("/setup/admin", h.CreateAdmin)
 
 	body := `{"full_name":"Alice","email":"alice@example.com","password":"Secret123"}`
@@ -176,7 +256,7 @@ func TestSetupHandler_CreateUser_Returns201(t *testing.T) {
 		},
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.POST("/setup/user", h.CreateUser)
 
 	body := `{"full_name":"Bob Member","email":"bob@example.com","password":"Secret456"}`
@@ -202,7 +282,7 @@ func TestSetupHandler_CreateUser_Returns400_OnMissingFields(t *testing.T) {
 		},
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.POST("/setup/user", h.CreateUser)
 
 	body := `{"email":"bob@example.com"}`
@@ -223,7 +303,7 @@ func TestSetupHandler_CreateUser_Returns409_OnDuplicateEmail(t *testing.T) {
 		},
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.POST("/setup/user", h.CreateUser)
 
 	body := `{"full_name":"Bob","email":"bob@example.com","password":"Secret456"}`
@@ -246,7 +326,7 @@ func TestSetupHandler_CreateProject_Returns201(t *testing.T) {
 		},
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.POST("/setup/project", func(c echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.CreateProject(c)
@@ -278,7 +358,7 @@ func TestSetupHandler_CreateProject_Returns201_NoMembership(t *testing.T) {
 		},
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.POST("/setup/project", func(c echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.CreateProject(c)
@@ -302,7 +382,7 @@ func TestSetupHandler_CreateProject_Returns404_WhenUserNotFound(t *testing.T) {
 		},
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.POST("/setup/project", func(c echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.CreateProject(c)
@@ -328,7 +408,7 @@ func TestSetupHandler_SeedData_Returns200OnSuccess(t *testing.T) {
 		},
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.POST("/setup/seed", func(c echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.SeedData(c)
@@ -360,7 +440,7 @@ func TestSetupHandler_SeedData_Returns200WhenSkipped(t *testing.T) {
 		},
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.POST("/setup/seed", func(c echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.SeedData(c)
@@ -387,7 +467,7 @@ func TestSetupHandler_SeedData_Returns500OnError(t *testing.T) {
 		},
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.POST("/setup/seed", func(c echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.SeedData(c)
@@ -409,7 +489,7 @@ func TestSetupHandler_CreateProject_Returns400_OnMissingName(t *testing.T) {
 		},
 	}
 	e := newEcho()
-	h := handler.NewSetupHandler(svc)
+	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
 	e.POST("/setup/project", func(c echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.CreateProject(c)

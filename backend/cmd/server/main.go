@@ -241,7 +241,7 @@ func main() {
 	healthHandler := handler.NewHealthHandler(sqlDB).WithLoki(lokiClient)
 	systemLogHandler := handler.NewSystemLogHandler(systemLogSvc, userSvc)
 	authHandler := handler.NewAuthHandler(authSvc, userSvc)
-	setupHandler := handler.NewSetupHandler(setupSvc)
+	setupHandler := handler.NewSetupHandler(setupSvc, settingSvc)
 	userHandler := handler.NewUserHandler(userSvc, activitySvc, issueSvc)
 	projectHandler := handler.NewProjectHandler(projectSvc)
 	issueHandler := handler.NewIssueHandler(issueSvc)

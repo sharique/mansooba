@@ -75,6 +75,39 @@
             </label>
         </div>
 
+        <div class="collapse collapse-arrow border border-base-300 bg-base-100 rounded-box">
+            <input type="checkbox" data-testid="demo-banner-accordion-toggle" />
+            <div class="collapse-title font-medium">Demo Instance Banner</div>
+            <div class="collapse-content space-y-4">
+                <div class="form-control">
+                    <label class="label cursor-pointer justify-start gap-3">
+                        <input
+                            type="checkbox"
+                            data-testid="demo-banner-enabled"
+                            class="checkbox"
+                            :checked="form.demo_banner_enabled === 'true'"
+                            @change="form.demo_banner_enabled = ($event.target as HTMLInputElement).checked ? 'true' : 'false'"
+                        />
+                        <span class="label-text">Show demo-instance banner</span>
+                    </label>
+                </div>
+
+                <div class="form-control">
+                    <label class="label"><span class="label-text">Demo Banner Message</span></label>
+                    <textarea
+                        v-model="form.demo_banner_message"
+                        data-testid="demo-banner-message"
+                        class="textarea textarea-bordered w-full"
+                        maxlength="280"
+                        rows="2"
+                    />
+                    <label v-if="errors.demo_banner_message" class="label">
+                        <span data-testid="demo-banner-message-error" class="label-text-alt text-error">{{ errors.demo_banner_message }}</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
         <div class="flex justify-end pt-2">
             <button type="submit" class="btn btn-primary" :disabled="saving">
                 {{ saving ? "Saving…" : "Save Settings" }}
@@ -96,6 +129,8 @@ const form = reactive({
     locale: store.locale,
     week_start_day: store.week_start_day,
     system_log_retention_days: store.system_log_retention_days,
+    demo_banner_enabled: store.demo_banner_enabled,
+    demo_banner_message: store.demo_banner_message,
 });
 
 const errors = reactive<Record<string, string>>({});
@@ -111,6 +146,8 @@ watch(
             form.locale = store.locale;
             form.week_start_day = store.week_start_day;
             form.system_log_retention_days = store.system_log_retention_days;
+            form.demo_banner_enabled = store.demo_banner_enabled;
+            form.demo_banner_message = store.demo_banner_message;
         }
     },
     { immediate: true },
@@ -136,6 +173,10 @@ function validate(): boolean {
         errors.system_log_retention_days = "Must be a whole number of days, 1 or greater";
         return false;
     }
+    if (form.demo_banner_enabled === "true" && !form.demo_banner_message.trim()) {
+        errors.demo_banner_message = "A message is required while the banner is enabled.";
+        return false;
+    }
     return true;
 }
 
@@ -150,6 +191,8 @@ async function save() {
             locale: form.locale,
             week_start_day: form.week_start_day,
             system_log_retention_days: form.system_log_retention_days,
+            demo_banner_enabled: form.demo_banner_enabled,
+            demo_banner_message: form.demo_banner_message,
         });
         showSuccess("Settings saved");
     } catch {

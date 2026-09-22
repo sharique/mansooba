@@ -58,6 +58,7 @@ Other ways to run:
 - [From source](docs/deployments/running-from-source.md) - Go + Node, no Docker
 - [Deploy to AWS (beginner, console-only)](docs/deployments/deploy-to-aws-beginner.md) - no Terraform, no CLI
 - [Deploy to AWS (Terraform)](docs/deployments/deploy-to-aws-terraform.md) - Infrastructure-as-Code, ~20 min hands-on
+- [Post-deployment troubleshooting](docs/deployments/post-deployment-troubleshooting.md) - diagnosing an already-running deployment
 
 ---
 

@@ -24,7 +24,7 @@
     "dompurify": "^3.4.5",
     "eslint": "^10.3.0",
     "marked": "^18.0.4",
-    "nuxt": "^4.4.4",
+    "nuxt": "^4.5.2",
     "pinia-plugin-persistedstate": "^4.7.1",
     "tailwindcss": "^4.2.4",
     "vitest": "^4.1.6",

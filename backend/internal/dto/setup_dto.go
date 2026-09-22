@@ -3,6 +3,11 @@ package dto
 // SetupStatusResponse is returned by GET /api/v1/setup/status.
 type SetupStatusResponse struct {
 	SetupRequired bool `json:"setup_required"`
+	// DemoBannerEnabled/DemoBannerMessage let unauthenticated pages (e.g.
+	// /login) show the demo-instance banner without needing the JWT-gated
+	// GET /settings (013-demo-instance-banner, research.md Decision 1).
+	DemoBannerEnabled bool   `json:"demo_banner_enabled"`
+	DemoBannerMessage string `json:"demo_banner_message"`
 }
 
 // SetupAdminRequest creates the initial admin account during wizard step 1.

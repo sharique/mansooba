@@ -10,6 +10,11 @@ interface SetupState {
   createdProject: { id: number; key: string; name: string } | null
   seedImported: boolean | null
   seedProjectKey: string | null
+  // 013-demo-instance-banner: sourced from GET /setup/status (the one
+  // endpoint reachable before authentication), same session-cache lifetime
+  // as setupRequired below.
+  demoBannerEnabled: boolean
+  demoBannerMessage: string
 }
 
 export const useSetupStore = defineStore('setup', {
@@ -20,6 +25,8 @@ export const useSetupStore = defineStore('setup', {
     createdProject: null,
     seedImported: null,
     seedProjectKey: null,
+    demoBannerEnabled: false,
+    demoBannerMessage: '',
   }),
 
   getters: {
@@ -59,6 +66,8 @@ export const useSetupStore = defineStore('setup', {
       }
       const data = await setupService.getStatus()
       this.setupRequired = data.setup_required
+      this.demoBannerEnabled = data.demo_banner_enabled
+      this.demoBannerMessage = data.demo_banner_message
       return this.setupRequired
     },
 
