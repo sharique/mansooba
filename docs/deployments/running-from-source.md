@@ -26,7 +26,7 @@ Use this guide when you want a tight Go + Node dev loop without building Docker 
 > **Go toolchain:** Go downloads the toolchain named in `go.mod` automatically only when
 > `GOTOOLCHAIN` is `auto` (the default). If your machine sets `GOTOOLCHAIN=local`, either
 > install that Go release or switch it (`go env -w GOTOOLCHAIN=auto`); otherwise builds fail with
-> "go.mod requires go >= 1.27.1 (running go 1.2x; GOTOOLCHAIN=local)".
+> "go.mod requires go >= 1.27 (running go 1.2x; GOTOOLCHAIN=local)".
 
 ---
 

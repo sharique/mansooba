@@ -10,7 +10,7 @@ on:
 jobs:
   test:
     name: Test (Go ${{ matrix.go }})
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     strategy:
       matrix:
@@ -69,7 +69,7 @@ jobs:
 
   frontend:
     name: Frontend
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - uses: actions/checkout@v7
@@ -96,7 +96,7 @@ jobs:
 
   build-and-push:
     name: Build & Push to GHCR
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: [test, frontend]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     permissions:

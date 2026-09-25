@@ -273,7 +273,7 @@ docker run --rm --name pg-local \
   -e POSTGRES_PASSWORD=mansooba \
   -e POSTGRES_DB=mansooba \
   -p 5432:5432 \
-  postgres:18.6-alpine
+  postgres:18-alpine
 ```
 
 **MariaDB 11**
@@ -324,7 +324,7 @@ If you want Docker Compose to manage the database too, create a `compose.overrid
 ```yaml
 services:
   db:
-    image: postgres:18.6-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: mansooba

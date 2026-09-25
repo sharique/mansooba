@@ -2,7 +2,9 @@
 # Guards two things between quarterly audits (ADR-034, specs/015-tech-stack-refresh):
 #
 #   A. No floating references: image tags, download URLs and CI runner labels
-#      must name an explicit version.
+#      must name a version. Image tags follow a release line (24, 1.30, 3.24),
+#      so patch releases arrive on rebuild; download URLs and runner labels
+#      name the exact version because they have no release-line form.
 #   B. Versions declared in more than one place must agree (Go, Node, the S3
 #      emulator tag, and the Loki/Grafana/Alloy tags across the two compose files).
 #
@@ -59,8 +61,8 @@ check_image() {
   if [[ "$last" != *:* ]]; then fail floating-reference "image '$ref' has no tag" "$(rel "$f"):$n"; return 0; fi
   tag="${last#*:}"
   if [[ "$tag" == latest ]]; then fail floating-reference "image '$ref' uses :latest" "$(rel "$f"):$n"
-  elif ! [[ "$tag" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-    fail floating-reference "image '$ref' tag '$tag' is not an exact version (need major.minor.patch)" "$(rel "$f"):$n"
+  elif ! [[ "$tag" =~ ^v?[0-9]+ ]]; then
+    fail floating-reference "image '$ref' tag '$tag' names no version (need a release line such as 24 or 1.30)" "$(rel "$f"):$n"
   fi
 }
 
@@ -110,7 +112,7 @@ for f in "${workflows[@]}"; do
     n=$((n+1))
     [[ "$line" =~ ^[[:space:]]*# ]] && continue
     if [[ "$line" =~ runs-on:[[:space:]]*[\"\']?([A-Za-z0-9._-]+) ]] && [[ "${BASH_REMATCH[1]}" == *-latest ]]; then
-      fail floating-reference "runner label '${BASH_REMATCH[1]}' floats; name a version such as ubuntu-24.04" "$(rel "$f"):$n"
+      fail floating-reference "runner label '${BASH_REMATCH[1]}' floats; name a version such as ubuntu-26.04" "$(rel "$f"):$n"
     fi
   done < "$f"
 done

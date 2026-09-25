@@ -221,7 +221,7 @@ Create `compose.override.yml` in the same directory:
 ```yaml
 services:
   db:
-    image: postgres:18.6-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: mansooba

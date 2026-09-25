@@ -28,11 +28,11 @@ services:
   localstack-init:
     image: amazon/aws-cli:2.37.3
   mailpit:
-    image: axllent/mailpit:v1.31.2
+    image: axllent/mailpit:v1.31
   loki:
-    image: grafana/loki:3.7.8
+    image: grafana/loki:3.7
   grafana:
-    image: grafana/grafana:13.2.2
+    image: grafana/grafana:13.2
   alloy:
     image: grafana/alloy:v1.20.0
 EOF
@@ -43,22 +43,22 @@ services:
   frontend:
     image: ghcr.io/sharique/mansooba-frontend:latest
   loki:
-    image: grafana/loki:3.7.8
+    image: grafana/loki:3.7
   grafana:
-    image: grafana/grafana:13.2.2
+    image: grafana/grafana:13.2
   alloy:
     image: grafana/alloy:v1.20.0
 EOF
   cat > "$r/backend/Dockerfile" <<'EOF'
-FROM golang:1.27.1-alpine3.24 AS builder
+FROM golang:1.27-alpine3.24 AS builder
 RUN echo build
-FROM alpine:3.24.2
+FROM alpine:3.24
 COPY --from=builder /app /app
 EOF
   cat > "$r/frontend/Dockerfile" <<'EOF'
-FROM node:24.21.0-alpine3.24 AS builder
+FROM node:24-alpine3.24 AS builder
 RUN echo build
-FROM nginx:1.30.5-alpine3.24
+FROM nginx:1.30-alpine3.24
 EOF
   cat > "$r/terraform/user-data.sh" <<'EOF'
 #!/bin/bash
@@ -67,7 +67,7 @@ EOF
   cat > "$r/.github/workflows/ci.yml" <<'EOF'
 jobs:
   test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         go: ["1.27.x"]
@@ -77,13 +77,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
   frontend:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/setup-node@v7
         with:
           node-version-file: frontend/.nvmrc
 EOF
-  printf 'module example.com/x\n\ngo 1.27.1\n' > "$r/backend/go.mod"
+  printf 'module example.com/x\n\ngo 1.27\n' > "$r/backend/go.mod"
   printf '24\n' > "$r/frontend/.nvmrc"
 }
 
@@ -111,20 +111,23 @@ run_case "own ghcr image with :latest is allowed"             0 "" "sed -i 's#ma
 run_case "Dockerfile stage alias is not an image"             0 "" "printf 'FROM builder AS again\n' >> backend/Dockerfile"
 
 run_case "floating :latest image is rejected"                 1 "FAIL floating-reference" "sed -i 's#amazon/aws-cli:2.37.3#amazon/aws-cli:latest#' compose.yml"
-run_case "image with no tag is rejected"                      1 "FAIL floating-reference" "sed -i 's#axllent/mailpit:v1.31.2#axllent/mailpit#' compose.yml"
-run_case "non-version tag (golang:alpine) is rejected"        1 "FAIL floating-reference" "sed -i 's#golang:1.27.1-alpine3.24#golang:alpine#' backend/Dockerfile"
-run_case "minor-only tag (nginx:1.30-alpine) is rejected"     1 "FAIL floating-reference" "sed -i 's#nginx:1.30.5-alpine3.24#nginx:1.30-alpine#' frontend/Dockerfile"
+run_case "image with no tag is rejected"                      1 "FAIL floating-reference" "sed -i 's#axllent/mailpit:v1.31#axllent/mailpit#' compose.yml"
+run_case "non-version tag (golang:alpine) is rejected"        1 "FAIL floating-reference" "sed -i 's#golang:1.27-alpine3.24#golang:alpine#' backend/Dockerfile"
+run_case "release-line tags (24, 1.30, 3.24) are accepted"     0 "OK: all version checks passed" ""
+run_case "exact patch tags are still accepted"               0 "OK: all version checks passed" "sed -i 's#nginx:1.30-alpine3.24#nginx:1.30.5-alpine3.24#' frontend/Dockerfile"
+run_case "Go image tag without a release line is rejected"    1 "FAIL version-mismatch" "sed -i 's#golang:1.27-alpine3.24#golang:1-alpine3.24#' backend/Dockerfile"
+run_case "tag that is not a version (nginx:stable) is rejected" 1 "FAIL floating-reference" "sed -i 's#nginx:1.30-alpine3.24#nginx:stable-alpine#' frontend/Dockerfile"
 run_case "releases/latest download is rejected"               1 "FAIL floating-reference" "sed -i 's#releases/download/v5.5.1#releases/latest/download#' terraform/user-data.sh"
-run_case "runs-on ubuntu-latest is rejected"                  1 "FAIL floating-reference" "sed -i '0,/ubuntu-24.04/s#ubuntu-24.04#ubuntu-latest#' .github/workflows/ci.yml"
+run_case "runs-on ubuntu-latest is rejected"                  1 "FAIL floating-reference" "sed -i '0,/ubuntu-26.04/s#ubuntu-26.04#ubuntu-latest#' .github/workflows/ci.yml"
 
 run_case "Go version mismatch (go.mod vs CI) is rejected"     1 "FAIL version-mismatch" "printf 'module x\n\ngo 1.25.9\n' > backend/go.mod"
-run_case "Go version mismatch (Dockerfile) is rejected"       1 "FAIL version-mismatch" "sed -i 's#golang:1.27.1-alpine3.24#golang:1.26.8-alpine3.24#' backend/Dockerfile"
+run_case "Go version mismatch (Dockerfile) is rejected"       1 "FAIL version-mismatch" "sed -i 's#golang:1.27-alpine3.24#golang:1.26-alpine3.24#' backend/Dockerfile"
 run_case "Node mismatch (.nvmrc vs Dockerfile) is rejected"   1 "FAIL version-mismatch" "printf '22\n' > frontend/.nvmrc"
 run_case "CI literal Node version that disagrees is rejected"  1 "FAIL version-mismatch" "sed -i 's#node-version-file: frontend/.nvmrc#node-version: 22#' .github/workflows/ci.yml"
 run_case "CI literal Node version that agrees passes"         0 "OK: all version checks passed" "sed -i 's#node-version-file: frontend/.nvmrc#node-version: 24#' .github/workflows/ci.yml"
 run_case "missing .nvmrc is rejected"                         1 "FAIL version-mismatch" "rm frontend/.nvmrc"
 run_case "LocalStack tag mismatch is rejected"                1 "FAIL version-mismatch" "sed -i 's#localstack/localstack:4.14.0#localstack/localstack:4.13.0#' compose.yml"
-run_case "Loki tag differs between compose files"             1 "FAIL version-mismatch" "sed -i 's#grafana/loki:3.7.8#grafana/loki:3.2.0#' compose.prod.yml"
+run_case "Loki tag differs between compose files"             1 "FAIL version-mismatch" "sed -i 's#grafana/loki:3.7#grafana/loki:3.2.0#' compose.prod.yml"
 
 # Every problem is reported, not just the first.
 R2="$WORK/multi"; make_good_tree "$R2"
