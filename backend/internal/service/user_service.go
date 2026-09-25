@@ -2,12 +2,13 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
-	"github.com/sharique/mansooba/internal/pkg/avatarstorage"
 )
 
 // UserService manages user profile read and update operations.
@@ -16,18 +17,23 @@ type UserService interface {
 	UpdateProfile(ctx context.Context, userID uint, req dto.UpdateProfileRequest) (*dto.UserProfileResponse, error)
 	UploadAvatar(ctx context.Context, userID uint, filename string, data []byte, contentType string) (*dto.UserProfileResponse, error)
 	DeleteAvatar(ctx context.Context, userID uint) (*dto.UserProfileResponse, error)
+	// GetAvatar streams the stored avatar named filename (e.g. "avatar-3.jpg")
+	// and returns its content type. The caller must close the reader. Returns
+	// domain.ErrNotFound if no such avatar exists.
+	GetAvatar(ctx context.Context, filename string) (io.ReadCloser, string, error)
 }
 
 type userServiceImpl struct {
 	userRepo    domain.UserRepository
-	avatarStore *avatarstorage.Storage
+	avatarStore domain.AvatarStore
 }
 
-// NewUserService returns a UserService backed by the given repository.
-func NewUserService(userRepo domain.UserRepository) UserService {
+// NewUserService returns a UserService backed by the given repository and
+// avatar storage.
+func NewUserService(userRepo domain.UserRepository, avatarStore domain.AvatarStore) UserService {
 	return &userServiceImpl{
 		userRepo:    userRepo,
-		avatarStore: avatarstorage.New("uploads/avatars"),
+		avatarStore: avatarStore,
 	}
 }
 
@@ -70,9 +76,9 @@ func (s *userServiceImpl) UploadAvatar(ctx context.Context, userID uint, filenam
 		return nil, err
 	}
 
-	url, err := s.avatarStore.Save(userID, filename, data, contentType)
+	url, err := s.avatarStore.Save(ctx, userID, filename, data, contentType)
 	if err != nil {
-		return nil, err
+		return nil, classifyAvatarStorageError(err)
 	}
 
 	user.AvatarURL = url
@@ -88,8 +94,8 @@ func (s *userServiceImpl) DeleteAvatar(ctx context.Context, userID uint) (*dto.U
 		return nil, err
 	}
 
-	if err := s.avatarStore.Delete(userID); err != nil {
-		return nil, err
+	if err := s.avatarStore.Delete(ctx, userID); err != nil {
+		return nil, classifyAvatarStorageError(err)
 	}
 
 	user.AvatarURL = ""
@@ -97,6 +103,20 @@ func (s *userServiceImpl) DeleteAvatar(ctx context.Context, userID uint) (*dto.U
 		return nil, err
 	}
 	return toProfileResponse(user), nil
+}
+
+func (s *userServiceImpl) GetAvatar(ctx context.Context, filename string) (io.ReadCloser, string, error) {
+	return s.avatarStore.Get(ctx, filename)
+}
+
+// classifyAvatarStorageError keeps client-side rejections as-is (their message
+// is safe to show) and wraps everything else as a storage outage so handlers
+// can answer 502 without echoing S3 endpoint details.
+func classifyAvatarStorageError(err error) error {
+	if errors.Is(err, domain.ErrAvatarRejected) {
+		return err
+	}
+	return fmt.Errorf("%w: %v", domain.ErrAvatarStorageUnavailable, err)
 }
 
 func toProfileResponse(u *domain.User) *dto.UserProfileResponse {

@@ -30,6 +30,15 @@ var (
 	ErrAttachmentCapReached         = errors.New("attachment cap reached")
 	ErrAttachmentStorageUnavailable = errors.New("attachment storage unavailable")
 
+	// Avatar errors (feature 014). ErrAvatarStorageUnavailable wraps S3
+	// failures on upload/delete — handlers map it to HTTP 502 with a generic
+	// message, distinct from a client-side rejection of the uploaded file.
+	ErrAvatarStorageUnavailable = errors.New("avatar storage unavailable")
+	// ErrAvatarRejected marks an upload refused because of the file itself
+	// (too large, disallowed type, content mismatch). Its message is safe to
+	// show to the client, unlike a storage failure.
+	ErrAvatarRejected = errors.New("avatar rejected")
+
 	// Password-change errors (feature 012).
 	ErrCurrentPasswordMismatch  = errors.New("current password is incorrect")
 	ErrNewPasswordSameAsCurrent = errors.New("new password must differ from current password")

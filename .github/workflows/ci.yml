@@ -16,6 +16,21 @@ jobs:
       matrix:
         go: ["1.25.x"]
 
+    # S3-backed storage tests (attachments, avatars) run against real
+    # LocalStack — no mocks (Constitution Principle III).
+    services:
+      localstack:
+        image: localstack/localstack:3.8
+        env:
+          SERVICES: s3
+        ports:
+          - 4566:4566
+        options: >-
+          --health-cmd "curl -f http://localhost:4566/_localstack/health"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
     steps:
       - uses: actions/checkout@v4
 
@@ -33,9 +48,19 @@ jobs:
         working-directory: backend
         run: go vet ./...
 
+      - name: Create S3 bucket in LocalStack
+        run: aws --endpoint-url http://localhost:4566 s3 mb s3://mansooba-attachments --region us-east-1
+        env:
+          AWS_ACCESS_KEY_ID: test
+          AWS_SECRET_ACCESS_KEY: test
+          AWS_DEFAULT_REGION: us-east-1
+
       - name: Test
         working-directory: backend
         run: go test -race -count=1 ./...
+        env:
+          # A missing LocalStack must fail the build, not silently skip the S3 tests.
+          REQUIRE_LOCALSTACK: "1"
 
   frontend:
     name: Frontend (Node ${{ matrix.node }})

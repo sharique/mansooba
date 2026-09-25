@@ -16,7 +16,7 @@ func newTestUserService() (service.UserService, *stubUserRepo) {
 	_ = repo.Create(context.Background(), &domain.User{
 		ID: 1, Name: "Alice", Email: "alice@example.com", Password: "hash",
 	})
-	return service.NewUserService(repo), repo
+	return service.NewUserService(repo, nil), repo
 }
 
 func TestUserService_GetProfile_ReturnsProfile(t *testing.T) {

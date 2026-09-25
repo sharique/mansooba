@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -22,8 +25,12 @@ import (
 // ── stubUserService ───────────────────────────────────────────────────────────
 
 type stubUserService struct {
-	profile  *dto.UserProfileResponse
-	updateFn func(userID uint, req dto.UpdateProfileRequest) (*dto.UserProfileResponse, error)
+	profile   *dto.UserProfileResponse
+	updateFn  func(userID uint, req dto.UpdateProfileRequest) (*dto.UserProfileResponse, error)
+	avatarErr error
+
+	getAvatarFn    func(filename string) (io.ReadCloser, string, error)
+	getAvatarCalls int
 }
 
 func (s *stubUserService) GetProfile(_ context.Context, _ uint) (*dto.UserProfileResponse, error) {
@@ -42,14 +49,28 @@ func (s *stubUserService) UpdateProfile(_ context.Context, userID uint, req dto.
 }
 
 func (s *stubUserService) UploadAvatar(_ context.Context, userID uint, _ string, _ []byte, _ string) (*dto.UserProfileResponse, error) {
+	if s.avatarErr != nil {
+		return nil, s.avatarErr
+	}
 	if s.profile == nil {
 		return nil, domain.ErrNotFound
 	}
-	s.profile.AvatarURL = "/uploads/avatars/avatar-1.jpg?v=1000"
+	s.profile.AvatarURL = "/avatars/avatar-1.jpg?v=1000"
 	return s.profile, nil
 }
 
+func (s *stubUserService) GetAvatar(_ context.Context, filename string) (io.ReadCloser, string, error) {
+	s.getAvatarCalls++
+	if s.getAvatarFn != nil {
+		return s.getAvatarFn(filename)
+	}
+	return nil, "", domain.ErrNotFound
+}
+
 func (s *stubUserService) DeleteAvatar(_ context.Context, userID uint) (*dto.UserProfileResponse, error) {
+	if s.avatarErr != nil {
+		return nil, s.avatarErr
+	}
 	if s.profile == nil {
 		return nil, domain.ErrNotFound
 	}
@@ -224,7 +245,7 @@ func TestUserHandler_UploadAvatar_Returns400WhenNoFile(t *testing.T) {
 
 func TestUserHandler_DeleteAvatar_Returns200WithEmptyAvatarURL(t *testing.T) {
 	h, svc := newUserHandler()
-	svc.profile = &dto.UserProfileResponse{ID: 1, Name: "Alice", Email: "alice@example.com", AvatarURL: "/uploads/avatars/avatar-1.jpg?v=1000"}
+	svc.profile = &dto.UserProfileResponse{ID: 1, Name: "Alice", Email: "alice@example.com", AvatarURL: "/avatars/avatar-1.jpg?v=1000"}
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/auth/me/avatar", nil)
 	rec := httptest.NewRecorder()
@@ -283,4 +304,140 @@ func TestUserHandler_UploadAvatar_Returns401WhenNoUserID(t *testing.T) {
 	// Intentionally do NOT set "userID" — simulates unauthenticated request
 	// Handler will panic/error since userID is not set, which tests 401 behavior.
 	assert.Panics(t, func() { _ = h.UploadAvatar(c) })
+}
+
+// ── ServeAvatar ───────────────────────────────────────────────────────────────
+
+func serveAvatarRequest(h *handler.UserHandler, filename string) (*httptest.ResponseRecorder, error) {
+	c, rec := setupUserEcho(http.MethodGet, "/avatars/x", "", 0)
+	c.SetParamNames("filename")
+	c.SetParamValues(filename)
+	return rec, h.ServeAvatar(c)
+}
+
+func TestUserHandler_ServeAvatar_Returns200WithBytesAndCacheHeaders(t *testing.T) {
+	h, svc := newUserHandler()
+	svc.getAvatarFn = func(filename string) (io.ReadCloser, string, error) {
+		assert.Equal(t, "avatar-1.jpg", filename)
+		return io.NopCloser(strings.NewReader("jpeg-bytes")), "image/jpeg", nil
+	}
+
+	rec, err := serveAvatarRequest(h, "avatar-1.jpg")
+
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "jpeg-bytes", rec.Body.String())
+	assert.Equal(t, "image/jpeg", rec.Header().Get("Content-Type"))
+	assert.Equal(t, "public, max-age=3600", rec.Header().Get("Cache-Control"))
+}
+
+func TestUserHandler_ServeAvatar_InvalidFilenameReturns404WithoutCallingService(t *testing.T) {
+	invalid := []string{
+		"../attachments/PROJ/PROJ-3/x.pdf",
+		"avatar-1.gif",
+		"avatar-.jpg",
+		"avatar-abc.jpg",
+		"AVATAR-1.jpg",
+		"avatar-1.jpg/../x",
+		"avatar-1",
+		"avatar-1.jpg\n",
+		"",
+	}
+	for _, name := range invalid {
+		t.Run(name, func(t *testing.T) {
+			h, svc := newUserHandler()
+
+			_, err := serveAvatarRequest(h, name)
+
+			var he *echo.HTTPError
+			require.True(t, errors.As(err, &he), "expected *echo.HTTPError, got %v", err)
+			assert.Equal(t, http.StatusNotFound, he.Code)
+			assert.Zero(t, svc.getAvatarCalls, "service must not be called for an invalid filename")
+		})
+	}
+}
+
+func TestUserHandler_ServeAvatar_NotFoundFromServiceReturns404(t *testing.T) {
+	h, svc := newUserHandler()
+	svc.getAvatarFn = func(string) (io.ReadCloser, string, error) {
+		return nil, "", domain.ErrNotFound
+	}
+
+	_, err := serveAvatarRequest(h, "avatar-7.png")
+
+	var he *echo.HTTPError
+	require.True(t, errors.As(err, &he))
+	assert.Equal(t, http.StatusNotFound, he.Code)
+}
+
+func TestUserHandler_ServeAvatar_OtherErrorReturns500WithoutLeakingDetail(t *testing.T) {
+	h, svc := newUserHandler()
+	svc.getAvatarFn = func(string) (io.ReadCloser, string, error) {
+		return nil, "", errors.New("s3 exploded: secret-endpoint-detail")
+	}
+
+	_, err := serveAvatarRequest(h, "avatar-7.png")
+
+	var he *echo.HTTPError
+	require.True(t, errors.As(err, &he))
+	assert.Equal(t, http.StatusInternalServerError, he.Code)
+	assert.NotContains(t, fmt.Sprint(he.Message), "secret-endpoint-detail")
+}
+
+// ── storage failures are not the client's fault and must not leak detail ──────
+
+func TestUserHandler_UploadAvatar_StorageUnavailableReturns502WithoutDetail(t *testing.T) {
+	h, svc := newUserHandler()
+	svc.avatarErr = fmt.Errorf("%w: operation error S3: PutObject, https://internal-endpoint:4566", domain.ErrAvatarStorageUnavailable)
+	c, _ := setupUserEcho(http.MethodPost, "/auth/me/avatar", "", 1)
+	req := newAvatarUploadRequest(t)
+	c.SetRequest(req)
+
+	err := h.UploadAvatar(c)
+
+	var he *echo.HTTPError
+	require.True(t, errors.As(err, &he))
+	assert.Equal(t, http.StatusBadGateway, he.Code)
+	assert.NotContains(t, fmt.Sprint(he.Message), "internal-endpoint")
+}
+
+func TestUserHandler_DeleteAvatar_StorageUnavailableReturns502WithoutDetail(t *testing.T) {
+	h, svc := newUserHandler()
+	svc.avatarErr = fmt.Errorf("%w: operation error S3: DeleteObject, https://internal-endpoint:4566", domain.ErrAvatarStorageUnavailable)
+	c, _ := setupUserEcho(http.MethodDelete, "/auth/me/avatar", "", 1)
+
+	err := h.DeleteAvatar(c)
+
+	var he *echo.HTTPError
+	require.True(t, errors.As(err, &he))
+	assert.Equal(t, http.StatusBadGateway, he.Code)
+	assert.NotContains(t, fmt.Sprint(he.Message), "internal-endpoint")
+}
+
+func TestUserHandler_UploadAvatar_ValidationRejectionStill400WithMessage(t *testing.T) {
+	h, svc := newUserHandler()
+	svc.avatarErr = errors.New("content type \"image/gif\" is not accepted")
+	c, _ := setupUserEcho(http.MethodPost, "/auth/me/avatar", "", 1)
+	c.SetRequest(newAvatarUploadRequest(t))
+
+	err := h.UploadAvatar(c)
+
+	var he *echo.HTTPError
+	require.True(t, errors.As(err, &he))
+	assert.Equal(t, http.StatusBadRequest, he.Code)
+	assert.Contains(t, fmt.Sprint(he.Message), "not accepted")
+}
+
+func newAvatarUploadRequest(t *testing.T) *http.Request {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	part, err := w.CreateFormFile("avatar", "me.jpg")
+	require.NoError(t, err)
+	_, err = part.Write([]byte("bytes"))
+	require.NoError(t, err)
+	require.NoError(t, w.Close())
+	req := httptest.NewRequest(http.MethodPost, "/auth/me/avatar", &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	return req
 }

@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
 	"github.com/sharique/mansooba/pkg/logger"
@@ -114,6 +117,7 @@ func (h *UserHandler) GetMyActivity(c echo.Context) error {
 // @Failure      400 {object} apierror.APIError
 // @Failure      401 {object} apierror.APIError
 // @Failure      413 {object} apierror.APIError
+// @Failure      502 {object} apierror.APIError
 // @Router       /auth/me/avatar [post]
 func (h *UserHandler) UploadAvatar(c echo.Context) error {
 	callerID := c.Get("userID").(uint)
@@ -137,6 +141,10 @@ func (h *UserHandler) UploadAvatar(c echo.Context) error {
 	contentType := fileHeader.Header.Get("Content-Type")
 	resp, err := h.userSvc.UploadAvatar(c.Request().Context(), callerID, fileHeader.Filename, data, contentType)
 	if err != nil {
+		if errors.Is(err, domain.ErrAvatarStorageUnavailable) {
+			logger.Logger.Error("avatar upload failed: storage unavailable", zap.Uint("userID", callerID), zap.Error(err))
+			return echo.NewHTTPError(http.StatusBadGateway, "avatar storage temporarily unavailable, please retry")
+		}
 		logger.Logger.Info("avatar upload failed", zap.Uint("userID", callerID), zap.Error(err))
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
@@ -158,11 +166,51 @@ func (h *UserHandler) DeleteAvatar(c echo.Context) error {
 
 	resp, err := h.userSvc.DeleteAvatar(c.Request().Context(), callerID)
 	if err != nil {
+		if errors.Is(err, domain.ErrAvatarStorageUnavailable) {
+			logger.Logger.Error("avatar delete failed: storage unavailable", zap.Uint("userID", callerID), zap.Error(err))
+			return echo.NewHTTPError(http.StatusBadGateway, "avatar storage temporarily unavailable, please retry")
+		}
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
 	logger.Logger.Info("avatar deleted", zap.Uint("userID", callerID))
 	return c.JSON(http.StatusOK, resp)
+}
+
+// avatarFilenamePattern is the exact shape avatarstorage.Save generates. It is
+// matched before any storage key is built so a crafted filename can never
+// address an object outside avatars/ (e.g. an attachment).
+var avatarFilenamePattern = regexp.MustCompile(`^avatar-\d+\.(jpg|png|webp)$`)
+
+// ServeAvatar godoc
+// @Summary      Serve a user avatar image
+// @Description  PUBLIC — intentionally unauthenticated, like the /uploads static route it replaces: browser <img> tags cannot send an Authorization header, and avatars carry no per-viewer access restriction (ADR-033).
+// @Tags         users
+// @Produce      image/jpeg,image/png,image/webp
+// @Param        filename path string true "avatar-{userID}.{jpg|png|webp}"
+// @Success      200 {file} binary
+// @Failure      404 {object} apierror.APIError
+// @Router       /avatars/{filename} [get]
+func (h *UserHandler) ServeAvatar(c echo.Context) error {
+	filename := c.Param("filename")
+	if !avatarFilenamePattern.MatchString(filename) {
+		return echo.NewHTTPError(http.StatusNotFound, "avatar not found")
+	}
+
+	body, contentType, err := h.userSvc.GetAvatar(c.Request().Context(), filename)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return echo.NewHTTPError(http.StatusNotFound, "avatar not found")
+		}
+		logger.Logger.Error("avatar serve failed", zap.String("filename", filename), zap.Error(err))
+		return echo.NewHTTPError(http.StatusInternalServerError, "could not load avatar")
+	}
+	defer body.Close()
+
+	// The stored URL carries a ?v= cache-buster that changes on every upload,
+	// so a moderate max-age only avoids refetching an unchanged URL.
+	c.Response().Header().Set("Cache-Control", "public, max-age=3600")
+	return c.Stream(http.StatusOK, contentType, body)
 }
 
 // GetMyIssues godoc

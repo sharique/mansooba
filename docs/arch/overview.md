@@ -34,7 +34,7 @@ code/
 │   │   ├── handler/           # Echo HTTP handlers; HTTP ↔ service translation only
 │   │   ├── middleware/        # JWT auth middleware
 │   │   └── pkg/
-│   │       ├── avatarstorage/    # Local-disk storage for user avatar images
+│   │       ├── avatarstorage/    # S3-backed storage for user avatar images (avatars/ prefix)
 │   │       └── attachmentstorage/ # S3-compatible client for issue attachments (tested against real LocalStack, no mocks — Constitution Principle III)
 │   └── pkg/
 │       ├── apierror/          # Centralised HTTP error mapping
@@ -106,7 +106,7 @@ The app uses two storage subsystems:
 | What | Where | Access pattern |
 |------|-------|---------------|
 | Attachments (files, images, docs) | S3-compatible (real AWS S3 in prod, LocalStack in local dev) | Pre-signed URLs (1 h TTL); never proxied through the backend |
-| User avatars | Local disk (`uploads/`) | Publicly served at `/uploads/*` without auth (ADR-026) |
+| User avatars | Same S3 bucket as attachments, under the `avatars/` prefix | Streamed by the backend at `/avatars/:filename` without auth — the bucket itself stays private (ADR-033) |
 
 Attachment keys follow the pattern:
 ```

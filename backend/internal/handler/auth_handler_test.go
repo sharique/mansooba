@@ -3,6 +3,7 @@ package handler_test
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -185,6 +186,9 @@ func (s *stubAuthUserService) UploadAvatar(_ context.Context, _ uint, _ string, 
 }
 func (s *stubAuthUserService) DeleteAvatar(_ context.Context, _ uint) (*dto.UserProfileResponse, error) {
 	return nil, nil
+}
+func (s *stubAuthUserService) GetAvatar(_ context.Context, _ string) (io.ReadCloser, string, error) {
+	return nil, "", nil
 }
 
 func TestAuthHandler_Register_Returns403_ForNonAdmin(t *testing.T) {

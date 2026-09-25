@@ -26,6 +26,7 @@ import (
 	"github.com/sharique/mansooba/internal/handler"
 	apimw "github.com/sharique/mansooba/internal/middleware"
 	"github.com/sharique/mansooba/internal/pkg/attachmentstorage"
+	"github.com/sharique/mansooba/internal/pkg/avatarstorage"
 	"github.com/sharique/mansooba/internal/pkg/lokiclient"
 	"github.com/sharique/mansooba/internal/pkg/rdsclient"
 	"github.com/sharique/mansooba/internal/repository"
@@ -107,6 +108,10 @@ func main() {
 	if err != nil {
 		log.Fatal("failed to initialize attachment storage", zap.Error(err))
 	}
+
+	// Avatars share the attachments bucket (and its S3 client) under the
+	// avatars/ prefix — see ADR-033.
+	avatarStorage := avatarstorage.New(attachmentStorage.Client(), cfg.StorageBucket)
 
 	// System Logs backing store (011-system-logs, ADR-031) — Grafana Loki,
 	// not the application database. Constructed unconditionally (unlike RDS
@@ -208,7 +213,7 @@ func main() {
 
 	// Services
 	authSvc := service.NewAuthService(userRepo, revokedTokenRepo, systemLogSvc, log, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
-	userSvc := service.NewUserService(userRepo)
+	userSvc := service.NewUserService(userRepo, avatarStorage)
 	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo)
 	activitySvc := service.NewActivityService(activityRepo, userRepo, issueRepo)
 	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, sprintRepo).
@@ -429,10 +434,11 @@ func main() {
 	}))
 	authMePasswordLimited.PUT("/me/password", passwordChangeHandler.ChangePassword)
 
-	// Public static file serving for uploaded avatars.
-	// Intentionally unauthenticated — browser <img> tags fetch images as
-	// unauthenticated sub-resources. Rationale documented in ADR-026.
-	e.Static("/uploads", "uploads")
+	// Public avatar serving, streamed from S3 (avatars/ prefix of the shared
+	// bucket). Intentionally unauthenticated — browser <img> tags fetch images
+	// as unauthenticated sub-resources and avatars carry no per-viewer access
+	// restriction. Rationale documented in ADR-033.
+	e.GET("/avatars/:filename", userHandler.ServeAvatar)
 
 	projects := api.Group("/projects")
 	projects.GET("", projectHandler.List)

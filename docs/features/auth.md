@@ -36,8 +36,9 @@ display name, email, timezone, and an optional avatar photo.
 ### Avatar storage
 
 - Uploaded via `POST /api/v1/auth/me/avatar`
-- Stored on local disk under `uploads/avatars/`
-- Served publicly at `/uploads/*` without auth (ADR-026)
+- Stored in S3 under `avatars/avatar-{userID}.{ext}` in the attachments bucket (one avatar per user; replacing removes the old object, even if the format changes)
+- Served publicly at `/avatars/:filename` without auth, streamed by the backend (ADR-033)
+- Avatars uploaded before spec 014 (local disk) were not migrated; those users show initials until they re-upload
 - Falls back to OKLCH-coloured initials when no photo is set (see `UserAvatar` component)
 
 ### Admin-controlled registration

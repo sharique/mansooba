@@ -56,7 +56,7 @@ func newPasswordChangeIntegrationSetup(t *testing.T) (*echo.Echo, *handler.AuthH
 	revokedRepo := repository.NewRevokedTokenRepository(db)
 
 	authSvc := service.NewAuthService(userRepo, revokedRepo, &stubSystemLogService{}, log, "test-secret-key", "15m", "168h")
-	userSvc := service.NewUserService(userRepo)
+	userSvc := service.NewUserService(userRepo, nil)
 	authHandler := handler.NewAuthHandler(authSvc, userSvc)
 
 	pcSvc := service.NewPasswordChangeService(userRepo, &stubSystemLogService{}, stubIntegrationEmailSender{})

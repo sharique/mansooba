@@ -30,7 +30,7 @@ const props = withDefaults(defineProps<{
 const showImage = ref(!!props.avatarUrl)
 const color = useAvatarColor(props.userId)
 
-// Storage returns server-relative paths (/uploads/avatars/...). Prefix with the
+// The API returns server-relative paths (/avatars/...). Prefix with the
 // API server origin so the browser doesn't resolve against the Nuxt dev port.
 const resolvedAvatarUrl = computed(() => {
   if (!props.avatarUrl) return undefined
