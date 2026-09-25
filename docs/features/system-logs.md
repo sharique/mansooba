@@ -192,6 +192,36 @@ itself happens in a fire-and-forget goroutine (`SystemLogService.Record`). A wri
 failure is independently observable via the application's existing structured
 (`zap`) logging, even though it never reaches System Logs itself.
 
+## Loki readiness in Compose
+
+The backend, Grafana and Alloy start only once Loki is ready. Loki 3.7+ ships no shell
+and no `wget`/`curl`, so Loki cannot run its own container healthcheck; a small
+`loki-ready` probe container (pinned `alpine`) polls `http://loki:3100/ready` from
+outside instead, and those three services depend on it (`compose.yml` and
+`compose.prod.yml`). If `docker compose ps` shows `loki` running but `loki-ready`
+unhealthy, Loki is not ready; check `docker compose logs loki`.
+
+## Upgrading Loki safely
+
+Before deploying a new Loki version to a host that already has System Logs data, take a
+snapshot of the data volume, because a downgrade after Loki has written data in a newer
+format may not be able to read it back:
+
+```bash
+# on the host, from the directory holding compose.prod.yml; <project> is usually "mansooba"
+docker compose -f compose.prod.yml stop loki alloy
+docker run --rm -v <project>_loki_data:/data -v "$PWD":/backup alpine:3.24.2 \
+  tar czf /backup/loki_data-$(date +%F).tgz -C /data .
+docker compose -f compose.prod.yml up -d
+```
+
+Loki 3.2.0 to 3.7.8 was verified with the project's own configuration: entries written
+before the upgrade stay readable in System Logs, new actions are recorded, and the
+retention override file keeps being synced. To roll back, re-pin the previous image tags,
+stop Loki, restore the snapshot into `loki_data`, and start it again. Loki 3.x also
+adds a `service_name` label to new streams automatically; the backend's
+`{app="mansooba"}` selectors ignore it (it only shows in Grafana's label browser).
+
 ## Health check
 
 Since Loki is this project's first new long-running service (previously, every

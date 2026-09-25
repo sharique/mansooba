@@ -19,7 +19,7 @@ services:
       # must match LOKI_RUNTIME_OVERRIDES_PATH in .env (user-data.sh).
       - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
     depends_on:
-      loki:
+      loki-ready:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
@@ -43,15 +43,29 @@ services:
   # service share ./loki/runtime-overrides.yaml (bind-mounted into both) so
   # the backend's retention-sync reconciler can write config Loki hot-reloads.
   loki:
-    image: grafana/loki:3.2.0
+    image: grafana/loki:3.7.8
     restart: unless-stopped
     command: -config.file=/etc/loki/local-config.yaml -runtime-config.file=/etc/loki/runtime-overrides.yaml
     volumes:
       - loki_data:/loki
       - ./loki/local-config.yaml:/etc/loki/local-config.yaml
       - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
+
+  # Loki 3.7+ ships no shell and no wget/curl, so it cannot run its own container
+  # healthcheck any more (the old `wget .../ready` probe fails with "executable
+  # not found" and marks Loki unhealthy, which would keep the backend from
+  # starting). This tiny probe container polls Loki's /ready from outside
+  # instead, and the services that must wait for a ready Loki (backend, Grafana,
+  # Alloy) depend on it. See ADR-034.
+  loki-ready:
+    image: alpine:3.24.2
+    restart: unless-stopped
+    command: ["tail", "-f", "/dev/null"]
+    depends_on:
+      loki:
+        condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      test: ["CMD", "wget", "-qO-", "http://loki:3100/ready"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -69,7 +83,7 @@ services:
   # (GF_SECURITY_ADMIN_USER/PASSWORD, written by user-data.sh) — see
   # docs/features/system-logs.md for how the password is provisioned.
   grafana:
-    image: grafana/grafana:11.2.0
+    image: grafana/grafana:13.2.2
     restart: unless-stopped
     profiles: ["observability"]
     env_file: .env
@@ -79,7 +93,7 @@ services:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
-      loki:
+      loki-ready:
         condition: service_healthy
 
   # See compose.yml's comment for the full rationale. Runs by default (not
@@ -88,7 +102,7 @@ services:
   # security group — reach it via an SSH tunnel if needed:
   #   ssh -L 12345:localhost:12345 ec2-user@<instance-ip>
   alloy:
-    image: grafana/alloy:v1.4.3
+    image: grafana/alloy:v1.20.0
     restart: unless-stopped
     command:
       - run
@@ -102,7 +116,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy_data:/var/lib/alloy/data
     depends_on:
-      loki:
+      loki-ready:
         condition: service_healthy
 
 volumes:
