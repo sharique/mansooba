@@ -216,7 +216,7 @@ A **Security Group** is AWS's firewall. You'll create two:
 2. Click **Create database**
 3. Choose **Standard create**
 4. Engine: **PostgreSQL**
-5. Engine Version: pick the latest **PostgreSQL 16.x**
+5. Engine Version: pick the latest **PostgreSQL 18.x**
 6. Templates: click **Free tier** (this auto-selects free options)
 7. Under **Settings**:
    - DB instance identifier: `mansooba-db`

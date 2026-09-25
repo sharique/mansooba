@@ -4,7 +4,7 @@
 
 | Layer | Technology |
 |-------|-----------|
-| Backend language | Go 1.25 |
+| Backend language | Go 1.27 |
 | Backend framework | Echo v4 |
 | ORM | GORM |
 | Databases | SQLite (dev default), PostgreSQL, MySQL / MariaDB |
@@ -125,8 +125,8 @@ GitHub Actions (`ci.yml`) runs three jobs on every push to `main`, `develop`, an
 
 | Job | Trigger | What |
 |-----|---------|------|
-| `test` | every push / PR | `go vet ./...` + `go test -race -count=1 ./...` (Go 1.25) |
-| `frontend` | every push / PR | `npm run typecheck` + `npm test` (Node 22) |
+| `test` | every push / PR | `go vet ./...` + `go test -race -count=1 ./...` (Go 1.27) |
+| `frontend` | every push / PR | `npm run typecheck` + `npm test` (Node 24) |
 | `build-and-push` | merge to `main` only | Docker Buildx → GHCR; tags `sha-<short>` + `latest` |
 
 Images published:
