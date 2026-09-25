@@ -32,7 +32,9 @@ systemctl start docker
 # Install Docker Compose v2 plugin
 COMPOSE_DIR=/usr/local/lib/docker/cli-plugins
 mkdir -p $COMPOSE_DIR
-curl -fsSL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64" \
+# Pinned (ADR-034). The instance ignores user_data changes (lifecycle.ignore_changes
+# in modules/compute), so this only affects instances created later.
+curl -fsSL "https://github.com/docker/compose/releases/download/v5.5.1/docker-compose-linux-x86_64" \
   -o "$COMPOSE_DIR/docker-compose"
 chmod +x "$COMPOSE_DIR/docker-compose"
 
