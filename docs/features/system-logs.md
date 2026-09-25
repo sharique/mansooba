@@ -210,7 +210,7 @@ format may not be able to read it back:
 ```bash
 # on the host, from the directory holding compose.prod.yml; <project> is usually "mansooba"
 docker compose -f compose.prod.yml stop loki alloy
-docker run --rm -v <project>_loki_data:/data -v "$PWD":/backup alpine:3.24.2 \
+docker run --rm -v <project>_loki_data:/data -v "$PWD":/backup alpine:3.24 \
   tar czf /backup/loki_data-$(date +%F).tgz -C /data .
 docker compose -f compose.prod.yml up -d
 ```

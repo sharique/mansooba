@@ -117,7 +117,7 @@ services:
   # the backend's retention-sync reconciler (systemlog_service.go) has a real
   # file to write into and Loki hot-reloads it without a restart.
   loki:
-    image: grafana/loki:3.7.8
+    image: grafana/loki:3.7
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml -runtime-config.file=/etc/loki/runtime-overrides.yaml
@@ -133,7 +133,7 @@ services:
   # instead, and the services that must wait for a ready Loki (backend, Grafana,
   # Alloy) depend on it. See ADR-034.
   loki-ready:
-    image: alpine:3.24.2
+    image: alpine:3.24
     command: ["tail", "-f", "/dev/null"]
     depends_on:
       loki:
@@ -156,7 +156,7 @@ services:
   # there's no manual setup after it starts. Default admin/admin credentials
   # are fine for local dev only — see compose.prod.yml for production.
   grafana:
-    image: grafana/grafana:13.2.2
+    image: grafana/grafana:13.2
     profiles: ["observability"]
     ports:
       - "3001:3000"
@@ -186,6 +186,7 @@ services:
   # docker-socket-proxy in front of it, but for a single-operator deployment
   # it's an accepted trade-off, the same one Alloy's own docs describe.
   alloy:
+    # Alloy publishes no minor-line tag (v1.20), so this pin is exact.
     image: grafana/alloy:v1.20.0
     command:
       - run

@@ -495,7 +495,7 @@ services:
         condition: service_healthy
 
   loki:
-    image: grafana/loki:3.7.8
+    image: grafana/loki:3.7
     restart: unless-stopped
     command: -config.file=/etc/loki/local-config.yaml -runtime-config.file=/etc/loki/runtime-overrides.yaml
     volumes:
@@ -507,7 +507,7 @@ services:
   # probe polls Loki's /ready from outside; the services that must wait for a ready
   # Loki depend on it.
   loki-ready:
-    image: alpine:3.24.2
+    image: alpine:3.24
     restart: unless-stopped
     command: ["tail", "-f", "/dev/null"]
     depends_on:
@@ -540,7 +540,7 @@ services:
   # Not opened to the internet in Step 3's firewall rules on purpose; you
   # reach it through an SSH tunnel instead.
   grafana:
-    image: grafana/grafana:13.2.2
+    image: grafana/grafana:13.2
     restart: unless-stopped
     profiles: ["observability"]
     env_file: .env

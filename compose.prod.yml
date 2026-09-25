@@ -43,7 +43,7 @@ services:
   # service share ./loki/runtime-overrides.yaml (bind-mounted into both) so
   # the backend's retention-sync reconciler can write config Loki hot-reloads.
   loki:
-    image: grafana/loki:3.7.8
+    image: grafana/loki:3.7
     restart: unless-stopped
     command: -config.file=/etc/loki/local-config.yaml -runtime-config.file=/etc/loki/runtime-overrides.yaml
     volumes:
@@ -58,7 +58,7 @@ services:
   # instead, and the services that must wait for a ready Loki (backend, Grafana,
   # Alloy) depend on it. See ADR-034.
   loki-ready:
-    image: alpine:3.24.2
+    image: alpine:3.24
     restart: unless-stopped
     command: ["tail", "-f", "/dev/null"]
     depends_on:
@@ -83,7 +83,7 @@ services:
   # (GF_SECURITY_ADMIN_USER/PASSWORD, written by user-data.sh) — see
   # docs/features/system-logs.md for how the password is provisioned.
   grafana:
-    image: grafana/grafana:13.2.2
+    image: grafana/grafana:13.2
     restart: unless-stopped
     profiles: ["observability"]
     env_file: .env
@@ -102,6 +102,7 @@ services:
   # security group — reach it via an SSH tunnel if needed:
   #   ssh -L 12345:localhost:12345 ec2-user@<instance-ip>
   alloy:
+    # Alloy publishes no minor-line tag (v1.20), so this pin is exact.
     image: grafana/alloy:v1.20.0
     restart: unless-stopped
     command:
