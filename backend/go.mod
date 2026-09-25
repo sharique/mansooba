@@ -1,6 +1,6 @@
 module github.com/sharique/mansooba
 
-go 1.25.9
+go 1.27.1
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.42.1

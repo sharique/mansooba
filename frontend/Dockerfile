@@ -1,5 +1,5 @@
 # ── builder ────────────────────────────────────────────────────────────────────
-FROM node:22-alpine AS builder
+FROM node:24.21.0-alpine3.24 AS builder
 
 WORKDIR /app
 
@@ -19,7 +19,7 @@ RUN npm run generate
 
 # ── final ──────────────────────────────────────────────────────────────────────
 # nginx:alpine serves the static Nuxt output and proxies /api/ to the backend.
-FROM nginx:1.27-alpine
+FROM nginx:1.30.5-alpine3.24
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/.output/public /usr/share/nginx/html

@@ -1,8 +1,9 @@
 # ── builder ────────────────────────────────────────────────────────────────────
-# golang:alpine tracks the latest stable Go release.
-# We need CGO for mattn/go-sqlite3 (wraps the C SQLite library), so we install
+# Pinned to an exact Go release (ADR-034: no floating tags). The version must
+# match the go directive in go.mod and the Go version in CI; scripts/verify-versions.sh
+# enforces that. We need CGO for mattn/go-sqlite3 (wraps the C SQLite library), so we install
 # gcc and musl-dev from the Alpine package index.
-FROM golang:alpine AS builder
+FROM golang:1.27.1-alpine3.24 AS builder
 
 ENV CGO_ENABLED=1
 
@@ -24,7 +25,7 @@ RUN go build -ldflags="-s -w" -o /app/server ./cmd/server
 # because Alpine ships no IANA timezone database at all — without it,
 # Go's time.LoadLocation() fails for every real zone name (only "UTC"
 # works), which is exactly what broke profile timezone updates.
-FROM alpine:3.19
+FROM alpine:3.24.2
 
 RUN apk add --no-cache ca-certificates tzdata
 
