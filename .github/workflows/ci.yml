@@ -14,7 +14,7 @@ jobs:
 
     strategy:
       matrix:
-        go: ["1.25.x"]
+        go: ["1.27.x"]
 
     # S3-backed storage tests (attachments, avatars) run against real
     # LocalStack — no mocks (Constitution Principle III).
