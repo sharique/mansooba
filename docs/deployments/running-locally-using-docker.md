@@ -266,14 +266,14 @@ The default `compose.yml` uses SQLite. Swap in a real database by running a Dock
 
 Spin up a database with a single `docker run` — no compose file needed:
 
-**PostgreSQL 16**
+**PostgreSQL 18**
 ```bash
 docker run --rm --name pg-local \
   -e POSTGRES_USER=mansooba \
   -e POSTGRES_PASSWORD=mansooba \
   -e POSTGRES_DB=mansooba \
   -p 5432:5432 \
-  postgres:17-alpine
+  postgres:18.6-alpine
 ```
 
 **MariaDB 11**
@@ -324,7 +324,7 @@ If you want Docker Compose to manage the database too, create a `compose.overrid
 ```yaml
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:18.6-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: mansooba
