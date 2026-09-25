@@ -43,7 +43,7 @@ func newIntegrationSetup(t *testing.T) (*echo.Echo, *handler.AuthHandler, *gorm.
 	userRepo := repository.NewUserRepository(db)
 	revokedRepo := repository.NewRevokedTokenRepository(db)
 	authSvc := service.NewAuthService(userRepo, revokedRepo, &stubSystemLogService{}, log, "test-secret-key", "15m", "168h")
-	userSvc := service.NewUserService(userRepo)
+	userSvc := service.NewUserService(userRepo, nil)
 	h := handler.NewAuthHandler(authSvc, userSvc)
 	e := newEcho()
 	return e, h, db

@@ -3,6 +3,7 @@ package attachmentstorage_test
 import (
 	"context"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -58,11 +59,21 @@ func newStorage(t *testing.T) *attachmentstorage.Storage {
 	// rather than failing with an opaque connection-refused error.
 	resp, err := http.Get("http://localhost:4566/_localstack/health")
 	if err != nil {
+		// CI sets REQUIRE_LOCALSTACK=1 so a missing LocalStack fails the build
+		// instead of letting every S3 test silently skip.
+		if os.Getenv("REQUIRE_LOCALSTACK") == "1" {
+			t.Fatalf("LocalStack required (REQUIRE_LOCALSTACK=1) but not reachable at localhost:4566: %v", err)
+		}
 		t.Skipf("LocalStack not reachable at localhost:4566 (%v) — run `docker compose up -d localstack localstack-init`", err)
 	}
 	resp.Body.Close()
 
 	return s
+}
+
+func TestClient_ReturnsNonNilClient(t *testing.T) {
+	s := newStorage(t)
+	assert.NotNil(t, s.Client())
 }
 
 func TestSave_ValidPNG(t *testing.T) {

@@ -45,7 +45,7 @@ Echo HTTP handlers that do three things only:
 
 ### `internal/pkg/avatarstorage/`
 
-Local-disk storage for avatar images. Avatars are saved under `uploads/` and served as unauthenticated static files (ADR-026). Separate from `pkg/storage/` because avatars do not need pre-signed URLs or S3.
+S3-backed storage for avatar images (spec 014, ADR-033). Implements the `domain.AvatarStore` port that `UserService` depends on. Avatars live in the same bucket as attachments under the `avatars/` prefix (`avatars/avatar-{userID}.{ext}`, one object per user) and share `attachmentstorage`'s S3 client. They are served by the backend at `GET /avatars/:filename` — unauthenticated, streamed from S3 — rather than via pre-signed URLs, because avatar URLs must be stable and the bucket blocks public policies. Kept separate from `attachmentstorage` because the validation policy differs (2 MB, JPEG/PNG/WebP only).
 
 ### `internal/pkg/rdsclient/`
 

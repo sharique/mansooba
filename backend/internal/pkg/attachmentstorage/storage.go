@@ -182,6 +182,12 @@ func New(cfg Config) (*Storage, error) {
 	}, nil
 }
 
+// Client returns the underlying S3 client so other storage packages (avatars)
+// can share one client for the same bucket instead of building their own.
+func (s *Storage) Client() *s3.Client {
+	return s.client
+}
+
 // Save validates data, writes it to S3 under a generated key within
 // keyPrefix, and returns that key. Returns an error if the file exceeds
 // maxBytes or the content type is not accepted.
