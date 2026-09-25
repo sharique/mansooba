@@ -68,14 +68,14 @@ block explaining its purpose).
 
 - An **AWS account** — [aws.amazon.com](https://aws.amazon.com) (free tier covers everything here)
 - **AWS CLI** installed and configured: `aws configure` (or `aws sso login` if your org uses SSO)
-- **Terraform** ≥ 1.7 installed — `brew install terraform` (Mac) or see [terraform.io/downloads](https://developer.hashicorp.com/terraform/install)
+- **Terraform** ≥ 1.15 installed — `brew install terraform` (Mac) or see [terraform.io/downloads](https://developer.hashicorp.com/terraform/install)
 
 ---
 
 ## Step 1 — Install Terraform and the AWS CLI
 
 ```bash
-terraform -version   # must be >= 1.7
+terraform -version   # must be >= 1.15
 aws --version
 aws sts get-caller-identity   # confirms your credentials actually work
 ```
