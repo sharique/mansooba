@@ -49,7 +49,7 @@ services:
     depends_on:
       localstack-init:
         condition: service_completed_successfully
-      loki:
+      loki-ready:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
@@ -117,7 +117,7 @@ services:
   # the backend's retention-sync reconciler (systemlog_service.go) has a real
   # file to write into and Loki hot-reloads it without a restart.
   loki:
-    image: grafana/loki:3.2.0
+    image: grafana/loki:3.7
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml -runtime-config.file=/etc/loki/runtime-overrides.yaml
@@ -125,8 +125,21 @@ services:
       - loki_data:/loki
       - ./loki/local-config.yaml:/etc/loki/local-config.yaml
       - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
+
+  # Loki 3.7+ ships no shell and no wget/curl, so it cannot run its own container
+  # healthcheck any more (the old `wget .../ready` probe fails with "executable
+  # not found" and marks Loki unhealthy, which would keep the backend from
+  # starting). This tiny probe container polls Loki's /ready from outside
+  # instead, and the services that must wait for a ready Loki (backend, Grafana,
+  # Alloy) depend on it. See ADR-034.
+  loki-ready:
+    image: alpine:3.24
+    command: ["tail", "-f", "/dev/null"]
+    depends_on:
+      loki:
+        condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      test: ["CMD", "wget", "-qO-", "http://loki:3100/ready"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -143,7 +156,7 @@ services:
   # there's no manual setup after it starts. Default admin/admin credentials
   # are fine for local dev only — see compose.prod.yml for production.
   grafana:
-    image: grafana/grafana:11.2.0
+    image: grafana/grafana:13.2
     profiles: ["observability"]
     ports:
       - "3001:3000"
@@ -155,7 +168,7 @@ services:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
-      loki:
+      loki-ready:
         condition: service_healthy
 
   # Ships raw container stdout/stderr (crashes, panics, startup noise) into
@@ -173,7 +186,8 @@ services:
   # docker-socket-proxy in front of it, but for a single-operator deployment
   # it's an accepted trade-off, the same one Alloy's own docs describe.
   alloy:
-    image: grafana/alloy:v1.4.3
+    # Alloy publishes no minor-line tag (v1.20), so this pin is exact.
+    image: grafana/alloy:v1.20.0
     command:
       - run
       - --server.http.listen-addr=0.0.0.0:12345
@@ -186,7 +200,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy_data:/var/lib/alloy/data
     depends_on:
-      loki:
+      loki-ready:
         condition: service_healthy
 
 volumes:

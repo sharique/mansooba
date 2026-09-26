@@ -476,7 +476,7 @@ services:
     volumes:
       - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
     depends_on:
-      loki:
+      loki-ready:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
@@ -495,22 +495,33 @@ services:
         condition: service_healthy
 
   loki:
-    image: grafana/loki:3.2.0
+    image: grafana/loki:3.7
     restart: unless-stopped
     command: -config.file=/etc/loki/local-config.yaml -runtime-config.file=/etc/loki/runtime-overrides.yaml
     volumes:
       - loki_data:/loki
       - ./loki/local-config.yaml:/etc/loki/local-config.yaml
       - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
+
+  # Loki 3.7+ has no shell or wget, so it cannot run its own healthcheck. This tiny
+  # probe polls Loki's /ready from outside; the services that must wait for a ready
+  # Loki depend on it.
+  loki-ready:
+    image: alpine:3.24
+    restart: unless-stopped
+    command: ["tail", "-f", "/dev/null"]
+    depends_on:
+      loki:
+        condition: service_started
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3100/ready"]
+      test: ["CMD", "wget", "-qO-", "http://loki:3100/ready"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 10s
 
   alloy:
-    image: grafana/alloy:v1.4.3
+    image: grafana/alloy:v1.20.0
     restart: unless-stopped
     command:
       - run
@@ -522,14 +533,14 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - alloy_data:/var/lib/alloy/data
     depends_on:
-      loki:
+      loki-ready:
         condition: service_healthy
 
   # Optional — see the note after this script for how to turn this on.
   # Not opened to the internet in Step 3's firewall rules on purpose; you
   # reach it through an SSH tunnel instead.
   grafana:
-    image: grafana/grafana:11.2.0
+    image: grafana/grafana:13.2
     restart: unless-stopped
     profiles: ["observability"]
     env_file: .env
@@ -539,7 +550,7 @@ services:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     depends_on:
-      loki:
+      loki-ready:
         condition: service_healthy
 
 volumes:
