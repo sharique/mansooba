@@ -19,9 +19,14 @@ Use this guide when you want a tight Go + Node dev loop without building Docker 
 
 ## Prerequisites
 
-- Go 1.21+
-- Node 22 + npm 10
+- Go 1.27 (the version declared in `backend/go.mod`; it wins over whatever you have installed)
+- Node 24 LTS + npm 11 (the version declared in `frontend/.nvmrc`)
 - Docker (for Mailpit; needed for password-reset email in dev)
+
+> **Go toolchain:** Go downloads the toolchain named in `go.mod` automatically only when
+> `GOTOOLCHAIN` is `auto` (the default). If your machine sets `GOTOOLCHAIN=local`, either
+> install that Go release or switch it (`go env -w GOTOOLCHAIN=auto`); otherwise builds fail with
+> "go.mod requires go >= 1.27 (running go 1.2x; GOTOOLCHAIN=local)".
 
 ---
 

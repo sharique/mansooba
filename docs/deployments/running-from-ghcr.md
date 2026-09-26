@@ -47,7 +47,7 @@ Create a `compose.quickstart.yml` anywhere:
 ```yaml
 services:
   localstack:
-    image: localstack/localstack:3.8
+    image: localstack/localstack:4.14.0
     ports:
       - "4566:4566"
     environment:
@@ -221,7 +221,7 @@ Create `compose.override.yml` in the same directory:
 ```yaml
 services:
   db:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: mansooba
@@ -236,7 +236,7 @@ services:
       retries: 10
 
   localstack:
-    image: localstack/localstack:3.8
+    image: localstack/localstack:4.14.0
     restart: unless-stopped
     ports:
       - "4566:4566"
