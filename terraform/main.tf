@@ -1,15 +1,15 @@
 # ── Terraform Configuration ───────────────────────────────────────────────────
-# Requires Terraform >= 1.7 for the templatefile() built-in used in the
-# compute module's user_data argument.
+# Requires Terraform >= 1.15 (ADR-034: 1.14 and older are past end of life). The
+# compute module's user_data argument uses the templatefile() built-in.
 # State is stored locally (terraform.tfstate). For team use, migrate to an
 # S3 backend with DynamoDB locking — see terraform/README.md.
 
 terraform {
-  required_version = ">= 1.7"
+  required_version = ">= 1.15"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.0"
     }
     random = {
       source  = "hashicorp/random"
