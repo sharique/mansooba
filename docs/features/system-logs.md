@@ -249,6 +249,15 @@ See [api.md](../arch/api.md). Key route:
   `q`, `page`, `size`. Returns `{entries, total, page, size}`, matching the shape of
   the existing `GET /admin/users` endpoint.
 
+## Licensing
+
+Grafana, Loki and Alloy — the optional components this feature runs — are
+separate, unmodified programs of their own, each also licensed under
+AGPL-3.0 by their own maintainers. They run as their own containers
+alongside the backend and are not linked into it or distributed with it.
+Mansooba neither modifies them nor takes on their network-service
+obligations on their behalf; see `NOTICE` at the repository root.
+
 ## Related decisions
 
 (In the docs repo, `sharique/mansooba-docs` — this is a separate git tree from

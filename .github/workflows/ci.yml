@@ -39,6 +39,12 @@ jobs:
       - name: Verify pinned versions
         run: scripts/verify-versions.sh
 
+      # Fails if LICENSE/NOTICE/README/manifests disagree, or any of them still
+      # says the project is unlicensed or undecided (the licence must be stated consistently everywhere).
+      # Read-only, no network.
+      - name: Verify licence statements
+        run: scripts/check-license-statements.sh
+
       - uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}

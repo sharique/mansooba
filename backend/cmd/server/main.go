@@ -2,6 +2,8 @@
 // @version         1.0
 // @description     Mini Jira clone REST API
 // @BasePath        /api/v1
+// @license.name    AGPL-3.0-only
+// @license.url     https://www.gnu.org/licenses/agpl-3.0.html
 // @securityDefinitions.apikey BearerAuth
 // @in              header
 // @name            Authorization

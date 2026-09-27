@@ -4,6 +4,10 @@
         "description": "Mini Jira clone REST API",
         "title": "jira-go API",
         "contact": {},
+        "license": {
+            "name": "AGPL-3.0-only",
+            "url": "https://www.gnu.org/licenses/agpl-3.0.html"
+        },
         "version": "1.0"
     },
     "basePath": "/api/v1",

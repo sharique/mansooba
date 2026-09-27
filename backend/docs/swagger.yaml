@@ -387,6 +387,9 @@ definitions:
 info:
   contact: {}
   description: Mini Jira clone REST API
+  license:
+    name: AGPL-3.0-only
+    url: https://www.gnu.org/licenses/agpl-3.0.html
   title: jira-go API
   version: "1.0"
 paths:
