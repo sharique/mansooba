@@ -186,6 +186,12 @@ SMTP_PASS=$${SMTP_PASS}
 # Used to construct clickable password-reset URLs in emails.
 # Update to your custom domain if you add one later.
 APP_BASE_URL=$${APP_BASE_URL}
+
+# ── Licensing (016-agpl-dual-licensing) ────────────────────────────────────────
+# Not set here: SOURCE_CODE_URL defaults to the project's public repository,
+# which is correct for an unmodified deployment. If you deploy a MODIFIED
+# version of Mansooba as a network service, add SOURCE_CODE_URL=<your fork>
+# above — that's the AGPL-3.0 section 13 obligation this setting exists for.
 EOF
 
 chmod 600 /opt/mansooba/.env

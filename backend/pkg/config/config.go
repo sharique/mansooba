@@ -1,11 +1,17 @@
 package config
 
 import (
+	"fmt"
 	"log"
+	"net/url"
 	"strings"
 
 	"github.com/spf13/viper"
 )
+
+// defaultSourceCodeURL is the project's own public repository, used when
+// SOURCE_CODE_URL is unset or empty.
+const defaultSourceCodeURL = "https://github.com/sharique/mansooba"
 
 // Config holds all application configuration loaded from environment variables.
 type Config struct {
@@ -97,6 +103,12 @@ type Config struct {
 	LokiBaseURL               string `mapstructure:"LOKI_BASE_URL"`
 	LokiRuntimeOverridesPath  string `mapstructure:"LOKI_RUNTIME_OVERRIDES_PATH"`
 	LokiRetentionSyncInterval string `mapstructure:"LOKI_RETENTION_SYNC_INTERVAL"`
+
+	// SourceCodeURL is where this instance's source is published, shown to
+	// every user. An operator
+	// running a modified version sets it to their own fork; validated by
+	// ValidateSourceCodeURL, called from main.go after Load().
+	SourceCodeURL string `mapstructure:"SOURCE_CODE_URL"`
 }
 
 // Load reads configuration from a .env file and environment variables.
@@ -148,6 +160,7 @@ func Load() *Config {
 	viper.SetDefault("LOKI_BASE_URL", "http://localhost:3100")
 	viper.SetDefault("LOKI_RUNTIME_OVERRIDES_PATH", "./loki/runtime-overrides.yaml")
 	viper.SetDefault("LOKI_RETENTION_SYNC_INTERVAL", "1m")
+	viper.SetDefault("SOURCE_CODE_URL", defaultSourceCodeURL)
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
@@ -168,6 +181,35 @@ func Load() *Config {
 	}
 
 	return cfg
+}
+
+// ValidateSourceCodeURL resolves and validates the SOURCE_CODE_URL setting
+// An empty value — unset, or set
+// to an empty or blank string — resolves to the project's public
+// repository. Otherwise the value must be an absolute http/https URL, at
+// most 2048 characters, with no embedded userinfo, so the frontend never
+// renders an unsafe or misleading link.
+func ValidateSourceCodeURL(raw string) (string, error) {
+	if strings.TrimSpace(raw) == "" {
+		return defaultSourceCodeURL, nil
+	}
+	if len(raw) > 2048 {
+		return "", fmt.Errorf("SOURCE_CODE_URL is too long (%d characters, max 2048)", len(raw))
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return "", fmt.Errorf("SOURCE_CODE_URL is not a valid URL: %w", err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return "", fmt.Errorf("SOURCE_CODE_URL must be an http or https URL, got scheme %q", u.Scheme)
+	}
+	if u.Host == "" {
+		return "", fmt.Errorf("SOURCE_CODE_URL has no host")
+	}
+	if u.User != nil {
+		return "", fmt.Errorf("SOURCE_CODE_URL must not contain embedded credentials")
+	}
+	return raw, nil
 }
 
 // isFalsey reports whether v is an explicit, recognized "disable" value

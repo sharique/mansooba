@@ -1,8 +1,10 @@
 # ── builder ────────────────────────────────────────────────────────────────────
-# Pinned to an exact Go release (ADR-034: no floating tags). The version must
-# match the go directive in go.mod and the Go version in CI; scripts/verify-versions.sh
-# enforces that. We need CGO for mattn/go-sqlite3 (wraps the C SQLite library), so we install
-# gcc and musl-dev from the Alpine package index.
+# Pinned to the Go release line (not an exact patch — a rebuild picks up patch
+# and security releases; no floating tags).
+# The line must match the go directive in go.mod and the Go version in CI;
+# scripts/verify-versions.sh enforces that. We need CGO for mattn/go-sqlite3
+# (wraps the C SQLite library), so we install gcc and musl-dev from the
+# Alpine package index.
 FROM golang:1.27-alpine3.24 AS builder
 
 ENV CGO_ENABLED=1
@@ -17,7 +19,11 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN go build -ldflags="-s -w" -o /app/server ./cmd/server
+# APP_VERSION is baked into the binary, so
+# a user can find the matching source for what they're running via
+# GET /api/v1/about. Defaults to "dev" for a local, non-CI build.
+ARG APP_VERSION=dev
+RUN go build -ldflags="-s -w -X main.version=${APP_VERSION}" -o /app/server ./cmd/server
 
 # ── final ──────────────────────────────────────────────────────────────────────
 # Alpine keeps the image small (~10 MB). ca-certificates is needed for any

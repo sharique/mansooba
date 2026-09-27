@@ -430,6 +430,11 @@ APP_BASE_URL=FILL_IN_LATER
 CORS_ORIGINS=FILL_IN_LATER
 REVOKED_TOKEN_CLEANUP_INTERVAL=15m
 
+# Where this instance's source is published, shown to every user (016-agpl-
+# dual-licensing, AGPL-3.0 section 13). The default is fine unless you've
+# modified the code — then point this at your own fork instead.
+# SOURCE_CODE_URL=https://github.com/sharique/mansooba
+
 # System Logs — a durable audit trail (logins, admin actions, settings
 # changes) backed by Grafana Loki, started automatically below. Recommended:
 # it's what makes "who changed this setting, and when" answerable at all.
