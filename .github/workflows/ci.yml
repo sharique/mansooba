@@ -8,6 +8,17 @@ on:
     branches: ["main", "develop"]
 
 jobs:
+  # Fails if LICENSE/NOTICE/README/manifests disagree, or any of them still
+  # says the project is unlicensed or undecided (the licence must be stated
+  # consistently everywhere). Read-only, no network. A job of its own so it
+  # shows as its own check on a pull request.
+  licence-statements:
+    name: Verify licence statements
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: scripts/check-license-statements.sh
+
   test:
     name: Test (Go ${{ matrix.go }})
     runs-on: ubuntu-26.04
@@ -38,12 +49,6 @@ jobs:
       # between places that must agree (ADR-034). Read-only, no network.
       - name: Verify pinned versions
         run: scripts/verify-versions.sh
-
-      # Fails if LICENSE/NOTICE/README/manifests disagree, or any of them still
-      # says the project is unlicensed or undecided (the licence must be stated consistently everywhere).
-      # Read-only, no network.
-      - name: Verify licence statements
-        run: scripts/check-license-statements.sh
 
       - uses: actions/setup-go@v7
         with:

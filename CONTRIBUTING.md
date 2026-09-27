@@ -6,13 +6,19 @@ Always welcome — please open an issue. No agreement needed for these.
 
 ## Code contributions
 
-**Not merged yet.** Mansooba is licensed under AGPL-3.0-only, with the
-option to offer a commercial license in future (see
-[NOTICE](NOTICE)). Keeping that option open means every code
-contribution needs a signed contributor license agreement first, and that
-mechanism is not yet operational. Open an issue to discuss an idea in the
-meantime; once the agreement process is live, this section will explain how
-to sign it and pull requests will be accepted.
+Mansooba is licensed under AGPL-3.0-only, with the option to offer a
+commercial license in future (see [NOTICE](NOTICE)). Keeping
+that option open means every code contribution needs a one-time signature
+of [CLA.md](CLA.md) before it can be merged — get your employer's
+permission first if their policies require it.
+
+To sign: open your pull request as usual. The `CLA` check will comment
+with the exact sentence to post as a comment on that pull request:
+
+> I have read the CLA Document and I hereby sign the CLA
+
+You only need to do this once; later pull requests won't ask again unless
+the agreement's version changes. Issues and ideas need no agreement.
 
 ## Running the tests
 
