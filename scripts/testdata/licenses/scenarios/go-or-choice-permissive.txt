@@ -1,0 +1,1 @@
+fixture.example/dualdep@v1.0.0: MIT, GPL-2.0 (allowed)

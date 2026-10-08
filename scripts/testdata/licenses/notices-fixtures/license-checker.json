@@ -1,0 +1,11 @@
+{
+  "good-pkg-a@1.0.0": {
+    "licenses": "MIT",
+    "repository": "https://example.com/a",
+    "licenseFile": "@FIXTURES@/notices-fixtures/fake-license-files/good-pkg-a/LICENSE"
+  },
+  "no-license-file-pkg@0.0.740": {
+    "licenses": "MIT",
+    "repository": "https://example.com/no-license-file-pkg"
+  }
+}

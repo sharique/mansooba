@@ -1,0 +1,2 @@
+fixture.example/permdep|v1.0.0|MIT|@FIXTURES@/notices-fixtures/fake-license-files/permdep/LICENSE
+fixture.example/otherdep|v2.3.4|Apache-2.0|@FIXTURES@/notices-fixtures/fake-license-files/otherdep/LICENSE

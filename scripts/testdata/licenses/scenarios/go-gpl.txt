@@ -1,0 +1,1 @@
+fixture.example/gpldep@v0.0.0: GPL-3.0 (not allowed - non-permitted licenses: [GPL-3.0])

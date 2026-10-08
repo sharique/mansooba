@@ -1,0 +1,7 @@
+# Component-specific licence exceptions. Each line covers exactly the named component and licence — it
+# never widens the allow-list, and an exception for one component or licence
+# does not help a different one. Format:
+#
+#   <component> <version-or-*> <SPDX id>  # reason, date, who decided
+#
+# Currently empty: no exception has been needed yet.
