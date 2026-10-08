@@ -86,3 +86,14 @@ Other ways to run:
 | [System logs](docs/features/system-logs.md) | Grafana Loki-backed audit trail for auth, admin actions, settings changes, and DB lifecycle events |
 | [Setup wizard](docs/features/setup.md) | First-run wizard flow, sample data import, and seed CLI |
 | [First-run wizard guide](docs/features/first-run-wizard.md) | Step-by-step wizard reference with DEMO conflict, retry behaviour, and CLI output |
+
+## Contributing
+
+Bug reports, questions and ideas are always welcome — please open an issue.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how code contributions work.
+
+## License
+
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only).
+The owner may offer this software under separate commercial terms in the future; no such offer exists today.
+See [NOTICE](NOTICE) for the copyright notice and third-party licensing information.
