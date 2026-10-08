@@ -75,6 +75,61 @@ if [[ -z "$swagger_license" ]]; then fail manifest-mismatch "backend/docs/swagge
 elif [[ "$swagger_license" != "AGPL-3.0-only" ]]; then fail manifest-mismatch "backend/docs/swagger.json info.license.name is '$swagger_license', want AGPL-3.0-only" "backend/docs/swagger.json"
 fi
 
+# ── The CLA (CLA.md, CONTRIBUTING.md's process, cla.yml) is optional overall —
+# a tree from before US2 landed has none of it, and that is a valid state —
+# but once any one piece of it exists, all of it must, and consistently.
+cla="$ROOT/CLA.md"
+claw="$ROOT/.github/workflows/cla.yml"
+contributing="$ROOT/CONTRIBUTING.md"
+cla_expected=0
+[[ -f "$cla" ]] && cla_expected=1
+[[ -f "$claw" ]] && cla_expected=1
+
+if [[ "$cla_expected" == 1 ]]; then
+
+# ── CLA.md: present, and covers the required terms and version marker ──────────
+if [[ ! -f "$cla" ]]; then
+  fail missing-file "CLA.md does not exist" "CLA.md"
+else
+  for term in retain sublicense relicense patent employer individual; do
+    grep -qi "$term" "$cla" || fail cla-incomplete "missing the term '$term'" "CLA.md"
+  done
+  grep -q 'Version 1' "$cla" || fail cla-incomplete "missing the 'Version 1' marker" "CLA.md"
+fi
+
+# ── CONTRIBUTING.md: mentions CLA.md and no longer defers to it ────────────────
+if [[ -f "$contributing" ]]; then
+  grep -qi 'CLA\.md' "$contributing" || fail contributing-incomplete "does not mention CLA.md" "CONTRIBUTING.md"
+  grep -qi 'not merged yet' "$contributing" && fail contributing-incomplete "still says code contributions are not merged yet" "CONTRIBUTING.md"
+fi
+
+# ── cla.yml: present, and safe for a pull_request_target workflow ──────────────
+if [[ ! -f "$claw" ]]; then
+  fail missing-file ".github/workflows/cla.yml does not exist" ".github/workflows/cla.yml"
+else
+  grep -q 'pull_request_target:' "$claw" || fail cla-workflow-unsafe "does not trigger on pull_request_target" ".github/workflows/cla.yml"
+  grep -q 'issue_comment:' "$claw" || fail cla-workflow-unsafe "does not trigger on issue_comment" ".github/workflows/cla.yml"
+  grep -q 'actions/checkout' "$claw" && fail cla-workflow-unsafe "checks out the pull request's code (unsafe under pull_request_target)" ".github/workflows/cla.yml"
+  # permissions: block must declare only contents/pull-requests/statuses/actions
+  if command -v yq >/dev/null 2>&1; then
+    extra="$(yq -r '.permissions // {} | keys | .[]' "$claw" 2>/dev/null | grep -vE '^(contents|pull-requests|statuses|actions)$' || true)"
+  else
+    # No yq: fall back to a line-based scan of the top-level permissions block.
+    extra="$(awk '/^permissions:/{p=1;next} p && /^[a-zA-Z]/{p=0} p && /^[[:space:]]+[a-zA-Z_-]+:/{gsub(/:.*/,"");gsub(/^[[:space:]]+/,"");print}' "$claw" \
+      | grep -vE '^(contents|pull-requests|statuses|actions)$' || true)"
+  fi
+  [[ -z "$extra" ]] || fail cla-workflow-unsafe "permissions include more than contents/pull-requests/statuses/actions: $(printf '%s' "$extra" | tr '\n' ',')" ".github/workflows/cla.yml"
+  # The action must be referenced by a full 40-hex commit SHA, not a tag.
+  action_ref="$(grep -oE 'step-security/contributor-assistant-github-action@[^[:space:]]+' "$claw" | head -1 | cut -d@ -f2)"
+  if [[ -z "$action_ref" ]]; then
+    fail cla-workflow-unsafe "does not reference step-security/contributor-assistant-github-action" ".github/workflows/cla.yml"
+  elif ! [[ "$action_ref" =~ ^[0-9a-f]{40}$ ]]; then
+    fail cla-workflow-unsafe "references the CLA action by '$action_ref', not a full 40-hex commit SHA" ".github/workflows/cla.yml"
+  fi
+fi
+
+fi # cla_expected
+
 # ── No stale "unlicensed / undecided" statement in a plausible place ───────────
 scanned=("$readme" "$notice" "$ROOT/LICENSE" "$ROOT/CONTRIBUTING.md")
 shopt -s nullglob

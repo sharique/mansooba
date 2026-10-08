@@ -1,0 +1,10 @@
+# actionlint config. ubuntu-26.04 is a real GitHub-hosted runner label (it
+# became generally available in September 2026, and CI has run on it
+# successfully since PRs #90-#93), but actionlint v1.7.12
+# (released 2026-03-30, before that GA) does not yet recognize it and would
+# otherwise report "label is unknown". This is the tool's own documented
+# workaround for a runner label newer than its bundled list, not a statement
+# that ubuntu-26.04 is a self-hosted runner.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04

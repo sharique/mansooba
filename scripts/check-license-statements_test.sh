@@ -67,6 +67,52 @@ Nothing licence-related to see here.
 EOF
 }
 
+# Adds a valid CLA.md, cla.yml and the post-CLA CONTRIBUTING.md to an
+# already-good tree.
+add_cla_files() {
+  local r="$1"
+  mkdir -p "$r/.github/workflows"
+  cat > "$r/CLA.md" <<'EOF'
+# Contributor License Agreement (Version 1)
+
+By signing, you (an **individual** contributor) confirm you have the right
+to contribute this work, including any needed permission from your
+**employer**. You **retain** your copyright, and grant the project owner a
+perpetual, worldwide, royalty-free right to use, modify, distribute,
+**sublicense** and **relicense** your contribution under any terms,
+including commercial ones, together with a **patent** licence for it.
+EOF
+  cat > "$r/CONTRIBUTING.md" <<'EOF'
+# Contributing
+
+Bug reports, questions and ideas are always welcome via issues.
+
+Code contributions need a one-time signature of [CLA.md](CLA.md); the CLA
+check comments with the exact sentence to post.
+EOF
+  cat > "$r/.github/workflows/cla.yml" <<'EOF'
+name: CLA
+on:
+  pull_request_target:
+    types: [opened, synchronize, closed]
+  issue_comment:
+    types: [created]
+permissions:
+  contents: write
+  pull-requests: write
+  statuses: write
+  actions: write
+jobs:
+  cla:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: step-security/contributor-assistant-github-action@b9bd60bf1b766fa48dae03427059187137236239
+        with:
+          path-to-signatures: signatures/v1/cla.json
+          branch: cla-signatures
+EOF
+}
+
 # run_case <name> <expected exit> <expected output substring or ""> <mutation shell snippet using $R>
 run_case() {
   local name="$1" want_code="$2" want_text="$3" mutate="$4"
@@ -109,6 +155,41 @@ run_case "'undecided' in a scanned doc is rejected"            1 "FAIL stale-sta
 run_case "'no license' in README is rejected"                  1 "FAIL stale-statement" "printf '\\nThis project has no license yet.\\n' >> README.md"
 run_case "'unlicensed' in NOTICE is rejected"                  1 "FAIL stale-statement" "printf '\\nThis is unlicensed software.\\n' >> NOTICE"
 run_case "the word appearing outside the scanned set is ignored" 0 "OK: all licence statements agree" "mkdir -p unrelated && printf 'this word is undecided here but nobody looks\\n' > unrelated/notes.md"
+
+# run_case_cla <name> <expected exit> <expected output substring> <mutation using $R, applied after add_cla_files>
+run_case_cla() {
+  local name="$1" want_code="$2" want_text="$3" mutate="$4"
+  local R="$WORK/cla-$passed-$failed"
+  rm -rf "$R"; make_good_tree "$R"; add_cla_files "$R"
+  if [[ -n "$mutate" ]]; then ( cd "$R" && eval "$mutate" ); fi
+  local out code
+  out="$(VERIFY_ROOT="$R" "$CHECKER" 2>&1)"; code=$?
+  if [[ "$code" == "$want_code" && ( -z "$want_text" || "$out" == *"$want_text"* ) ]]; then
+    printf 'ok   %s\n' "$name"; passed=$((passed+1))
+  else
+    printf 'FAIL %s\n     want exit %s containing "%s"; got exit %s\n     output: %s\n' \
+      "$name" "$want_code" "$want_text" "$code" "$(printf '%s' "$out" | head -5 | tr '\n' '|')"
+    failed=$((failed+1))
+  fi
+}
+
+run_case_cla "good tree with CLA files passes"                     0 "OK: all licence statements agree" ""
+run_case_cla "missing CLA.md is rejected"                          1 "FAIL missing-file" "rm CLA.md"
+run_case_cla "CLA.md missing 'retain' is rejected"                 1 "FAIL cla-incomplete" "sed -i 's/\\*\\*retain\\*\\*/keep/' CLA.md"
+run_case_cla "CLA.md missing 'sublicense' is rejected"             1 "FAIL cla-incomplete" "sed -i 's/\\*\\*sublicense\\*\\*/share/' CLA.md"
+run_case_cla "CLA.md missing 'relicense' is rejected"              1 "FAIL cla-incomplete" "sed -i 's/\\*\\*relicense\\*\\*/reoffer/' CLA.md"
+run_case_cla "CLA.md missing 'patent' is rejected"                 1 "FAIL cla-incomplete" "sed -i 's/\\*\\*patent\\*\\*/idea/' CLA.md"
+run_case_cla "CLA.md missing 'employer' is rejected"               1 "FAIL cla-incomplete" "sed -i 's/\\*\\*employer\\*\\*/company/' CLA.md"
+run_case_cla "CLA.md missing 'individual' is rejected"             1 "FAIL cla-incomplete" "sed -i 's/\\*\\*individual\\*\\*/person/' CLA.md"
+run_case_cla "CLA.md missing the version marker is rejected"      1 "FAIL cla-incomplete" "sed -i 's/(Version 1)//' CLA.md"
+run_case_cla "CONTRIBUTING.md not mentioning CLA.md is rejected"   1 "FAIL contributing-incomplete" "sed -i 's/\\[CLA.md\\](CLA.md)/the agreement/' CONTRIBUTING.md"
+run_case_cla "CONTRIBUTING.md still saying 'not merged yet' is rejected" 1 "FAIL contributing-incomplete" "printf '\\ncode contributions are not merged yet.\\n' >> CONTRIBUTING.md"
+run_case_cla "cla.yml missing pull_request_target is rejected"     1 "FAIL cla-workflow-unsafe" "sed -i '/pull_request_target:/,+2d' .github/workflows/cla.yml"
+run_case_cla "cla.yml missing issue_comment is rejected"           1 "FAIL cla-workflow-unsafe" "sed -i '/issue_comment:/,+1d' .github/workflows/cla.yml"
+run_case_cla "cla.yml with an extra permission is rejected"        1 "FAIL cla-workflow-unsafe" "sed -i 's/actions: write/actions: write\\n  id-token: write/' .github/workflows/cla.yml"
+run_case_cla "cla.yml with an actions/checkout step is rejected"   1 "FAIL cla-workflow-unsafe" "sed -i '/steps:/a\\      - uses: actions/checkout@v7' .github/workflows/cla.yml"
+run_case_cla "cla.yml referencing the action by a tag is rejected" 1 "FAIL cla-workflow-unsafe" "sed -i 's/@b9bd60bf1b766fa48dae03427059187137236239/@v2.6.1/' .github/workflows/cla.yml"
+
 # Every problem is reported, not just the first.
 R2="$WORK/multi"; make_good_tree "$R2"
 ( cd "$R2" && rm LICENSE && sed -i 's/AGPL-3.0-only/MIT/' frontend/package.json )
