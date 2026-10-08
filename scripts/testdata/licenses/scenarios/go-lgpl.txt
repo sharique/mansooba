@@ -1,0 +1,1 @@
+fixture.example/lgpldep@v0.0.0: LGPL-3.0 (not allowed - non-permitted licenses: [LGPL-3.0])

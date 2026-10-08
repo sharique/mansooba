@@ -1,0 +1,1 @@
+fixture.example/gpl2dep@v1.0.0: GPL-2.0 (not allowed - non-permitted licenses: [GPL-2.0])

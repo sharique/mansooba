@@ -35,8 +35,14 @@ FROM alpine:3.24
 
 RUN apk add --no-cache ca-certificates tzdata
 
+LABEL org.opencontainers.image.licenses="AGPL-3.0-only"
+LABEL org.opencontainers.image.source="https://github.com/sharique/mansooba"
+
 WORKDIR /app
 COPY --from=builder /app/server .
+# Populated at CI build time by scripts/generate-notices.sh;
+# the placeholder keeps `docker compose build` working locally.
+COPY legal/ /licenses/
 
 EXPOSE 8080
 CMD ["./server"]

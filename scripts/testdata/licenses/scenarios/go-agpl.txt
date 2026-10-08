@@ -1,0 +1,1 @@
+fixture.example/agpldep@v0.0.0: AGPL-3.0 (not allowed - non-permitted licenses: [AGPL-3.0])

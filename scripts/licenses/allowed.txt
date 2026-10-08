@@ -1,0 +1,22 @@
+# SPDX identifiers this project treats as compatible with AGPL-3.0-only and
+# with a future commercial licence. Adding an identifier here is a deliberate, reviewed change — it is
+# not an audit result, it is a policy decision.
+#
+# Deliberately absent: the LGPL family. LGPL expects a user to be able to
+# relink a different version of the library, which is hard to guarantee once
+# everything is statically linked into one Go binary, so each LGPL dependency
+# needs its own reasoned exception in exceptions.txt rather than a blanket
+# allow or block.
+MIT
+ISC
+Apache-2.0
+BSD-2-Clause
+BSD-3-Clause
+0BSD
+MPL-2.0
+BlueOak-1.0.0
+CC0-1.0
+CC-BY-3.0
+CC-BY-4.0
+Python-2.0
+Unlicense

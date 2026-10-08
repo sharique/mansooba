@@ -1,0 +1,1 @@
+fixture.example/nolicensedep@v0.0.0: Unknown (not allowed - non-permitted licenses: [Unknown])

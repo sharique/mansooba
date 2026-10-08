@@ -1,0 +1,4 @@
+{
+  "good-pkg-a@1.0.0": { "licenses": "MIT", "repository": "https://example.com/a" },
+  "bad-pkg@1.0.0": { "licenses": "UNLICENSED", "repository": "https://example.com/bad-pkg" }
+}

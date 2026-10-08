@@ -1,0 +1,4 @@
+{
+  "good-pkg-a@1.0.0": { "licenses": "MIT", "repository": "https://example.com/a" },
+  "good-pkg-b@2.1.0": { "licenses": "Apache-2.0", "repository": "https://example.com/b" }
+}

@@ -1,0 +1,1 @@
+fixture.example/ssrvdep@v1.2.3: SSPL-1.0 (not allowed - non-permitted licenses: [SSPL-1.0])
