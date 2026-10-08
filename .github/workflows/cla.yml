@@ -41,6 +41,4 @@ jobs:
           path-to-signatures: "signatures/v1/cla.json"
           branch: "cla-signatures"
           allowlist: "sharique,bot*"
-          remote-organization-name: "sharique"
-          remote-repository-name: "mansooba"
           lock-pullrequest-aftermerge: false
