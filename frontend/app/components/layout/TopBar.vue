@@ -15,6 +15,7 @@
 
     <div class="flex-1" />
 
+    <AppSourceNotice />
     <LayoutNotificationBell />
     <LayoutThemeToggle />
 
@@ -41,6 +42,7 @@
 import { useAuthStore } from '~/stores/auth.store'
 import { authService } from '~/services/auth.service'
 import UserAvatar from '~/components/common/UserAvatar.vue'
+import AppSourceNotice from '~/components/common/AppSourceNotice.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()

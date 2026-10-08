@@ -410,6 +410,7 @@ services:
 | `RDS_IDLE_CHECK_INTERVAL` | | `1m` | How often the background check for idle/pending-start runs |
 | `RDS_START_FAILURE_BOUND` | | `3` | Consecutive failed start attempts before giving up and returning a plain error instead of "waking up" |
 | `AWS_REGION` | | *(unset)* | Required on the real AWS deployment once auto-stop is enabled — the RDS SDK client needs an explicit region (unlike credentials, it isn't inferred from the EC2 instance automatically). Leave unset locally. |
+| `SOURCE_CODE_URL` | | `https://github.com/sharique/mansooba` | Where this instance's source is published, shown to every user via `GET /api/v1/about` (016-agpl-dual-licensing, AGPL-3.0 section 13). If you run a **modified** version as a network service, set this to where your own source is published. |
 
 **Connection string formats:**
 ```

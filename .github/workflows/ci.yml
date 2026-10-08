@@ -141,6 +141,8 @@ jobs:
           push: true
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
+          build-args: |
+            APP_VERSION=${{ steps.meta-backend.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Extract metadata (frontend)

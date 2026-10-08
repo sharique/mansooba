@@ -46,12 +46,22 @@ type customValidator struct{ v *validator.Validate }
 
 func (cv *customValidator) Validate(i any) error { return cv.v.Struct(i) }
 
+// version is baked in at image build time via -ldflags -X main.version=...
+// "dev" for a local build.
+var version = "dev"
+
 func main() {
 	cfg := config.Load()
 
 	logger.Init(cfg.LogLevel)
 	defer logger.Sync()
 	log := logger.Logger
+
+	sourceCodeURL, err := config.ValidateSourceCodeURL(cfg.SourceCodeURL)
+	if err != nil {
+		log.Fatal("invalid SOURCE_CODE_URL", zap.Error(err))
+	}
+	log.Info("instance", zap.String("version", version), zap.String("source_url", sourceCodeURL))
 
 	// Create the application context early so long-running goroutines can stop
 	// cleanly when the server receives SIGTERM/SIGINT.
@@ -244,8 +254,16 @@ func main() {
 	accessTTL, _ := time.ParseDuration(cfg.JWTAccessTTL)
 	setupSvc := service.NewSetupService(userRepo, projectSvc, cfg.JWTSecret, accessTTL, log, db)
 
+	// Instance info: version and
+	// source location, both resolved above; License/LicenseURL are fixed.
+	instanceSvc := service.NewInstanceService(domain.InstanceInfo{
+		Version:   version,
+		SourceURL: sourceCodeURL,
+	})
+
 	// Handlers
 	healthHandler := handler.NewHealthHandler(sqlDB).WithLoki(lokiClient)
+	aboutHandler := handler.NewAboutHandler(instanceSvc)
 	systemLogHandler := handler.NewSystemLogHandler(systemLogSvc, userSvc)
 	authHandler := handler.NewAuthHandler(authSvc, userSvc)
 	setupHandler := handler.NewSetupHandler(setupSvc, settingSvc)
@@ -321,6 +339,10 @@ func main() {
 
 	// Public routes
 	e.GET("/health", healthHandler.Check)
+	// Public by design (016-agpl-dual-licensing): lets any user of this
+	// instance, including on the sign-in page, find its source (AGPL-3.0
+	// section 13). Returns no user or instance-configuration data.
+	e.GET("/api/v1/about", aboutHandler.Get)
 
 	auth := e.Group("/api/v1/auth")
 	auth.Use(echomw.RateLimiterWithConfig(echomw.RateLimiterConfig{

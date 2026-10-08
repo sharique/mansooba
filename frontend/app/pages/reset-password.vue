@@ -79,13 +79,18 @@
         </div>
       </div>
     </div>
+    <AppSourceNotice class="fixed bottom-2 right-2 bg-base-100/80 px-2 py-1 rounded" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { authService } from '~/services/auth.service'
+import { useAboutStore } from '~/stores/about.store'
+import AppSourceNotice from '~/components/common/AppSourceNotice.vue'
 
 definePageMeta({ layout: false })
+
+useAboutStore().fetch()
 
 const route = useRoute()
 const token = ref((route.query.token as string) ?? '')

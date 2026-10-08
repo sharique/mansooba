@@ -36,6 +36,11 @@ services:
       SMTP_PORT: "1025"
       SMTP_FROM: noreply@mansooba.local
       APP_BASE_URL: "http://localhost:3000"
+      # Where this instance's source is published (016-agpl-dual-licensing).
+      # The default below is fine for local dev; an operator running a
+      # MODIFIED version as a network service should point this at their own
+      # fork instead, e.g. SOURCE_CODE_URL: "https://github.com/you/your-fork"
+      SOURCE_CODE_URL: "https://github.com/sharique/mansooba"
       LOKI_BASE_URL: "http://loki:3100"
       # Same host file Loki's -runtime-config.file points at (below), bind-
       # mounted into this container too — the backend and Loki are separate
