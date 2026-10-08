@@ -119,6 +119,10 @@ else
       | grep -vE '^(contents|pull-requests|statuses|actions)$' || true)"
   fi
   [[ -z "$extra" ]] || fail cla-workflow-unsafe "permissions include more than contents/pull-requests/statuses/actions: $(printf '%s' "$extra" | tr '\n' ',')" ".github/workflows/cla.yml"
+  # Signatures live on a branch of this same repository. Naming a remote
+  # organization or repository makes the action demand a personal access
+  # token we do not have, and the check then fails on every pull request.
+  grep -qE '^[[:space:]]*remote-(organization|repository)-name:' "$claw" && fail cla-workflow-unsafe "names a remote organization or repository (the action then needs a personal access token); signatures belong on a branch of this repository" ".github/workflows/cla.yml"
   # The action must be referenced by a full 40-hex commit SHA, not a tag.
   action_ref="$(grep -oE 'step-security/contributor-assistant-github-action@[^[:space:]]+' "$claw" | head -1 | cut -d@ -f2)"
   if [[ -z "$action_ref" ]]; then

@@ -189,6 +189,8 @@ run_case_cla "cla.yml missing issue_comment is rejected"           1 "FAIL cla-w
 run_case_cla "cla.yml with an extra permission is rejected"        1 "FAIL cla-workflow-unsafe" "sed -i 's/actions: write/actions: write\\n  id-token: write/' .github/workflows/cla.yml"
 run_case_cla "cla.yml with an actions/checkout step is rejected"   1 "FAIL cla-workflow-unsafe" "sed -i '/steps:/a\\      - uses: actions/checkout@v7' .github/workflows/cla.yml"
 run_case_cla "cla.yml referencing the action by a tag is rejected" 1 "FAIL cla-workflow-unsafe" "sed -i 's/@b9bd60bf1b766fa48dae03427059187137236239/@v2.6.1/' .github/workflows/cla.yml"
+run_case_cla "cla.yml naming a remote repository is rejected"      1 "FAIL cla-workflow-unsafe" "printf '          remote-repository-name: mansooba\\n' >> .github/workflows/cla.yml"
+run_case_cla "cla.yml naming a remote organization is rejected"    1 "FAIL cla-workflow-unsafe" "printf '          remote-organization-name: sharique\\n' >> .github/workflows/cla.yml"
 
 # Every problem is reported, not just the first.
 R2="$WORK/multi"; make_good_tree "$R2"
