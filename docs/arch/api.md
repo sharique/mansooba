@@ -242,6 +242,16 @@ global setting.
 
 ---
 
+## About
+
+| Method | Path | Auth | Description |
+|--------|------|:----:|-------------|
+| GET | `/api/v1/about` | — | Where this instance's source lives and under which licence (AGPL-3.0 section 13) |
+
+**Response (200):** `{"version": "0.3.1", "source_url": "https://github.com/sharique/mansooba", "license": "AGPL-3.0-only", "license_url": "https://www.gnu.org/licenses/agpl-3.0.html"}`. `version` is `dev` for local builds; `source_url` comes from `SOURCE_CODE_URL`. Public on purpose, so the sign-in page can show it; cached for 5 minutes.
+
+---
+
 ## Health
 
 | Method | Path | Auth | Description |

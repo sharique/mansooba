@@ -35,6 +35,7 @@ spec-driven engineering process.
 | **Reports** | Visualise sprint velocity across your project history |
 | **System Admin** | Manage users, configure platform settings, onboard new team members, and review the Grafana Loki-backed audit trail |
 | **First-Run Wizard** | Six-step guided setup gets a fresh install ready in minutes |
+| **Open source** | Released under AGPL-3.0 |
 
 ---
 
@@ -86,14 +87,20 @@ Other ways to run:
 | [System logs](docs/features/system-logs.md) | Grafana Loki-backed audit trail for auth, admin actions, settings changes, and DB lifecycle events |
 | [Setup wizard](docs/features/setup.md) | First-run wizard flow, sample data import, and seed CLI |
 | [First-run wizard guide](docs/features/first-run-wizard.md) | Step-by-step wizard reference with DEMO conflict, retry behaviour, and CLI output |
+| [Licensing](docs/features/licensing.md) | Open source under AGPL-3.0, and how contributions and the source link work |
 
 ## Contributing
 
 Bug reports, questions and ideas are always welcome — please open an issue.
-See [CONTRIBUTING.md](CONTRIBUTING.md) for how code contributions work.
+Code contributions need a one-time signature of the [contributor agreement](CLA.md),
+which keeps the dual-licensing option below open; the `CLA` check on your pull request
+walks you through it. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
 This project is licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only).
 The owner may offer this software under separate commercial terms in the future; no such offer exists today.
 See [NOTICE](NOTICE) for the copyright notice and third-party licensing information.
+Every release image carries `LICENSE`, `NOTICE` and `THIRD-PARTY-NOTICES.md` under `/licenses/`.
+If you run a modified version as a network service, set `SOURCE_CODE_URL` to where your own
+source is published (see [Licensing](docs/features/licensing.md)).
