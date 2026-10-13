@@ -121,13 +121,15 @@ See ADR-029 and research.md Decision 1 in the file-attachments feature spec.
 
 ## CI/CD pipeline
 
-GitHub Actions (`ci.yml`) runs three jobs on every push to `main`, `develop`, and `feature/**`:
+GitHub Actions (`ci.yml`) runs these jobs on every push to `main`, `develop`, and `feature/**`, and on pull requests to `main` and `develop`. A pull request also gets the `CLA` check from `cla.yml`:
 
 | Job | Trigger | What |
 |-----|---------|------|
+| `licence-statements` | every push / PR | `scripts/check-license-statements.sh`: `LICENSE`, `NOTICE`, README and manifests agree on AGPL-3.0-only |
+| `licences` | every push / PR | `scripts/check-licenses.sh`: no GPL-only, AGPL-only, source-available or licence-less dependency (Go, npm, icon sets) |
 | `test` | every push / PR | `go vet ./...` + `go test -race -count=1 ./...` (Go 1.27) |
 | `frontend` | every push / PR | `npm run typecheck` + `npm test` (Node 24) |
-| `build-and-push` | merge to `main` only | Docker Buildx → GHCR; tags `sha-<short>` + `latest` |
+| `build-and-push` | merge to `main`, or a `v*` tag; needs `test`, `frontend` and `licences` | Generates `THIRD-PARTY-NOTICES.md`, then Docker Buildx → GHCR; tags `sha-<short>` + `latest`, plus `<version>` and `<major>.<minor>` on a release tag |
 
 Images published:
 - `ghcr.io/sharique/mansooba-backend`

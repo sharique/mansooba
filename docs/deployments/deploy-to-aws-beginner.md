@@ -4,7 +4,7 @@
 >
 > **Time:** ~90 minutes (the database takes 10 minutes to start on its own — great time for a coffee break)
 >
-> **Cost:** $0 for the first 12 months on a new AWS account (free tier covers everything here)
+> **Cost:** Depends on when your account was created. Accounts opened after 15 July 2025 get a credit-based **Free Plan** ($100 of credits, up to $100 more for completing onboarding tasks, valid for 6 months), and everything below draws from those credits. Older accounts have the 12-month free-tier allowances. Either way, the **public IPv4 address** this guide uses is billed per hour (about $3.60 a month), so expect a small charge once credits or allowances run out. Check the [AWS Free Tier page](https://aws.amazon.com/free/) and the Billing console for your account's actual terms.
 
 ---
 
@@ -43,6 +43,7 @@
 - [Troubleshooting](#troubleshooting)
   - [The app doesn't load in the browser](#the-app-doesnt-load-in-the-browser)
   - [The database shows an error](#the-database-shows-an-error)
+  - [The backend restarts in a loop with `database "mansooba" does not exist`](#the-backend-restarts-in-a-loop-with-database-mansooba-does-not-exist)
   - [No password-reset email arrives](#no-password-reset-email-arrives)
   - [Attaching a file to an issue fails, or the download link doesn't work](#attaching-a-file-to-an-issue-fails-or-the-download-link-doesnt-work)
   - [The database never seems to stop, or logs show "db idle auto-stop disabled"](#the-database-never-seems-to-stop-or-logs-show-db-idle-auto-stop-disabled)
@@ -62,7 +63,7 @@ EC2 instance  ──  a virtual computer in the cloud running Mansooba
   └── Backend  (the API on port 8080)
          │
          ├── RDS  ──  a managed PostgreSQL database (private, no internet access)
-         ├── SES  ──  AWS Simple Email Service (3,000 free emails/month)
+         ├── SES  ──  AWS Simple Email Service (sends password-reset emails)
          └── S3   ──  file storage for issue attachments (private, no internet access)
 ```
 
@@ -80,7 +81,7 @@ You will need:
 
 1. Go to [aws.amazon.com](https://aws.amazon.com) → click **Create an AWS Account**
 2. Enter your email, choose a password, pick an account name (e.g. `my-mansooba`)
-3. Enter your credit card (won't be charged within free tier)
+3. Enter your credit card (you won't be charged while you stay within your free credits or free-tier allowances)
 4. Pick **Basic support** (free) → finish sign-up
 5. Log in at [console.aws.amazon.com](https://console.aws.amazon.com)
 
@@ -96,7 +97,7 @@ You will need:
 
 ## Step 2 — Set up email with AWS SES
 
-**SES** (Simple Email Service) is AWS's email service. It's free for up to 3,000 emails per month when sent from an EC2 server — no credit card charge, no external account needed.
+**SES** (Simple Email Service) is AWS's email service. At this volume (a few password-reset emails) the cost is a fraction of a cent, and it is covered by free-tier credits or the SES free allowance where your account has one. No external account is needed.
 
 SES starts in **sandbox mode**, meaning it can only send email *to* addresses you've verified. This is fine for testing. You can request to leave sandbox mode later (Step 2.3) when you're ready to send to real users.
 
@@ -185,9 +186,10 @@ A **Security Group** is AWS's firewall. You'll create two:
    | Type | Protocol | Port | Source | Why |
    |------|----------|------|--------|-----|
    | HTTP | TCP | 80 | Anywhere-IPv4 (`0.0.0.0/0`) | Web browser traffic |
-   | Custom TCP | TCP | 8080 | Anywhere-IPv4 (`0.0.0.0/0`) | API access |
-   | SSH | TCP | 22 | Anywhere-IPv4 (`0.0.0.0/0`) | Log into server |
+   | Custom TCP | TCP | 8080 | Anywhere-IPv4 (`0.0.0.0/0`) | Direct API access (optional: the web app reaches the API through port 80, so you can leave this rule out) |
+   | SSH | TCP | 22 | Anywhere-IPv4 (`0.0.0.0/0`) | Log into server (see the note below) |
 
+   > **Port 22 note:** the browser-based **EC2 Instance Connect** used in this guide connects from AWS's own address ranges, so `0.0.0.0/0` is the simplest choice for a beginner. If you only ever log in from your own computer with the SSH key, pick **My IP** instead; that closes the port to the rest of the internet.
 4. Leave **Outbound rules** unchanged (Allow All is fine)
 5. Click **Create security group**
 
@@ -217,19 +219,23 @@ A **Security Group** is AWS's firewall. You'll create two:
 3. Choose **Standard create**
 4. Engine: **PostgreSQL**
 5. Engine Version: pick the latest **PostgreSQL 18.x**
-6. Templates: click **Free tier** (this auto-selects free options)
+6. Templates: click **Free tier** (this auto-selects free options). *(On a credit-based Free Plan account the console may only offer this template; that is fine.)*
 7. Under **Settings**:
    - DB instance identifier: `mansooba-db`
    - Master username: `mansooba`
    - Master password: make up a strong password → **write it down**
    - Confirm password
-8. Under **Connectivity**:
-   - VPC: select the **default VPC**
-   - Public access: **No**
-   - VPC security group: click **Choose existing** → remove the `default` group → add `mansooba-rds-sg`
-9. Expand **Additional configuration** at the bottom:
-   - Initial database name: `mansooba`
-10. Click **Create database**
+8. Under **Instance configuration**:
+   - DB instance class: leave the one the Free tier template selects (a small burstable class such as `db.t4g.micro` or `db.t3.micro`). Mansooba's database load is tiny, so no larger class is needed.
+9. Under **Storage**: leave the defaults (20 GiB general purpose SSD is plenty).
+10. Under **Connectivity**:
+    - VPC: select the **default VPC**
+    - Public access: **No**
+    - VPC security group: click **Choose existing** → remove the `default` group → add `mansooba-rds-sg`
+    - **Certificate authority:** leave the default, `rds-ca-rsa2048-g1` (shown in the Connectivity or Additional configuration section, depending on the console layout). Don't pick an older CA; if the list offers `rds-ca-rsa4096-g1` or `rds-ca-ecc384-g1`, they work too but add nothing here. The startup script connects with `sslmode=require`, which encrypts the connection but does not check the certificate, so the CA choice does not affect whether the app connects. You can change it later with **Modify**.
+11. Expand **Additional configuration** at the bottom:
+    - **Initial database name: `mansooba`** — *do not skip this.* If it is left blank, RDS creates only the default `postgres` database, and the app then fails to start with `database "mansooba" does not exist` (see Troubleshooting).
+12. Click **Create database**
 
 **Write this down:**
 ```
@@ -282,14 +288,13 @@ Mansooba stores file attachments (things people attach to issues) in an S3 bucke
 2. In the left sidebar click **Roles** → **Create role**
 3. Trusted entity type: **AWS service**
 4. Use case: **EC2** → click **Next**
-5. On the permissions page — search for `AmazonEC2ContainerRegistryReadOnly` and check it
-   *(This lets the server pull container images. If you don't find it, you can skip adding a policy — just click Next.)*
+5. On the permissions page, just click **Next** without adding a policy. *(Mansooba's images come from GHCR, which is public, so the server needs no AWS permission to pull them. Older versions of this guide attached `AmazonEC2ContainerRegistryReadOnly`; it is not needed. Optional: add `AmazonSSMManagedInstanceCore` if you want to log in with Session Manager instead of SSH.)*
 6. Role name: `mansooba-ec2-role`
 7. Click **Create role**
 
 ### 6.3 Grant the role access to the attachments bucket
 
-The managed policy above only covers pulling container images — it doesn't grant any S3 access. Add a second, narrowly-scoped policy just for the attachments bucket:
+The role has no permissions yet, so it can't reach S3. Add a narrowly-scoped policy just for the attachments bucket (this bucket also holds avatars, under an `avatars/` prefix):
 
 1. Still in **IAM** → **Roles**, click `mansooba-ec2-role`
 2. Click the **Permissions** tab → **Add permissions** → **Create inline policy**
@@ -628,7 +633,10 @@ Save this file as `startup-script.txt` on your Desktop (you'll copy-paste it in 
    - Under **Quick Start** the first tab should already show **Amazon Linux**
    - Select **Amazon Linux 2023 AMI** (the top result, labelled "Free tier eligible")
    - Architecture: **64-bit (x86)**
-5. **Instance type:** `t2.micro` (should be pre-selected, it's free tier)
+5. **Instance type:** pick the type the console marks **Free tier eligible**. That is usually `t3.micro` (2 vCPU, 1 GiB memory), or `t2.micro` in regions where `t3` isn't available. Expand the list to check it.
+   > Memory is tight: the backend, frontend, Loki and Alloy all run on this one server. If containers keep getting killed or the app is very slow, stop the instance and change the type to `t3.small` (2 GiB). That is not free tier, but costs only a few dollars a month.
+   >
+   > `t3` and `t4g` instances default to **Unlimited** CPU-credit mode, which bills for extra CPU use above the baseline. To avoid a surprise charge, set **Credit specification** to **Standard** under **Advanced details** (step 9 below). `t2` is Standard already.
 6. **Key pair:** Select `mansooba-key` (the one you created in Step 5)
 7. **Network settings:** Click **Edit**
    - VPC: default
@@ -637,11 +645,13 @@ Save this file as `startup-script.txt` on your Desktop (you'll copy-paste it in 
    - Firewall: **Select existing security group** → choose `mansooba-ec2-sg`
 8. **Configure storage:** leave as default (8 GB is fine)
 9. Expand **Advanced details** at the bottom
-10. Find **IAM instance profile** → select `mansooba-ec2-role` (the role you created in Step 6.2)
+10. Find **Metadata response hop limit** and set it to **2**. *(Mansooba runs in Docker containers; with the default of 1, a container can't reach the instance's credentials, and S3 and RDS calls fail with a "no EC2 IMDS role found" or timeout error.)* Leave **Metadata version** on **V2 only (token required)**.
+11. Find **IAM instance profile** → select `mansooba-ec2-role` (the role you created in Step 6.2)
     *(Skip this and the server has no permission to talk to S3 — file attachments will fail with an "IMDS role" error even though the role exists.)*
-11. Scroll down to **User data**
-12. Open your `startup-script.txt` file, select all, copy → paste it into the **User data** box
-13. Click **Launch instance**
+12. If you chose a `t3` type, find **Credit specification** and set it to **Standard**
+13. Scroll down to **User data**
+14. Open your `startup-script.txt` file, select all, copy → paste it into the **User data** box
+15. Click **Launch instance**
 
 > The instance starts with a **Pending** status. It becomes **Running** in about 30 seconds.
 
@@ -649,7 +659,7 @@ Save this file as `startup-script.txt` on your Desktop (you'll copy-paste it in 
 
 ## Step 10 — Assign a permanent IP address
 
-Without this step the server's IP address changes every restart.
+Without this step the server's IP address changes every restart. *(AWS bills every public IPv4 address by the hour, whether or not it is attached to a running instance, so this adds roughly $3.60 a month. Release it when you tear down.)*
 
 1. In the EC2 left sidebar go to **Network & Security** → **Elastic IPs**
 2. Click **Allocate Elastic IP address** → **Allocate**
@@ -773,7 +783,7 @@ Free tier lasts 12 months. When you're finished, delete everything to avoid char
 **Delete the EC2 instance:**
 1. EC2 → Instances → select `mansooba-app` → **Instance state** → **Terminate instance**
 
-**Release the Elastic IP (you're charged for unattached IPs):**
+**Release the Elastic IP (it is billed hourly until you release it, even after the instance is gone):**
 1. EC2 → Elastic IPs → select your IP → **Actions** → **Disassociate** → then **Actions** → **Release**
 
 **Delete the database:**
@@ -813,6 +823,16 @@ sudo grep DB_DSN /opt/mansooba/.env
 
 Make sure the endpoint, username (`mansooba`), and password all look right.
 
+### The backend restarts in a loop with `database "mansooba" does not exist`
+
+The **Initial database name** was left blank in Step 4, so RDS only created the default `postgres` database. You don't need to recreate the instance: from the EC2 Instance Connect terminal, create the missing database once:
+
+```bash
+sudo docker run --rm -it postgres:18-alpine psql "host=YOUR_RDS_ENDPOINT user=mansooba dbname=postgres sslmode=require" -c 'CREATE DATABASE mansooba;'
+```
+
+It asks for the master password. Then restart the backend: `sudo docker compose -f /opt/mansooba/compose.prod.yml restart backend`.
+
 ### No password-reset email arrives
 
 In EC2 Instance Connect:
@@ -842,7 +862,7 @@ sudo grep STORAGE /opt/mansooba/.env
 
 Confirm `STORAGE_BUCKET` in `.env` matches the exact bucket name from Step 6.1, and that the `mansooba-s3-attachments` inline policy from Step 6.3 is still attached to `mansooba-ec2-role` (**IAM** → **Roles** → `mansooba-ec2-role` → **Permissions** tab).
 
-**Error mentions "no EC2 IMDS role found" or "no credentials":** the instance itself has no IAM role attached — Step 9.10 was skipped, or the instance was launched before Step 6 existed. Fix it without recreating the instance: EC2 console → select `mansooba-app` → **Actions** → **Security** → **Modify IAM role** → choose `mansooba-ec2-role` → **Update IAM role**. No restart needed; retry the upload after ~30–60 seconds.
+**Error mentions "no EC2 IMDS role found" or "no credentials":** the instance itself has no IAM role attached — Step 9.11 was skipped, or the instance was launched before Step 6 existed. Fix it without recreating the instance: EC2 console → select `mansooba-app` → **Actions** → **Security** → **Modify IAM role** → choose `mansooba-ec2-role` → **Update IAM role**. No restart needed; retry the upload after ~30–60 seconds.
 
 ### The database never seems to stop, or logs show `"db idle auto-stop disabled"`
 
@@ -895,7 +915,7 @@ cd /opt/mansooba && sudo docker compose -f compose.prod.yml up -d --force-recrea
 | **EC2** | A virtual computer you rent in the cloud — Mansooba runs here |
 | **S3** | Simple Storage Service — AWS's object storage; holds file attachments uploaded to issues |
 | **RDS** | A managed database service — stores your data, AWS handles backups |
-| **SES** | Simple Email Service — AWS's free email relay (3,000/month from EC2) |
+| **SES** | Simple Email Service — AWS's email relay (a few cents per thousand emails, usually covered by free credits) |
 | **Security Group** | A firewall that controls which traffic can reach a resource |
 | **Key Pair** | An SSH key — lets you log into your server securely |
 | **Elastic IP** | A fixed public IP address so your server URL stays the same |

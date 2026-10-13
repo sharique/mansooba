@@ -343,7 +343,7 @@ docker compose -f compose.prod.yml -f compose.override.yml down -v
 
 ## Option C — Pin to a specific image version
 
-Every merge to `main` also tags images with a short SHA (`sha-abc1234`). Use a pinned tag for reproducible deployments:
+Every merge to `main` also tags images with a short SHA (`sha-abc1234`), and every release adds version tags (`0.3.1`, `0.3`). Use a pinned tag for reproducible deployments:
 
 ```bash
 # Browse available tags:
@@ -352,6 +352,13 @@ Every merge to `main` also tags images with a short SHA (`sha-abc1234`). Use a p
 # Pull a specific version
 docker pull ghcr.io/sharique/mansooba-backend:sha-abc1234
 docker pull ghcr.io/sharique/mansooba-frontend:sha-abc1234
+
+# Or a release version
+docker pull ghcr.io/sharique/mansooba-backend:0.3.1
+docker pull ghcr.io/sharique/mansooba-frontend:0.3.1
+
+# The licence files ship inside each image
+docker run --rm --entrypoint ls ghcr.io/sharique/mansooba-backend:0.3.1 /licenses
 ```
 
 To use a pinned tag in the compose file, set env vars before `docker compose up`:
