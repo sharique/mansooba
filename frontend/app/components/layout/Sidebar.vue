@@ -18,15 +18,11 @@ export function projectNavLinks(key: string): NavLink[] {
             icon: "mdi:view-column-outline",
         },
         {
-            label: "Backlog",
+            // One page holds both the sprints and the backlog list (roadmap:
+            // split into a dedicated Sprints page), so there is one entry.
+            label: "Backlog & Sprints",
             to: `/projects/${key}/backlog`,
             icon: "mdi:format-list-bulleted",
-        },
-        // Sprints live on the backlog page in this codebase; update to a dedicated route when one exists.
-        {
-            label: "Sprints",
-            to: `/projects/${key}/backlog`,
-            icon: "mdi:run-fast",
         },
         {
             label: "Reports",
@@ -88,20 +84,6 @@ const projectLinks = computed(() =>
 );
 
 const recentProjects = computed(() => projectsStore.projects.slice(0, 5));
-
-// Build the set of active project links using only the FIRST link per unique URL,
-// so duplicate-URL entries (Backlog + Sprints both at /backlog) don't both highlight.
-const activeProjectLinks = computed<Set<NavLink>>(() => {
-    const seen = new Set<string>();
-    const active = new Set<NavLink>();
-    for (const link of projectLinks.value) {
-        if (link.to === route.path && !seen.has(link.to)) {
-            active.add(link);
-        }
-        seen.add(link.to);
-    }
-    return active;
-});
 
 function isPrimaryActive(to: string): boolean {
     return route.path === to;
@@ -183,7 +165,7 @@ onMounted(async () => {
                     :to="link.to"
                     class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors"
                     :class="
-                        activeProjectLinks.has(link)
+                        isPrimaryActive(link.to)
                             ? 'bg-primary text-primary-content font-semibold'
                             : 'hover:bg-base-content/10'
                     "

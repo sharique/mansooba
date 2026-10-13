@@ -4,7 +4,7 @@
 >
 > **Time:** ~20 minutes hands-on (`terraform apply` itself takes ~8–10 minutes, mostly waiting on RDS)
 >
-> **Cost:** $0 for the first 12 months on a new AWS account (EC2 t2.micro + RDS db.t3.micro are both free-tier eligible)
+> **Cost:** Depends on your account's age. Accounts opened after 15 July 2025 get a credit-based Free Plan ($100 of credits, up to $100 more for onboarding tasks, valid 6 months) instead of the old 12-month allowances, and the instance's public IPv4 address is billed hourly (about $3.60 a month) either way. Check the [AWS Free Tier page](https://aws.amazon.com/free/) and your Billing console.
 
 ---
 
@@ -66,7 +66,7 @@ block explaining its purpose).
 
 ## Prerequisites
 
-- An **AWS account** — [aws.amazon.com](https://aws.amazon.com) (free tier covers everything here)
+- An **AWS account** — [aws.amazon.com](https://aws.amazon.com) (a new account's free credits or free-tier allowances cover most of what's here)
 - **AWS CLI** installed and configured: `aws configure` (or `aws sso login` if your org uses SSO)
 - **Terraform** ≥ 1.15 installed — `brew install terraform` (Mac) or see [terraform.io/downloads](https://developer.hashicorp.com/terraform/install)
 
@@ -245,9 +245,9 @@ sudo docker compose -f /opt/mansooba/compose.prod.yml restart
 terraform destroy
 ```
 
-Free tier lasts 12 months from account creation, not from when you deployed
-this — if you're past that window, `destroy` stops the ongoing EC2/RDS
-charges. This deletes everything Terraform created, including the database
+Free-tier allowances run from account creation (12 months on older accounts,
+6 months of credits on newer ones), not from when you deployed this — once
+they're used up, `destroy` stops the ongoing EC2/RDS/public-IP charges. This deletes everything Terraform created, including the database
 (`skip_final_snapshot = true` — no backup is taken; see `modules/database/main.tf`
 if you want that changed before tearing down a database you actually care about).
 
