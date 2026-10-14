@@ -352,8 +352,10 @@ func mapSprintError(err error) error {
 		return echo.NewHTTPError(http.StatusConflict, err.Error())
 	case errors.Is(err, domain.ErrSprintInvalidTransition):
 		return echo.NewHTTPError(http.StatusConflict, err.Error())
-	case errors.Is(err, domain.ErrSprintNotStarted):
+	case errors.Is(err, domain.ErrSprintNotStarted), errors.Is(err, domain.ErrSprintTooLong):
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	case errors.Is(err, domain.ErrSprintFieldLocked):
+		return echo.NewHTTPError(http.StatusConflict, err.Error())
 	}
 	return err
 }

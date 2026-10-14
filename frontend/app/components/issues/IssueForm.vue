@@ -129,7 +129,11 @@ async function submit() {
   try {
     let result: Issue
     if (props.issue) {
-      result = await issuesStore.update(props.projectKey, props.issue.id, form)
+      // The server reads 0 as "clear"; an unset select would be ignored (ADR-036).
+      const payload = form.assignee_id === undefined && props.issue.assignee_id
+        ? { ...form, assignee_id: 0 }
+        : form
+      result = await issuesStore.update(props.projectKey, props.issue.id, payload)
     }
     else {
       result = await issuesStore.create(props.projectKey, form)

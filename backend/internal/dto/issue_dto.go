@@ -19,6 +19,7 @@ type UpdateIssueRequest struct {
 	Type        *string `json:"type"     validate:"omitempty,oneof=task story bug epic"`
 	Status      *string `json:"status"   validate:"omitempty,oneof=backlog todo in_progress in_review done"`
 	Priority    *string `json:"priority" validate:"omitempty,oneof=low medium high critical"`
+	// AssigneeID assigns the issue to a user. Send 0 to unassign; omit to leave unchanged.
 	AssigneeID  *uint   `json:"assignee_id"`
 	StoryPoints *int    `json:"story_points"`
 	// SprintID assigns the issue to a sprint. Send 0 to move the issue back to the backlog.

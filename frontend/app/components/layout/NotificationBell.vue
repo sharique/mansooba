@@ -16,7 +16,7 @@
       </li>
       <li v-for="n in store.unread" :key="n.id">
         <button class="text-left text-sm py-2" @click="open(n)">
-          <span>You were mentioned in {{ n.issue_key }}</span>
+          <span>{{ messageFor(n) }}</span>
           <span class="block text-xs text-base-content/40">{{ formatDate(n.created_at) }}</span>
         </button>
       </li>
@@ -29,11 +29,47 @@ import { useNotificationsStore } from '~/stores/notifications.store'
 import type { Notification } from '~/types/domain.types'
 
 const store = useNotificationsStore()
+const projectsStore = useProjectsStore()
 const router = useRouter()
+
+function messageFor(n: Notification): string {
+  const actor = n.actor_name || 'Someone'
+  const project = n.project_name || 'a project'
+  switch (n.kind) {
+    case 'mention': return `You were mentioned in ${n.issue_key}`
+    case 'task_assigned': return `${actor} assigned you to ${n.issue_key}`
+    case 'task_unassigned': return `${actor} unassigned you from ${n.issue_key}`
+    case 'project_member_added': return `${actor} added you to ${project}`
+    case 'project_member_removed': return `${actor} removed you from ${project}`
+    default: return 'You have a new notification'
+  }
+}
+
+// Where a click lands. Always a page the user may open: a removal, or a project
+// that is not in the user's own list (access lost), goes to the project list.
+function targetFor(n: Notification, knownProject: boolean): string {
+  if (n.kind === 'project_member_removed' || !knownProject) return '/projects'
+  const key = n.project_key.toLowerCase()
+  switch (n.kind) {
+    case 'mention':
+    case 'task_assigned':
+    case 'task_unassigned':
+      return `/projects/${key}/issues/${n.issue_id}`
+    default: // project_member_added and unknown kinds
+      return `/projects/${key}`
+  }
+}
 
 async function open(n: Notification) {
   await store.markRead(n.id)
-  router.push(`/projects/${n.project_key}/issues/${n.issue_id}`)
+  if (projectsStore.projects.length === 0) {
+    try {
+      await projectsStore.fetchAll()
+    }
+    catch { /* fall back to the project list below */ }
+  }
+  const known = !!n.project_key && projectsStore.projects.some(p => p.key.toLowerCase() === n.project_key.toLowerCase())
+  router.push(targetFor(n, known))
 }
 
 const { formatDate } = useTimeFormatter()

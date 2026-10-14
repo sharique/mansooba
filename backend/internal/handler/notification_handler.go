@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sharique/mansooba/internal/domain"
@@ -36,7 +37,10 @@ func (h *NotificationHandler) List(c echo.Context) error {
 	for _, n := range notifications {
 		result = append(result, &dto.NotificationResponse{
 			ID: n.ID, RecipientID: n.RecipientID, ActorID: n.ActorID,
-			IssueID: n.IssueID, IssueKey: n.IssueKey, ProjectKey: n.ProjectKey,
+			ActorName: n.ActorName, Kind: n.Kind,
+			IssueID: n.IssueID, IssueKey: n.IssueKey,
+			// Lower-cased like every project API response; seeded projects are stored upper-case.
+			ProjectKey: strings.ToLower(n.ProjectKey), ProjectName: n.ProjectName,
 			CommentID: n.CommentID, Read: n.Read, CreatedAt: n.CreatedAt,
 		})
 	}

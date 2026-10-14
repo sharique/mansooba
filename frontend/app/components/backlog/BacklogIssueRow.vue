@@ -7,7 +7,6 @@ import { priorityBadgeClass, typeIconName, typeIconClass } from "~/utils/issueSt
 const props = defineProps<{
     issue: Issue;
     projectKey: string;
-    canManage?: boolean;
     sprints?: Sprint[];
 }>();
 
@@ -72,7 +71,7 @@ function onSprintChange(e: Event) {
 
         <!-- Add to sprint -->
         <select
-            v-if="canManage && openSprints.length > 0"
+            v-if="openSprints.length > 0"
             class="select select-bordered select-xs shrink-0 w-36"
             title="Add to sprint"
             @change="onSprintChange"

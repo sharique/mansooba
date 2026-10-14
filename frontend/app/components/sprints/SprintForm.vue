@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Sprint } from "~/types/domain.types";
+import { isOverdue, overlappingSprints } from "~/utils/sprintDates";
 import type {
     CreateSprintPayload,
     UpdateSprintPayload,
@@ -39,34 +40,82 @@ const endDateError = ref("");
 // rules enforced on submit below.
 const endDateMin = computed(() => form.start_date || today);
 
+const MAX_SPRINT_DAYS = 28;
+// Latest allowed end date for a start date (YYYY-MM-DD, UTC so no timezone drift).
+function latestEnd(start: string): string {
+    const d = new Date(`${start}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + MAX_SPRINT_DAYS);
+    return d.toISOString().slice(0, 10);
+}
+function prettyDate(iso: string): string {
+    return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
+        day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
+    });
+}
+const endDateMax = computed(() => (form.start_date ? latestEnd(form.start_date) : undefined));
+
+// What may be edited depends on the sprint's state: planning = everything,
+// active = the end date only, completed = nothing (the server enforces the same).
+const status = props.sprint?.status;
+const locked = {
+    name: status === "active" || status === "completed",
+    goal: status === "active" || status === "completed",
+    start: status === "active" || status === "completed",
+    end: status === "completed",
+};
+// Warnings never block saving: overlapping another open sprint, or an
+// in-progress sprint whose end date has passed.
+const overlaps = computed(() =>
+    overlappingSprints(form.start_date, form.end_date, sprintsStore.sprints ?? [], props.sprint?.id),
+);
+const overdueNote = computed(() =>
+    props.sprint && isOverdue({ status: props.sprint.status, end_date: form.end_date || null }),
+);
+const lockNote =
+    status === "active"
+        ? "This sprint has started, so only the end date can be changed."
+        : status === "completed"
+          ? "This sprint is completed and cannot be changed."
+          : "";
+
+// A sprint that already started keeps its original start/end dates even though
+// they are now in the past; "can't be in the past" applies only to a date the
+// user actually changes (or to any date when creating).
+const origStart = props.sprint?.start_date?.slice(0, 10) ?? "";
+const origEnd = props.sprint?.end_date?.slice(0, 10) ?? "";
+const startUnchanged = () => !!props.sprint && form.start_date === origStart;
+const endUnchanged = () => !!props.sprint && form.end_date === origEnd;
+const startDateMin = computed(() => (startUnchanged() ? undefined : today));
+
 function validate(): boolean {
     nameError.value = !form.name.trim();
 
     startDateError.value = !form.start_date
         ? "Start date is required"
-        : form.start_date < today
+        : form.start_date < today && !startUnchanged()
           ? "Start date can't be in the past"
           : "";
 
     endDateError.value = !form.end_date
         ? "End date is required"
-        : form.end_date < today
+        : form.end_date < today && !endUnchanged()
           ? "End date can't be in the past"
           : form.start_date && form.end_date <= form.start_date
             ? "End date must be after start date"
-            : "";
+            : form.start_date && form.end_date > latestEnd(form.start_date)
+              ? `A sprint can't be longer than ${MAX_SPRINT_DAYS} days (4 weeks). For this start date the latest end date is ${prettyDate(latestEnd(form.start_date))}.`
+              : "";
 
     return !nameError.value && !startDateError.value && !endDateError.value;
 }
 
 async function submit() {
+    if (status === "completed") return;
     if (!validate()) return;
     submitting.value = true;
     try {
         let sprint: Sprint;
         if (props.sprint) {
-            const origStart = props.sprint.start_date?.slice(0, 10) ?? "";
-            const origEnd = props.sprint.end_date?.slice(0, 10) ?? "";
             const payload: UpdateSprintPayload = {};
             if (form.name !== props.sprint.name) payload.name = form.name;
             if (form.goal !== props.sprint.goal) payload.goal = form.goal;
@@ -125,13 +174,18 @@ function convertToRFC3339Date(mdate: string) {
                 {{ sprint ? "Edit Sprint" : "Create Sprint" }}
             </h3>
 
-            <form @submit.prevent="submit" class="flex flex-col gap-3">
+            <form novalidate @submit.prevent="submit" class="flex flex-col gap-3">
+                <p v-if="lockNote" class="text-sm text-base-content/70">{{ lockNote }}</p>
+                <div v-if="overdueNote" class="alert alert-warning py-2 text-sm">
+                    <span>This sprint is in progress but its end date has passed. Complete it, or move the end date.</span>
+                </div>
                 <label class="form-control">
                     <div class="label">
                         <span class="label-text">Name <span class="text-error">*</span></span>
                     </div>
                     <input
                         v-model="form.name"
+                        :disabled="locked.name"
                         type="text"
                         placeholder="Sprint 1"
                         class="input input-bordered w-full"
@@ -149,6 +203,7 @@ function convertToRFC3339Date(mdate: string) {
                     </div>
                     <textarea
                         v-model="form.goal"
+                        :disabled="locked.goal"
                         class="textarea textarea-bordered w-full"
                         placeholder="What does this sprint aim to achieve?"
                         rows="2"
@@ -162,8 +217,9 @@ function convertToRFC3339Date(mdate: string) {
                         </div>
                         <input
                             v-model="form.start_date"
+                            :disabled="locked.start"
                             type="date"
-                            :min="today"
+                            :min="startDateMin"
                             class="input input-bordered w-full"
                             :class="{ 'input-error': startDateError }"
                             required
@@ -178,8 +234,10 @@ function convertToRFC3339Date(mdate: string) {
                         </div>
                         <input
                             v-model="form.end_date"
+                            :disabled="locked.end"
                             type="date"
                             :min="endDateMin"
+                            :max="endDateMax"
                             class="input input-bordered w-full"
                             :class="{ 'input-error': endDateError }"
                             required
@@ -188,6 +246,16 @@ function convertToRFC3339Date(mdate: string) {
                             <span class="label-text-alt text-error">{{ endDateError }}</span>
                         </div>
                     </label>
+                </div>
+
+                <div v-if="overlaps.length" class="alert alert-warning py-2 text-sm">
+                    <span>
+                        These dates overlap
+                        <template v-for="(o, i) in overlaps" :key="o.id">
+                            <strong>{{ o.name }}</strong> ({{ prettyDate(o.start_date!.slice(0, 10)) }} – {{ prettyDate(o.end_date!.slice(0, 10)) }})<template v-if="i < overlaps.length - 1">, </template>
+                        </template>.
+                        You can still save.
+                    </span>
                 </div>
 
                 <div class="modal-action mt-2">
@@ -201,7 +269,7 @@ function convertToRFC3339Date(mdate: string) {
                     <button
                         type="submit"
                         class="btn btn-primary"
-                        :disabled="submitting"
+                        :disabled="submitting || status === 'completed'"
                     >
                         <span
                             v-if="submitting"

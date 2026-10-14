@@ -22,15 +22,23 @@ import UserAvatar from '~/components/common/UserAvatar.vue'
 const props = defineProps<{ event: ActivityEvent }>()
 const { formatDateTime } = useTimeFormatter()
 
+// The server records a person's name, or "unassigned"; a sprint's name, or "backlog".
+function who(v?: string) { return v === 'unassigned' ? 'nobody' : v }
+function where(v?: string) { return v === 'backlog' ? 'the backlog' : v }
+
 const description = computed(() => {
   const e = props.event
   const actor = e.actor_name || `User ${e.actor_id}`
   const issue = e.issue_key ? `[${e.issue_key}] ` : ''
   switch (e.kind) {
     case ActivityKind.StatusChanged:      return `${issue}${actor} changed status from "${e.old_value}" to "${e.new_value}"`
-    case ActivityKind.AssigneeChanged:    return `${issue}${actor} changed assignee`
+    case ActivityKind.AssigneeChanged:    return e.old_value && e.new_value
+      ? `${issue}${actor} changed assignee from "${who(e.old_value)}" to "${who(e.new_value)}"`
+      : `${issue}${actor} changed assignee`
     case ActivityKind.PriorityChanged:    return `${issue}${actor} changed priority from "${e.old_value}" to "${e.new_value}"`
-    case ActivityKind.SprintChanged:      return `${issue}${actor} changed sprint`
+    case ActivityKind.SprintChanged:      return e.old_value && e.new_value
+      ? `${issue}${actor} moved this from "${where(e.old_value)}" to "${where(e.new_value)}"`
+      : `${issue}${actor} changed sprint`
     case ActivityKind.StoryPointsChanged: return `${issue}${actor} changed story points from ${e.old_value} to ${e.new_value}`
     case ActivityKind.LabelAdded:         return `${issue}${actor} added label "${e.new_value}"`
     case ActivityKind.LabelRemoved:       return `${issue}${actor} removed label "${e.old_value}"`

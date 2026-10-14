@@ -32,25 +32,25 @@ const makeSprint = (id: number, name: string, status: Sprint['status'] = 'planni
 })
 
 describe('BacklogIssueRow sprint assignment', () => {
-  test('shows sprint select when canManage=true and sprints are available', () => {
+  test('shows the sprint select to any member when a sprint is open', () => {
     const sprints = [makeSprint(1, 'Sprint 1'), makeSprint(2, 'Sprint 2')]
     const wrapper = mount(BacklogIssueRow, {
-      props: { issue: makeIssue(), projectKey: 'PROJ', canManage: true, sprints },
+      props: { issue: makeIssue(), projectKey: 'PROJ', sprints },
     })
     expect(wrapper.find('select').exists()).toBe(true)
   })
 
-  test('hides sprint select when canManage=false', () => {
-    const sprints = [makeSprint(1, 'Sprint 1')]
+  test('hides sprint select when every sprint is completed', () => {
+    const sprints = [makeSprint(1, 'Sprint 1', 'completed')]
     const wrapper = mount(BacklogIssueRow, {
-      props: { issue: makeIssue(), projectKey: 'PROJ', canManage: false, sprints },
+      props: { issue: makeIssue(), projectKey: 'PROJ', sprints },
     })
     expect(wrapper.find('select').exists()).toBe(false)
   })
 
   test('hides sprint select when no sprints available', () => {
     const wrapper = mount(BacklogIssueRow, {
-      props: { issue: makeIssue(), projectKey: 'PROJ', canManage: true, sprints: [] },
+      props: { issue: makeIssue(), projectKey: 'PROJ', sprints: [] },
     })
     expect(wrapper.find('select').exists()).toBe(false)
   })
@@ -58,7 +58,7 @@ describe('BacklogIssueRow sprint assignment', () => {
   test('emits sprint-assign with issueId and sprintId when sprint is selected', async () => {
     const sprints = [makeSprint(7, 'Sprint 7')]
     const wrapper = mount(BacklogIssueRow, {
-      props: { issue: makeIssue({ id: 42 }), projectKey: 'PROJ', canManage: true, sprints },
+      props: { issue: makeIssue({ id: 42 }), projectKey: 'PROJ', sprints },
     })
     const select = wrapper.find('select')
     await select.setValue('7')

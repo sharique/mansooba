@@ -65,6 +65,6 @@ const sorted = computed(() =>
 
 // Extract project key from issue key (e.g. "myproj-42" → "myproj")
 function projectKey(issueKey: string): string {
-  return issueKey.replace(/-\d+$/, '')
+  return issueKey.replace(/-\d+$/, '').toLowerCase()
 }
 </script>

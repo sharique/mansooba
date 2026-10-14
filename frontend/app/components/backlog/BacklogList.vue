@@ -5,7 +5,6 @@ const props = defineProps<{
   issues: Issue[]
   projectKey: string
   loading?: boolean
-  canManage?: boolean
   sprints?: Sprint[]
 }>()
 
@@ -41,7 +40,6 @@ const emit = defineEmits<{
         :key="issue.id"
         :issue="issue"
         :project-key="projectKey"
-        :can-manage="canManage"
         :sprints="sprints"
         @sprint-assign="emit('sprint-assign', $event)"
       />

@@ -8,6 +8,9 @@ import (
 // Sprint is a time-boxed iteration within a project.
 // Status is one of: "planning", "active", "completed".
 // Issues are associated via Issue.SprintID; nil SprintID means the issue is in the backlog.
+// MaxSprintDays is the longest a sprint may run (start date to end date).
+const MaxSprintDays = 28
+
 type Sprint struct {
 	ID        uint       `gorm:"primaryKey"`
 	ProjectID uint       `gorm:"not null;index"`

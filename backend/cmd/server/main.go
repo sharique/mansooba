@@ -226,10 +226,12 @@ func main() {
 	// Services
 	authSvc := service.NewAuthService(userRepo, revokedTokenRepo, systemLogSvc, log, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	userSvc := service.NewUserService(userRepo, avatarStorage)
-	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo)
+	notifSvc := service.NewNotificationService(notifRepo, projectMemberRepo, log)
+	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo, notifSvc)
 	activitySvc := service.NewActivityService(activityRepo, userRepo, issueRepo)
 	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, sprintRepo).
-		WithAttachments(attachmentRepo, attachmentStorage)
+		WithAttachments(attachmentRepo, attachmentStorage).
+		WithNotifier(notifSvc)
 	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo)
 	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
 	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc, notifRepo, userRepo)

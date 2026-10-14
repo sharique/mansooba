@@ -125,13 +125,26 @@ export interface VelocityDataPoint {
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 
+export type KnownNotificationKind =
+  | 'mention'
+  | 'task_assigned'
+  | 'task_unassigned'
+  | 'project_member_added'
+  | 'project_member_removed'
+
+/** Unknown kinds (added by a newer server) are tolerated and shown generically. */
+export type NotificationKind = KnownNotificationKind | (string & {})
+
 export interface Notification {
   id: number
   recipient_id: number
   actor_id: number
+  actor_name: string
+  kind: NotificationKind
   issue_id: number
   issue_key: string
   project_key: string
+  project_name: string
   comment_id: number
   read: boolean
   created_at: string

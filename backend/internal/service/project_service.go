@@ -28,6 +28,7 @@ type projectService struct {
 	memberRepo  domain.ProjectMemberRepository
 	userRepo    domain.UserRepository
 	issueRepo   domain.IssueRepository
+	notifier    NotificationService // optional (nil: no notifications)
 }
 
 // NewProjectService returns a ProjectService backed by the given repositories.
@@ -36,12 +37,14 @@ func NewProjectService(
 	memberRepo domain.ProjectMemberRepository,
 	userRepo domain.UserRepository,
 	issueRepo domain.IssueRepository,
+	notifier NotificationService,
 ) ProjectService {
 	return &projectService{
 		projectRepo: projectRepo,
 		memberRepo:  memberRepo,
 		userRepo:    userRepo,
 		issueRepo:   issueRepo,
+		notifier:    notifier,
 	}
 }
 
@@ -197,7 +200,13 @@ func (s *projectService) AddMember(ctx context.Context, key string, callerID uin
 		return domain.ErrConflict
 	}
 
-	return s.memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: project.ID, UserID: target.ID, Role: req.Role})
+	if err := s.memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: project.ID, UserID: target.ID, Role: req.Role}); err != nil {
+		return err
+	}
+	if s.notifier != nil {
+		s.notifier.NotifyMembershipChange(ctx, project.ID, callerID, target.ID, true)
+	}
+	return nil
 }
 
 func (s *projectService) RemoveMember(ctx context.Context, key string, callerID uint, targetUserID uint) error {
@@ -220,7 +229,13 @@ func (s *projectService) RemoveMember(ctx context.Context, key string, callerID 
 	if err != nil {
 		return err
 	}
-	return s.memberRepo.Delete(ctx, target.ID)
+	if err := s.memberRepo.Delete(ctx, target.ID); err != nil {
+		return err
+	}
+	if s.notifier != nil {
+		s.notifier.NotifyMembershipChange(ctx, project.ID, callerID, targetUserID, false)
+	}
+	return nil
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────

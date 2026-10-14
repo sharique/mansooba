@@ -11,7 +11,10 @@ export interface CreateIssueRequest {
 }
 
 export interface UpdateIssuePayload extends Partial<CreateIssueRequest> {
-  sprint_id?: number | null
+  /** 0 clears the sprint (moves the issue back to the backlog); omit to leave unchanged. */
+  sprint_id?: number
+  /** 0 clears the assignee; omit to leave unchanged. JSON null is treated as "omitted" by the server. */
+  assignee_id?: number
 }
 
 export interface IssueListQuery {

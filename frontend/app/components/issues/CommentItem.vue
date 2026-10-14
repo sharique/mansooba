@@ -30,6 +30,7 @@
 <script setup lang="ts">
 import type { Comment } from '~/types/domain.types'
 import UserAvatar from '~/components/common/UserAvatar.vue'
+import { renderMentions } from '~/composables/useMentions'
 
 const props = defineProps<{ comment: Comment; currentUserId: number }>()
 const emit = defineEmits<{ (e: 'update', id: number, body: string): void; (e: 'delete', id: number): void }>()
@@ -38,7 +39,8 @@ const editing = ref(false)
 const editBody = ref(props.comment.body)
 
 const isOwn = computed(() => props.comment.author_id === props.currentUserId)
-const rendered = computed(() => useMarkdown(props.comment.body))
+const projectsStore = useProjectsStore()
+const rendered = computed(() => useMarkdown(renderMentions(props.comment.body, projectsStore.members)))
 const { formatDateTime } = useTimeFormatter()
 const relativeTime = computed(() => formatDateTime(props.comment.created_at))
 

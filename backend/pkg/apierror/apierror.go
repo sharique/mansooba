@@ -35,8 +35,10 @@ func HTTPErrorHandler(err error, c echo.Context) {
 		code, msg = http.StatusConflict, err.Error()
 	case errors.Is(err, domain.ErrSprintInvalidTransition):
 		code, msg = http.StatusConflict, err.Error()
-	case errors.Is(err, domain.ErrSprintNotStarted):
+	case errors.Is(err, domain.ErrSprintNotStarted), errors.Is(err, domain.ErrSprintTooLong):
 		code, msg = http.StatusBadRequest, err.Error()
+	case errors.Is(err, domain.ErrSprintFieldLocked):
+		code, msg = http.StatusConflict, err.Error()
 	case errors.As(err, &he):
 		code = he.Code
 		if s, ok := he.Message.(string); ok {
