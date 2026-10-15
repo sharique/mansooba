@@ -15,6 +15,9 @@ var (
 	ErrSprintNotEditable       = errors.New("completed sprints cannot be modified")
 	ErrSprintInvalidTransition = errors.New("invalid sprint state transition")
 	ErrSprintNotStarted        = errors.New("sprint has not been started yet")
+	// ErrSprintTooLong maps to 400; ErrSprintFieldLocked to 409.
+	ErrSprintTooLong     = errors.New("a sprint cannot be longer than 28 days (4 weeks)")
+	ErrSprintFieldLocked = errors.New("an active sprint can only have its end date changed")
 
 	// Auth / revocation errors (feature 007).
 	ErrTokenRevoked               = errors.New("token revoked")

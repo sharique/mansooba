@@ -104,6 +104,11 @@ export const useSprintsStore = defineStore('sprints', () => {
     }
   }
 
+  /** Drop one sprint's cached issues, e.g. after an issue was added from the backlog. */
+  function invalidateSprintIssues(sprintId: string) {
+    delete sprintIssues.value[sprintId]
+  }
+
   async function fetchBurndown(projectKey: string, id: string) {
     error.value = null
     try {
@@ -130,5 +135,6 @@ export const useSprintsStore = defineStore('sprints', () => {
     fetchBurndown,
     fetchSprintIssues,
     removeFromSprintIssues,
+    invalidateSprintIssues,
   }
 })

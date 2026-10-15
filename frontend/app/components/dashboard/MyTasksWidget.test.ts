@@ -73,4 +73,12 @@ describe('MyTasksWidget', () => {
     const w = mount(MyTasksWidget, { props: { loading: false }, global: { stubs } })
     expect(w.findAll('.font-mono').length).toBe(10)
   })
+
+  it('links to the project with a lower-case key even when the issue key is upper-case', () => {
+    const store = useAuthStore()
+    store.myIssues = [makeIssue({ id: 9, key: 'DEMO-3', status: 'todo' })]
+    const LinkStub = { props: ['to'], template: '<a :href="to"><slot /></a>' }
+    const w = mount(MyTasksWidget, { props: { loading: false }, global: { stubs: { ...stubs, NuxtLink: LinkStub } } })
+    expect(w.find('a').attributes('href')).toBe('/projects/demo/issues/9')
+  })
 })

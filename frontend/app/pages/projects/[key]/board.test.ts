@@ -65,6 +65,13 @@ describe('board page', () => {
     expect(w.text()).toContain('Backlog →')
   })
 
+  it('links to the Sprints page next to the Backlog link', async () => {
+    const w = shallowMount(BoardPage)
+    await flushPromises()
+    expect(w.find('nuxtlink[to="/projects/TEST/sprints"]').exists()).toBe(true)
+    expect(w.text()).toContain('Sprints →')
+  })
+
   it('calls fetchSprints on mount', async () => {
     shallowMount(BoardPage)
     await flushPromises()

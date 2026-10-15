@@ -110,6 +110,9 @@ func (s *sprintService) Create(ctx context.Context, projectKey string, callerID 
 	if err := s.requireAdminOrOwner(ctx, p, callerID); err != nil {
 		return nil, err
 	}
+	if err := validateSprintLength(req.StartDate, req.EndDate); err != nil {
+		return nil, err
+	}
 	sprint := &domain.Sprint{
 		ProjectID: p.ID,
 		Name:      req.Name,
@@ -185,6 +188,25 @@ func (s *sprintService) Update(ctx context.Context, projectKey string, id uint, 
 	if sprint.Status == domain.SprintStatusCompleted {
 		return nil, domain.ErrSprintNotEditable
 	}
+	// A started sprint keeps its name, goal and start date; only the end date moves.
+	if sprint.Status == domain.SprintStatusActive {
+		if (req.Name != nil && *req.Name != sprint.Name) ||
+			(req.Goal != nil && *req.Goal != sprint.Goal) ||
+			dateChanged(req.StartDate, sprint.StartDate) {
+			return nil, domain.ErrSprintFieldLocked
+		}
+	}
+	// Check the resulting length before touching the stored sprint.
+	start, end := sprint.StartDate, sprint.EndDate
+	if req.StartDate != nil {
+		start = req.StartDate
+	}
+	if req.EndDate != nil {
+		end = req.EndDate
+	}
+	if err := validateSprintLength(start, end); err != nil {
+		return nil, err
+	}
 	if req.Name != nil {
 		sprint.Name = *req.Name
 	}
@@ -201,6 +223,26 @@ func (s *sprintService) Update(ctx context.Context, projectKey string, id uint, 
 		return nil, err
 	}
 	return toSprintResponse(sprint), nil
+}
+
+// validateSprintLength enforces the 28-day cap when both dates are known.
+func validateSprintLength(start, end *time.Time) error {
+	if start == nil || end == nil {
+		return nil
+	}
+	if end.Sub(*start) > domain.MaxSprintDays*24*time.Hour {
+		return domain.ErrSprintTooLong
+	}
+	return nil
+}
+
+// dateChanged reports whether a requested date differs from the stored one.
+// An omitted request (nil) is not a change.
+func dateChanged(requested, current *time.Time) bool {
+	if requested == nil {
+		return false
+	}
+	return current == nil || !requested.Equal(*current)
 }
 
 func (s *sprintService) Delete(ctx context.Context, projectKey string, id uint, callerID uint) error {

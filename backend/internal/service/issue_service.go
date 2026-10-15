@@ -37,6 +37,9 @@ type issueService struct {
 	// rows, research.md Decision 9) before deleting the issue itself.
 	attachmentRepo    domain.AttachmentRepository
 	attachmentStorage AttachmentStorage
+
+	// notifier is optional (nil unless WithNotifier is called).
+	notifier NotificationService
 }
 
 // NewIssueService returns an IssueService backed by the given repositories.
@@ -67,6 +70,13 @@ func NewIssueService(
 func (s *issueService) WithAttachments(repo domain.AttachmentRepository, storage AttachmentStorage) *issueService {
 	s.attachmentRepo = repo
 	s.attachmentStorage = storage
+	return s
+}
+
+// WithNotifier enables assignment notifications (feature 017). Optional: without
+// it, assignment changes simply notify nobody.
+func (s *issueService) WithNotifier(n NotificationService) *issueService {
+	s.notifier = n
 	return s
 }
 
@@ -101,13 +111,16 @@ func (s *issueService) Create(ctx context.Context, projectKey string, callerID u
 		Type:        req.Type,
 		Status:      domain.IssueStatusTodo,
 		Priority:    req.Priority,
-		AssigneeID:  req.AssigneeID,
+		AssigneeID:  assigneeOrNil(req.AssigneeID),
 		ReporterID:  callerID,
 		StoryPoints: req.StoryPoints,
 	}
 
 	if err := s.issueRepo.Create(ctx, issue); err != nil {
 		return nil, err
+	}
+	if s.notifier != nil && issue.AssigneeID != nil {
+		s.notifier.NotifyAssignmentChange(ctx, project.ID, issue.ID, callerID, nil, issue.AssigneeID)
 	}
 	return s.enrichIssueResponse(ctx, toIssueResponse(issue), issue), nil
 }
@@ -267,7 +280,8 @@ func (s *issueService) Update(ctx context.Context, projectKey string, id uint, c
 		issue.Priority = *req.Priority
 	}
 	if req.AssigneeID != nil {
-		issue.AssigneeID = req.AssigneeID
+		// 0 means "clear" (ADR-036); JSON null is indistinguishable from absent.
+		issue.AssigneeID = assigneeOrNil(req.AssigneeID)
 	}
 	if req.StoryPoints != nil {
 		issue.StoryPoints = req.StoryPoints
@@ -285,6 +299,10 @@ func (s *issueService) Update(ctx context.Context, projectKey string, id uint, c
 	}
 
 	s.recordFieldChanges(ctx, issue.ID, callerID, oldStatus, oldPriority, oldAssigneeID, oldSprintID, oldPoints, issue)
+
+	if s.notifier != nil && ptrUintChanged(oldAssigneeID, issue.AssigneeID) {
+		s.notifier.NotifyAssignmentChange(ctx, project.ID, issue.ID, callerID, oldAssigneeID, issue.AssigneeID)
+	}
 
 	return s.enrichIssueResponse(ctx, toIssueResponse(issue), issue), nil
 }
@@ -440,6 +458,14 @@ func (s *issueService) resolveUserName(ctx context.Context, userID *uint) string
 		return "unknown"
 	}
 	return u.Name
+}
+
+// assigneeOrNil maps the API sentinel 0 ("no assignee") to nil.
+func assigneeOrNil(id *uint) *uint {
+	if id == nil || *id == 0 {
+		return nil
+	}
+	return id
 }
 
 func ptrUintChanged(a, b *uint) bool {

@@ -18,11 +18,14 @@ export function projectNavLinks(key: string): NavLink[] {
             icon: "mdi:view-column-outline",
         },
         {
-            // One page holds both the sprints and the backlog list (roadmap:
-            // split into a dedicated Sprints page), so there is one entry.
-            label: "Backlog & Sprints",
+            label: "Backlog",
             to: `/projects/${key}/backlog`,
             icon: "mdi:format-list-bulleted",
+        },
+        {
+            label: "Sprints",
+            to: `/projects/${key}/sprints`,
+            icon: "mdi:run-fast",
         },
         {
             label: "Reports",

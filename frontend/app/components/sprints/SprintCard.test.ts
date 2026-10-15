@@ -120,4 +120,27 @@ describe('SprintCard', () => {
     expect(w.text()).toContain('Task One')
     expect(w.text()).toContain('P-1')
   })
+
+  describe('overdue warning', () => {
+    const ymd = (offset: number) => {
+      const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10)
+    }
+    const mountSprint = (sprint: Sprint) =>
+      mount(SprintCard, { props: { sprint, projectKey: 'P', canManage: false, hasActiveSprint: true } })
+
+    it('warns when an in-progress sprint\'s end date has passed', () => {
+      const w = mountSprint({ ...activeSprint, start_date: ymd(-20), end_date: ymd(-2) })
+      expect(w.find('.alert-warning').text()).toContain('end date has passed')
+    })
+
+    it('does not warn when the end date is today or later', () => {
+      expect(mountSprint({ ...activeSprint, end_date: ymd(0) }).find('.alert-warning').exists()).toBe(false)
+      expect(mountSprint({ ...activeSprint, end_date: ymd(5) }).find('.alert-warning').exists()).toBe(false)
+    })
+
+    it('does not warn for planning or completed sprints with past dates', () => {
+      expect(mountSprint({ ...base, end_date: ymd(-2) }).find('.alert-warning').exists()).toBe(false)
+      expect(mountSprint({ ...completedSprint, end_date: ymd(-2) }).find('.alert-warning').exists()).toBe(false)
+    })
+  })
 })

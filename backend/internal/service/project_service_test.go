@@ -179,6 +179,7 @@ func newProjectService() service.ProjectService {
 		newStubProjectMemberRepo(),
 		newStubUserRepo(),
 		&stubIssueRepoForProject{},
+		nil,
 	)
 }
 
@@ -235,7 +236,7 @@ func TestProjectService_AddMember_ConflictIfAlreadyMember(t *testing.T) {
 	userRepo := newStubUserRepo()
 	projectRepo := newStubProjectRepo()
 	memberRepo := newStubProjectMemberRepo()
-	svc := service.NewProjectService(projectRepo, memberRepo, userRepo, &stubIssueRepoForProject{})
+	svc := service.NewProjectService(projectRepo, memberRepo, userRepo, &stubIssueRepoForProject{}, nil)
 
 	// Register a target user
 	ctx := context.Background()
@@ -317,5 +318,55 @@ func TestProjectService_FindByKey_UppercaseInputNormalizedToLowercase(t *testing
 	}
 	if found.Key != "mypr" {
 		t.Errorf("expected found key mypr, got %s", found.Key)
+	}
+}
+
+// ── notifications on membership changes (feature 017) ────────────────────────
+
+func newNotifyingProjectService() (service.ProjectService, *recordingNotifier, *stubUserRepo) {
+	userRepo := newStubUserRepo()
+	rec := &recordingNotifier{}
+	svc := service.NewProjectService(newStubProjectRepo(), newStubProjectMemberRepo(), userRepo, &stubIssueRepoForProject{}, rec)
+	return svc, rec, userRepo
+}
+
+func TestProjectService_AddAndRemoveMember_Notify(t *testing.T) {
+	svc, rec, userRepo := newNotifyingProjectService()
+	ctx := context.Background()
+	_ = userRepo.Create(ctx, &domain.User{ID: 2, Name: "Bob", Email: "bob@example.com", Password: "x"})
+	proj, _ := svc.Create(ctx, 1, dto.CreateProjectRequest{Name: "My Project"})
+
+	if err := svc.AddMember(ctx, proj.Key, 1, dto.AddMemberRequest{Email: "bob@example.com", Role: "member"}); err != nil {
+		t.Fatalf("add: %v", err)
+	}
+	if len(rec.memberships) != 1 || !rec.memberships[0].added || rec.memberships[0].targetID != 2 || rec.memberships[0].actorID != 1 || rec.memberships[0].projectID != proj.ID {
+		t.Fatalf("unexpected add notification: %+v", rec.memberships)
+	}
+
+	if err := svc.RemoveMember(ctx, proj.Key, 1, 2); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if len(rec.memberships) != 2 || rec.memberships[1].added || rec.memberships[1].targetID != 2 {
+		t.Fatalf("unexpected remove notification: %+v", rec.memberships)
+	}
+}
+
+func TestProjectService_FailedMembershipChangesDoNotNotify(t *testing.T) {
+	svc, rec, userRepo := newNotifyingProjectService()
+	ctx := context.Background()
+	_ = userRepo.Create(ctx, &domain.User{ID: 2, Name: "Bob", Email: "bob@example.com", Password: "x"})
+	proj, _ := svc.Create(ctx, 1, dto.CreateProjectRequest{Name: "My Project"})
+
+	// forbidden: caller 9 is not a member
+	_ = svc.AddMember(ctx, proj.Key, 9, dto.AddMemberRequest{Email: "bob@example.com", Role: "member"})
+	// owner removal refused
+	_ = svc.RemoveMember(ctx, proj.Key, 1, 1)
+	// conflict
+	_ = svc.AddMember(ctx, proj.Key, 1, dto.AddMemberRequest{Email: "bob@example.com", Role: "member"})
+	rec.memberships = nil
+	_ = svc.AddMember(ctx, proj.Key, 1, dto.AddMemberRequest{Email: "bob@example.com", Role: "member"})
+
+	if len(rec.memberships) != 0 {
+		t.Fatalf("expected no notifications for failed changes, got %+v", rec.memberships)
 	}
 }

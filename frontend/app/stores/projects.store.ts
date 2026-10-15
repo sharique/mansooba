@@ -1,11 +1,12 @@
 import { defineStore } from 'pinia'
-import type { Project } from '~/types/domain.types'
+import type { MemberResponse, Project } from '~/types/domain.types'
 import { projectsService, type CreateProjectRequest } from '~/services/projects.service'
 
 export const useProjectsStore = defineStore('projects', {
   state: () => ({
     projects: [] as Project[],
     current: null as Project | null,
+    members: [] as MemberResponse[],
   }),
   actions: {
     async fetchAll() {
@@ -13,6 +14,15 @@ export const useProjectsStore = defineStore('projects', {
     },
     async fetchOne(key: string) {
       this.current = await projectsService.get(key)
+    },
+    async fetchMembers(key: string) {
+      this.members = []
+      try {
+        this.members = (await projectsService.listMembers(key)) ?? []
+      }
+      catch {
+        // members stay empty; callers treat that as "no manage rights"
+      }
     },
     async create(data: CreateProjectRequest) {
       const project = await projectsService.create(data)

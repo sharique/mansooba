@@ -645,3 +645,105 @@ func TestSprintService_Velocity_ForbiddenForNonMember(t *testing.T) {
 		t.Errorf("expected ErrForbidden, got %v", err)
 	}
 }
+
+// ── sprint length and field locks (28-day cap; active = end date only) ───────
+
+func utcDate(y int, m time.Month, d int) *time.Time {
+	t := time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
+	return &t
+}
+
+func TestSprintService_Create_RejectsSprintLongerThan28Days(t *testing.T) {
+	svc, projectRepo, memberRepo, _, _ := newSprintService()
+	ctx := context.Background()
+	seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	_, err := svc.Create(ctx, "TEST", 1, dto.CreateSprintRequest{Name: "Long", StartDate: utcDate(2026, 10, 1), EndDate: utcDate(2026, 10, 30)}) // 29 days
+	if !errors.Is(err, domain.ErrSprintTooLong) {
+		t.Fatalf("expected ErrSprintTooLong, got %v", err)
+	}
+	if _, err := svc.Create(ctx, "TEST", 1, dto.CreateSprintRequest{Name: "Max", StartDate: utcDate(2026, 10, 1), EndDate: utcDate(2026, 10, 29)}); err != nil { // exactly 28
+		t.Fatalf("28 days must be allowed, got %v", err)
+	}
+}
+
+func TestSprintService_Update_RejectsSprintLongerThan28Days(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+	sp := &domain.Sprint{ProjectID: p.ID, Name: "S", Status: domain.SprintStatusPlanning, StartDate: utcDate(2026, 10, 1), EndDate: utcDate(2026, 10, 10)}
+	_ = sprintRepo.Create(ctx, sp)
+
+	_, err := svc.Update(ctx, "TEST", sp.ID, 1, dto.UpdateSprintRequest{EndDate: utcDate(2026, 10, 30)})
+	if !errors.Is(err, domain.ErrSprintTooLong) {
+		t.Fatalf("expected ErrSprintTooLong, got %v", err)
+	}
+	stored, _ := sprintRepo.FindByID(ctx, sp.ID)
+	if !stored.EndDate.Equal(*utcDate(2026, 10, 10)) {
+		t.Errorf("a rejected update must not change the stored end date, got %v", stored.EndDate)
+	}
+}
+
+func TestSprintService_Update_PlanningSprintAllowsAllFields(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+	sp := &domain.Sprint{ProjectID: p.ID, Name: "S", Status: domain.SprintStatusPlanning, StartDate: utcDate(2026, 10, 1), EndDate: utcDate(2026, 10, 10)}
+	_ = sprintRepo.Create(ctx, sp)
+
+	name, goal := "New", "Goal"
+	resp, err := svc.Update(ctx, "TEST", sp.ID, 1, dto.UpdateSprintRequest{Name: &name, Goal: &goal, StartDate: utcDate(2026, 10, 5), EndDate: utcDate(2026, 10, 20)})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Name != "New" || resp.Goal != "Goal" {
+		t.Errorf("fields not updated: %+v", resp)
+	}
+}
+
+func TestSprintService_Update_ActiveSprintOnlyEndDateChanges(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+	sp := &domain.Sprint{ProjectID: p.ID, Name: "S", Goal: "G", Status: domain.SprintStatusActive, StartDate: utcDate(2026, 9, 22), EndDate: utcDate(2026, 10, 14)}
+	_ = sprintRepo.Create(ctx, sp)
+
+	// The end date may change (here from 14 Oct to 23 Oct; 31 days after the start is NOT ok, 22 Sep + 28 = 20 Oct is the limit).
+	if _, err := svc.Update(ctx, "TEST", sp.ID, 1, dto.UpdateSprintRequest{EndDate: utcDate(2026, 10, 20)}); err != nil {
+		t.Fatalf("end date change must be allowed: %v", err)
+	}
+	if _, err := svc.Update(ctx, "TEST", sp.ID, 1, dto.UpdateSprintRequest{EndDate: utcDate(2026, 10, 23)}); !errors.Is(err, domain.ErrSprintTooLong) {
+		t.Fatalf("expected ErrSprintTooLong for 23 Oct, got %v", err)
+	}
+
+	// Name, goal and start date are locked.
+	name, goal := "Renamed", "Other"
+	for label, req := range map[string]dto.UpdateSprintRequest{
+		"name":  {Name: &name},
+		"goal":  {Goal: &goal},
+		"start": {StartDate: utcDate(2026, 9, 25)},
+	} {
+		if _, err := svc.Update(ctx, "TEST", sp.ID, 1, req); !errors.Is(err, domain.ErrSprintFieldLocked) {
+			t.Errorf("%s: expected ErrSprintFieldLocked, got %v", label, err)
+		}
+	}
+
+	// Re-sending the current values is not a change.
+	same, sameGoal := "S", "G"
+	if _, err := svc.Update(ctx, "TEST", sp.ID, 1, dto.UpdateSprintRequest{Name: &same, Goal: &sameGoal, StartDate: utcDate(2026, 9, 22), EndDate: utcDate(2026, 10, 18)}); err != nil {
+		t.Fatalf("unchanged values must be accepted: %v", err)
+	}
+}
+
+func TestSprintService_Update_CompletedSprintChangesNothing(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+	sp := &domain.Sprint{ProjectID: p.ID, Name: "S", Status: domain.SprintStatusCompleted, StartDate: utcDate(2026, 9, 1), EndDate: utcDate(2026, 9, 14)}
+	_ = sprintRepo.Create(ctx, sp)
+
+	_, err := svc.Update(ctx, "TEST", sp.ID, 1, dto.UpdateSprintRequest{EndDate: utcDate(2026, 9, 20)})
+	if !errors.Is(err, domain.ErrSprintNotEditable) {
+		t.Fatalf("expected ErrSprintNotEditable, got %v", err)
+	}
+}

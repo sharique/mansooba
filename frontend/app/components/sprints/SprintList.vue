@@ -56,7 +56,7 @@ async function handleExpand(sprint: Sprint) {
 
 async function handleRemoveIssue({ sprint, issueId }: { sprint: Sprint; issueId: number }) {
   try {
-    await issuesService.update(props.projectKey, issueId, { sprint_id: null })
+    await issuesService.update(props.projectKey, issueId, { sprint_id: 0 })
     sprintsStore.removeFromSprintIssues(sprint.id, issueId)
     showSuccess('Issue moved to backlog')
     emit('removed-from-sprint', { issueId, sprintId: sprint.id })

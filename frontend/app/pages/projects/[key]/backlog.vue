@@ -42,17 +42,8 @@
       </div>
     </div>
 
-    <!-- Normal sprint + backlog view (hidden while search is active) -->
+    <!-- Backlog view (hidden while search is active) -->
     <template v-else>
-      <!-- Sprint management section -->
-      <section class="mb-8">
-        <SprintsSprintList
-          :project-key="key"
-          :can-manage="canManage"
-          @removed-from-sprint="onRemovedFromSprint"
-        />
-      </section>
-
       <!-- Backlog issue list -->
       <section>
         <div class="flex items-center gap-2 mb-3">
@@ -63,7 +54,6 @@
           :issues="issues"
           :project-key="key"
           :loading="loading"
-          :can-manage="canManage"
           :sprints="sprintsStore.sprints"
           @sprint-assign="onSprintAssign"
         />
@@ -74,33 +64,21 @@
 
 <script setup lang="ts">
 import { backlogService } from '~/services/backlog.service'
-import { projectsService } from '~/services/projects.service'
 import { issuesService } from '~/services/issues.service'
-import type { Issue, IssueFilters, MemberResponse } from '~/types/domain.types'
+import type { Issue, IssueFilters } from '~/types/domain.types'
 
 const route = useRoute()
 const key = route.params.key as string
 const { showSuccess, showError } = useToast()
 
-const authStore = useAuthStore()
 const projectsStore = useProjectsStore()
 const sprintsStore = useSprintsStore()
 const issuesStore = useIssuesStore()
 
 const issues = ref<Issue[]>([])
-const members = ref<MemberResponse[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 const searchActive = ref(false)
-
-const myRole = computed(() =>
-  members.value.find(m => m.user_id === authStore.user?.id)?.role
-)
-
-const canManage = computed(() =>
-  projectsStore.current?.ownerId === authStore.user?.id
-  || myRole.value === 'admin'
-)
 
 onMounted(async () => {
   try {
@@ -115,7 +93,6 @@ onMounted(async () => {
         error.value = error.value ?? msg
         showError('Failed to load project')
       }),
-      projectsService.listMembers(key).then(v => (members.value = v)).catch(() => {}),
       sprintsStore.fetchSprints(key),
     ])
   }
@@ -141,21 +118,13 @@ async function onSearch(filters: IssueFilters) {
   }
 }
 
-async function onRemovedFromSprint({ issueId }: { issueId: number; sprintId: string }) {
-  try {
-    const refreshed = await backlogService.getBacklog(key)
-    issues.value = refreshed
-  }
-  catch {
-    showError('Failed to refresh backlog')
-  }
-}
-
 async function onSprintAssign({ issueId, sprintId }: { issueId: number; sprintId: number }) {
   const sprint = sprintsStore.sprints.find(s => Number(s.id) === sprintId)
   try {
     await issuesService.update(key, issueId, { sprint_id: sprintId })
     issues.value = issues.value.filter(i => i.id !== issueId)
+    // The Sprints page must not show a stale list for this sprint.
+    sprintsStore.invalidateSprintIssues(String(sprintId))
     showSuccess(`Added to ${sprint?.name ?? 'sprint'}`)
   }
   catch {

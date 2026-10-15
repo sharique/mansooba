@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { SprintStatus } from "~/types/domain.types";
 import type { Sprint, Issue } from "~/types/domain.types";
+import { isOverdue } from "~/utils/sprintDates";
 
 const props = defineProps<{
     sprint: Sprint;
@@ -20,6 +21,7 @@ const emit = defineEmits<{
 }>();
 
 const expanded = ref(false)
+const overdue = computed(() => isOverdue(props.sprint))
 
 function toggleExpand() {
     if (!expanded.value) {
@@ -96,6 +98,12 @@ const statusBadge: Record<string, string> = {
                         Delete
                     </button>
                 </div>
+            </div>
+
+            <div v-if="overdue" class="alert alert-warning py-2 mt-2 text-sm">
+                <span>
+                    This sprint is in progress but its end date has passed. Complete it, or move the end date.
+                </span>
             </div>
 
             <div

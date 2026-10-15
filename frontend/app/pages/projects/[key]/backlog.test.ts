@@ -45,11 +45,19 @@ describe('backlog page', () => {
     expect(mockFetchSprints).toHaveBeenCalledWith('TEST')
   })
 
-  it('shows sprint management and backlog sections', async () => {
+  it('does not render the sprint list', async () => {
     const w = shallowMount(BacklogPage)
     await flushPromises()
-    const sections = w.findAll('section')
-    expect(sections.length).toBeGreaterThanOrEqual(2)
+    expect(w.find('sprintssprintlist').exists()).toBe(false)
+    expect(w.findAll('section')).toHaveLength(1)
+  })
+
+  it('still loads the project (access check) and shows an alert when that fails', async () => {
+    mockFetchOne.mockRejectedValueOnce(new Error('403'))
+    const w = shallowMount(BacklogPage)
+    await flushPromises()
+    expect(mockFetchOne).toHaveBeenCalledWith('TEST')
+    expect(w.find('.alert.alert-error').exists()).toBe(true)
   })
 
   it('shows error alert when backlog fails to load', async () => {

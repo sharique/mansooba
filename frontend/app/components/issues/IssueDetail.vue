@@ -106,7 +106,7 @@
         <select
           :value="issue.assignee_id ?? ''"
           class="select select-bordered select-sm w-full"
-          @change="onFieldChange('assignee_id', ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)"
+          @change="onFieldChange('assignee_id', ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : 0)"
         >
           <option value="">Unassigned</option>
           <option v-for="m in members" :key="m.user_id" :value="m.user_id">{{ m.name }}</option>

@@ -5,8 +5,9 @@ import { beforeEach, describe, it, expect, vi } from 'vitest'
 import SprintList from './SprintList.vue'
 import type { Sprint } from '~/types/domain.types'
 
+const mockIssueUpdate = vi.fn()
 vi.mock('~/services/issues.service', () => ({
-  issuesService: { update: vi.fn() },
+  issuesService: { update: (...args: unknown[]) => mockIssueUpdate(...args) },
 }))
 
 const mockShowSuccess = vi.fn()
@@ -70,5 +71,23 @@ describe('SprintList', () => {
   it('renders "Sprints" heading', () => {
     const w = shallowMount(SprintList, { props: { projectKey: 'P', canManage: false } })
     expect(w.text()).toContain('Sprints')
+  })
+
+  it('expanding a sprint fetches its issues every time, so an invalidated cache is refilled', async () => {
+    mockSprintsStore.sprints = [sprint]
+    const w = shallowMount(SprintList, { props: { projectKey: 'P', canManage: false } })
+    await (w.vm as any).handleExpand(sprint)
+    await (w.vm as any).handleExpand(sprint)
+    expect(mockSprintsStore.fetchSprintIssues).toHaveBeenCalledTimes(2)
+    expect(mockSprintsStore.fetchSprintIssues).toHaveBeenCalledWith('P', 'sprint-1')
+  })
+
+  it('removing an issue from a sprint sends sprint_id 0, not null', async () => {
+    mockIssueUpdate.mockResolvedValueOnce({})
+    mockSprintsStore.sprints = [sprint]
+    const w = shallowMount(SprintList, { props: { projectKey: 'P', canManage: true } })
+    await (w.vm as any).handleRemoveIssue({ sprint, issueId: 7 })
+    expect(mockIssueUpdate).toHaveBeenCalledWith('P', 7, { sprint_id: 0 })
+    expect(mockSprintsStore.removeFromSprintIssues).toHaveBeenCalledWith('sprint-1', 7)
   })
 })

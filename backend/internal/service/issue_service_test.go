@@ -777,3 +777,202 @@ func TestSprintActivityName_UnknownSprintFallsBackToID(t *testing.T) {
 	require.NotNil(t, sprintEvent, "expected an ActivitySprintChanged event")
 	assert.Contains(t, sprintEvent.NewValue, "99", "fallback must contain the sprint ID")
 }
+
+// ── clearing the assignee (feature 017, ADR-036) ──────────────────────────────
+
+func newIssueServiceWithActivity() (service.IssueService, *stubProjectRepo, *stubProjectMemberRepo, *stubIssueRepo, *stubActivitySvc, *stubUserRepo) {
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	issueRepo := newStubIssueRepo()
+	activitySvc := &stubActivitySvc{}
+	userRepo := newStubUserRepo()
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo, newStubSprintRepo())
+	return svc, projectRepo, memberRepo, issueRepo, activitySvc, userRepo
+}
+
+func TestIssueService_Update_AssigneeZeroClearsAssignee(t *testing.T) {
+	svc, projectRepo, memberRepo, issueRepo, activitySvc, userRepo := newIssueServiceWithActivity()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+	mustCreateUser(t, userRepo, 2, "priya")
+	assignee := uint(2)
+	resp, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &assignee})
+	require.NoError(t, err)
+
+	clear := uint(0)
+	updated, err := svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{AssigneeID: &clear})
+	require.NoError(t, err)
+	assert.Nil(t, updated.AssigneeID)
+	stored, _ := issueRepo.FindByID(ctx, resp.ID)
+	assert.Nil(t, stored.AssigneeID)
+
+	var found *domain.ActivityEvent
+	for _, e := range activitySvc.recorded {
+		if e.Kind == domain.ActivityAssigneeChanged {
+			found = e
+		}
+	}
+	require.NotNil(t, found, "an assignee_changed event should be recorded")
+	assert.Equal(t, "unassigned", found.NewValue)
+}
+
+func TestIssueService_Update_AssigneeNilLeavesAssigneeUnchanged(t *testing.T) {
+	svc, projectRepo, memberRepo, issueRepo, activitySvc, userRepo := newIssueServiceWithActivity()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+	mustCreateUser(t, userRepo, 2, "priya")
+	assignee := uint(2)
+	resp, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &assignee})
+	require.NoError(t, err)
+
+	title := "renamed"
+	_, err = svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{Title: &title})
+	require.NoError(t, err)
+	stored, _ := issueRepo.FindByID(ctx, resp.ID)
+	require.NotNil(t, stored.AssigneeID)
+	assert.Equal(t, uint(2), *stored.AssigneeID)
+	for _, e := range activitySvc.recorded {
+		assert.NotEqual(t, domain.ActivityAssigneeChanged, e.Kind)
+	}
+}
+
+func TestIssueService_Create_AssigneeZeroMeansUnassigned(t *testing.T) {
+	svc, projectRepo, memberRepo, issueRepo, _, _ := newIssueServiceWithActivity()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+
+	zero := uint(0)
+	resp, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &zero})
+	require.NoError(t, err)
+	assert.Nil(t, resp.AssigneeID)
+	stored, _ := issueRepo.FindByID(ctx, resp.ID)
+	assert.Nil(t, stored.AssigneeID)
+}
+
+// FR-003a regression: only project members may change an issue's sprint.
+func TestIssueService_Update_NonMemberCannotSetSprint(t *testing.T) {
+	svc, projectRepo, memberRepo, issueRepo := newIssueService()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
+
+	sprintID := uint(5)
+	_, err := svc.Update(ctx, "PROJ", resp.ID, 99, dto.UpdateIssueRequest{SprintID: &sprintID})
+	assert.ErrorIs(t, err, domain.ErrForbidden)
+	stored, _ := issueRepo.FindByID(ctx, resp.ID)
+	assert.Nil(t, stored.SprintID)
+}
+
+// ── notifications on assignment changes (feature 017) ────────────────────────
+
+type assignCall struct {
+	projectID, issueID, actorID uint
+	oldAssignee, newAssignee    *uint
+}
+
+type recordingNotifier struct {
+	assigns     []assignCall
+	memberships []membershipCall
+}
+
+type membershipCall struct {
+	projectID, actorID, targetID uint
+	added                        bool
+}
+
+func (r *recordingNotifier) NotifyAssignmentChange(_ context.Context, projectID, issueID, actorID uint, oldAssignee, newAssignee *uint) {
+	r.assigns = append(r.assigns, assignCall{projectID, issueID, actorID, oldAssignee, newAssignee})
+}
+
+func (r *recordingNotifier) NotifyMembershipChange(_ context.Context, projectID, actorID, targetID uint, added bool) {
+	r.memberships = append(r.memberships, membershipCall{projectID, actorID, targetID, added})
+}
+
+func newNotifyingIssueService() (service.IssueService, *recordingNotifier, *stubProjectRepo, *stubProjectMemberRepo) {
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	rec := &recordingNotifier{}
+	svc := service.NewIssueService(newStubIssueRepo(), projectRepo, memberRepo, &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo()).
+		WithNotifier(rec)
+	return svc, rec, projectRepo, memberRepo
+}
+
+func TestIssueService_Create_NotifiesAssignee(t *testing.T) {
+	svc, rec, projectRepo, memberRepo := newNotifyingIssueService()
+	ctx := context.Background()
+	project := seedProject(ctx, projectRepo, memberRepo)
+	assignee := uint(2)
+
+	resp, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &assignee})
+	require.NoError(t, err)
+	require.Len(t, rec.assigns, 1)
+	c := rec.assigns[0]
+	assert.Equal(t, project.ID, c.projectID)
+	assert.Equal(t, resp.ID, c.issueID)
+	assert.Equal(t, uint(1), c.actorID)
+	assert.Nil(t, c.oldAssignee)
+	require.NotNil(t, c.newAssignee)
+	assert.Equal(t, uint(2), *c.newAssignee)
+}
+
+func TestIssueService_Create_WithoutAssigneeDoesNotNotify(t *testing.T) {
+	svc, rec, projectRepo, memberRepo := newNotifyingIssueService()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+	_, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
+	require.NoError(t, err)
+	assert.Empty(t, rec.assigns)
+}
+
+func TestIssueService_Update_AssigneeChangeNotifiesWithOldAndNew(t *testing.T) {
+	svc, rec, projectRepo, memberRepo := newNotifyingIssueService()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+	first := uint(2)
+	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &first})
+	rec.assigns = nil
+
+	next := uint(3)
+	_, err := svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{AssigneeID: &next})
+	require.NoError(t, err)
+	require.Len(t, rec.assigns, 1)
+	assert.Equal(t, uint(2), *rec.assigns[0].oldAssignee)
+	assert.Equal(t, uint(3), *rec.assigns[0].newAssignee)
+
+	rec.assigns = nil
+	zero := uint(0)
+	_, err = svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{AssigneeID: &zero})
+	require.NoError(t, err)
+	require.Len(t, rec.assigns, 1)
+	assert.Equal(t, uint(3), *rec.assigns[0].oldAssignee)
+	assert.Nil(t, rec.assigns[0].newAssignee)
+}
+
+func TestIssueService_Update_WithoutAssigneeChangeDoesNotNotify(t *testing.T) {
+	svc, rec, projectRepo, memberRepo := newNotifyingIssueService()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+	first := uint(2)
+	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &first})
+	rec.assigns = nil
+
+	title := "renamed"
+	_, err := svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{Title: &title})
+	require.NoError(t, err)
+	same := uint(2)
+	_, err = svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{AssigneeID: &same})
+	require.NoError(t, err)
+	assert.Empty(t, rec.assigns)
+}
+
+func TestIssueService_NilNotifierIsTolerated(t *testing.T) {
+	svc, projectRepo, memberRepo, _ := newIssueService()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+	assignee := uint(2)
+	resp, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &assignee})
+	require.NoError(t, err)
+	other := uint(3)
+	_, err = svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{AssigneeID: &other})
+	require.NoError(t, err)
+}

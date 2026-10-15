@@ -19,7 +19,7 @@
       <IssuesIssueDetail
         :issue="issuesStore.current"
         :project-key="key"
-        :members="members"
+        :members="projectsStore.members"
         :sprints="sprintsStore.sprints"
         @deleted="navigateTo(`/projects/${key}`)"
       />
@@ -33,24 +33,22 @@
 </template>
 
 <script setup lang="ts">
-import type { MemberResponse } from '~/types/domain.types'
-import { projectsService } from '~/services/projects.service'
-
 const route = useRoute()
 const key = route.params.key as string
 const id = route.params.id as string
 
 const issuesStore = useIssuesStore()
+const projectsStore = useProjectsStore()
 const sprintsStore = useSprintsStore()
 const { showError } = useToast()
 const loading = ref(true)
-const members = ref<MemberResponse[]>([])
 
 onMounted(async () => {
   try {
     await Promise.all([
       issuesStore.fetchOne(key, Number(id)),
-      projectsService.listMembers(key).then(v => members.value = v).catch(() => {}),
+      // One members fetch feeds the assignee picker and @mention names (it never throws).
+      projectsStore.fetchMembers(key),
       sprintsStore.fetchSprints(key).catch(() => {}),
     ])
   }

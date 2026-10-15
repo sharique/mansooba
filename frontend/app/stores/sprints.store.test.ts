@@ -11,6 +11,7 @@ const mockDelete = vi.fn()
 const mockStart = vi.fn()
 const mockComplete = vi.fn()
 const mockBurndown = vi.fn()
+const mockListIssues = vi.fn()
 
 vi.mock('~/services/sprints.service', () => ({
   sprintsService: {
@@ -22,6 +23,7 @@ vi.mock('~/services/sprints.service', () => ({
     start: (key: string, id: string) => mockStart(key, id),
     complete: (key: string, id: string, payload: unknown) => mockComplete(key, id, payload),
     burndown: (key: string, id: string) => mockBurndown(key, id),
+    listIssues: (key: string, id: string) => mockListIssues(key, id),
   },
 }))
 
@@ -180,5 +182,19 @@ describe('useSprintsStore', () => {
     const store = useSprintsStore()
     await expect(store.fetchBurndown('TEST', sprint.id)).rejects.toBeDefined()
     expect(store.error).toBe('Sprint not active')
+  })
+
+  describe('invalidateSprintIssues', () => {
+    test('removes only that sprint\'s cached issues and a later fetch repopulates it', async () => {
+      mockListIssues.mockResolvedValue([{ id: 7 }])
+      const store = useSprintsStore()
+      await store.fetchSprintIssues('PROJ', 'a')
+      await store.fetchSprintIssues('PROJ', 'b')
+      store.invalidateSprintIssues('a')
+      expect(store.sprintIssues['a']).toBeUndefined()
+      expect(store.sprintIssues['b']).toHaveLength(1)
+      await store.fetchSprintIssues('PROJ', 'a')
+      expect(store.sprintIssues['a']).toHaveLength(1)
+    })
   })
 })
