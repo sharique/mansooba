@@ -46,3 +46,70 @@ export function renderMentions(body: string, members: MemberResponse[]): string 
         }))
     .join('')
 }
+
+// ── typing a mention ─────────────────────────────────────────────────────────
+
+export interface MentionQuery { start: number; query: string }
+
+/**
+ * The "@fragment" the caret is in, or null. The "@" must open a mention by the
+ * same boundary rule as `MENTION` (not after a letter, digit, underscore, dot or
+ * "@"), and only username characters may sit between it and the caret.
+ */
+export function findMentionQuery(text: string, caret: number): MentionQuery | null {
+  const head = text.slice(0, caret)
+  const m = /(^|[^A-Za-z0-9_.@])@([A-Za-z0-9_]*)$/.exec(head)
+  if (!m) return null
+  return { start: head.length - m[2]!.length - 1, query: m[2]! }
+}
+
+/**
+ * Members to offer for `query`: active members with a username, minus the
+ * current user. Matches display name or username (any case); names or
+ * usernames that start with the query come first, each group by name.
+ */
+export function filterSuggestions(members: MemberResponse[], query: string, currentUserId: number): MemberResponse[] {
+  const q = query.toLowerCase()
+  const prefix: MemberResponse[] = []
+  const rest: MemberResponse[] = []
+  for (const m of members) {
+    if (!m.is_active || !m.username || m.user_id === currentUserId) continue
+    const name = m.name.toLowerCase()
+    const user = m.username.toLowerCase()
+    if (name.startsWith(q) || user.startsWith(q)) prefix.push(m)
+    else if (name.includes(q) || user.includes(q)) rest.push(m)
+  }
+  const byName = (a: MemberResponse, b: MemberResponse) => a.name.localeCompare(b.name)
+  return [...prefix.sort(byName), ...rest.sort(byName)]
+}
+
+/** Replaces the typed fragment with "@username " and returns the new caret. */
+export function applySuggestion(text: string, mq: MentionQuery, username: string): { text: string; caret: number } {
+  const before = text.slice(0, mq.start)
+  const after = text.slice(mq.start + 1 + mq.query.length)
+  const inserted = `@${username} `
+  return { text: before + inserted + after, caret: before.length + inserted.length }
+}
+
+/**
+ * Handles in `body` that are not a loaded project member, once each (first
+ * spelling kept), in order. Code spans and fences are skipped. With no members
+ * loaded it says nothing rather than warning about everyone.
+ */
+export function findUnknownMentions(body: string, members: MemberResponse[]): string[] {
+  if (!members.length || !body.includes('@')) return []
+  const known = new Set(members.map(m => m.username.toLowerCase()))
+  const seen = new Set<string>()
+  const out: string[] = []
+  body.split(CODE).forEach((part, i) => {
+    if (i % 2 === 1) return
+    for (const m of part.matchAll(MENTION)) {
+      const handle = m[2]!
+      const key = handle.toLowerCase()
+      if (known.has(key) || seen.has(key)) continue
+      seen.add(key)
+      out.push(handle)
+    }
+  })
+  return out
+}

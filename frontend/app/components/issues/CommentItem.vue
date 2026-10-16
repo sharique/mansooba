@@ -12,7 +12,7 @@
         <span class="text-xs text-base-content/50">{{ relativeTime }}</span>
       </div>
       <div v-if="editing">
-        <textarea v-model="editBody" class="textarea textarea-bordered w-full text-sm" rows="3" />
+        <MentionTextarea v-model="editBody" :members="projectsStore.members" :current-user-id="currentUserId" :rows="3" />
         <div class="flex gap-2 mt-1">
           <button class="btn btn-xs btn-primary" :disabled="!editBody.trim()" @click="saveEdit">Save</button>
           <button class="btn btn-xs btn-ghost" @click="editing = false">Cancel</button>
@@ -30,6 +30,7 @@
 <script setup lang="ts">
 import type { Comment } from '~/types/domain.types'
 import UserAvatar from '~/components/common/UserAvatar.vue'
+import MentionTextarea from '~/components/issues/MentionTextarea.vue'
 import { renderMentions } from '~/composables/useMentions'
 
 const props = defineProps<{ comment: Comment; currentUserId: number }>()

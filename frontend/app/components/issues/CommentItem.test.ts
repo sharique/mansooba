@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { shallowMount } from '@vue/test-utils'
+import { mount, shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
 import CommentItem from './CommentItem.vue'
@@ -30,5 +30,19 @@ describe('CommentItem mentions', () => {
     const w = shallowMount(CommentItem, { props: { comment: comment('hi @priya'), currentUserId: 1 } })
     expect(w.find('.mention').exists()).toBe(false)
     expect(w.text()).toContain('@priya')
+  })
+
+  it('editing offers the member list and saves the inserted text', async () => {
+    projects.members = [{ user_id: 5, name: 'Priya Nair', email: 'p@example.com', username: 'priya', role: 'member', is_active: true }]
+    const w = mount(CommentItem, { props: { comment: { ...comment('hi'), author_id: 1 }, currentUserId: 1 }, attachTo: document.body })
+    await w.findAll('button').find(b => b.text() === 'Edit')!.trigger('click')
+    const ta = w.find('textarea')
+    const el = ta.element as HTMLTextAreaElement
+    el.value = 'hi @pr'
+    el.setSelectionRange(6, 6)
+    await ta.trigger('input')
+    await w.find('[role="option"]').trigger('mousedown')
+    await w.findAll('button').find(b => b.text() === 'Save')!.trigger('click')
+    expect(w.emitted('update')![0]).toEqual([1, 'hi @priya '])
   })
 })

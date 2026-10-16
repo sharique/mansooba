@@ -13,10 +13,11 @@
       />
     </div>
     <div class="mt-4">
-      <textarea
+      <IssuesMentionTextarea
         v-model="newBody"
-        class="textarea textarea-bordered w-full text-sm"
-        rows="3"
+        :members="projectsStore.members"
+        :current-user-id="currentUserId"
+        :rows="3"
         placeholder="Add a comment… (supports **markdown**)"
       />
       <button class="btn btn-sm btn-primary mt-2" :disabled="!newBody.trim()" @click="submit">
@@ -31,6 +32,7 @@ import { useCommentsStore } from '~/stores/comments.store'
 
 const props = defineProps<{ issueId: number; currentUserId: number }>()
 const store = useCommentsStore()
+const projectsStore = useProjectsStore()
 const newBody = ref('')
 
 onMounted(() => store.fetchComments(props.issueId))
