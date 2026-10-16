@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/handler"
@@ -46,7 +46,7 @@ func newNotifHandlerEnv(t *testing.T) *notifHandlerEnv {
 	return &notifHandlerEnv{db: db, h: handler.NewNotificationHandler(repository.NewNotificationRepository(db)), alice: alice.ID, bob: bob.ID, projID: p.ID, issue: issue.ID}
 }
 
-func (e *notifHandlerEnv) call(t *testing.T, method, path string, userID uint, id string, fn func(echo.Context) error) *httptest.ResponseRecorder {
+func (e *notifHandlerEnv) call(t *testing.T, method, path string, userID uint, id string, fn func(*echo.Context) error) *httptest.ResponseRecorder {
 	t.Helper()
 	ec := echo.New()
 	req := httptest.NewRequest(method, path, nil)
@@ -54,11 +54,10 @@ func (e *notifHandlerEnv) call(t *testing.T, method, path string, userID uint, i
 	c := ec.NewContext(req, rec)
 	c.Set("userID", userID)
 	if id != "" {
-		c.SetParamNames("id")
-		c.SetParamValues(id)
+		setParams(c, []string{"id"}, id)
 	}
 	if err := fn(c); err != nil {
-		ec.HTTPErrorHandler(err, c)
+		ec.HTTPErrorHandler(c, err)
 	}
 	return rec
 }

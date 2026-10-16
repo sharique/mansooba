@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
@@ -30,7 +30,7 @@ func NewIssueRelationHandler(svc service.IssueRelationService) *IssueRelationHan
 // @Failure      401 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
 // @Router       /issues/{id}/relations [get]
-func (h *IssueRelationHandler) List(c echo.Context) error {
+func (h *IssueRelationHandler) List(c *echo.Context) error {
 	issueID, err := parseUintParam(c, "id")
 	if err != nil {
 		return echo.ErrBadRequest
@@ -60,7 +60,7 @@ func (h *IssueRelationHandler) List(c echo.Context) error {
 // @Failure      400 {object} apierror.APIError
 // @Failure      401 {object} apierror.APIError
 // @Router       /issues/{id}/relations [post]
-func (h *IssueRelationHandler) Create(c echo.Context) error {
+func (h *IssueRelationHandler) Create(c *echo.Context) error {
 	issueID, err := parseUintParam(c, "id")
 	if err != nil {
 		return echo.ErrBadRequest
@@ -88,7 +88,7 @@ func (h *IssueRelationHandler) Create(c echo.Context) error {
 // @Failure      401 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
 // @Router       /issues/{id}/relations/{rid} [delete]
-func (h *IssueRelationHandler) Delete(c echo.Context) error {
+func (h *IssueRelationHandler) Delete(c *echo.Context) error {
 	relationID, err := parseUintParam(c, "rid")
 	if err != nil {
 		return echo.ErrBadRequest

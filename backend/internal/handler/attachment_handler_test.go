@@ -10,7 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/handler"
@@ -64,18 +64,16 @@ func buildAttachmentMultipartRequest(t *testing.T, files map[string][]byte) *htt
 	return req
 }
 
-func newAttachmentEchoCtx(method, path string, issueID, aid string) (echo.Context, *httptest.ResponseRecorder) {
+func newAttachmentEchoCtx(method, path string, issueID, aid string) (*echo.Context, *httptest.ResponseRecorder) {
 	e := echo.New()
 	req := httptest.NewRequest(method, path, nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("userID", uint(42))
 	if aid != "" {
-		c.SetParamNames("id", "aid")
-		c.SetParamValues(issueID, aid)
+		setParams(c, []string{"id", "aid"}, issueID, aid)
 	} else {
-		c.SetParamNames("id")
-		c.SetParamValues(issueID)
+		setParams(c, []string{"id"}, issueID)
 	}
 	return c, rec
 }
@@ -98,8 +96,7 @@ func TestAttachmentHandler_Upload_Returns200(t *testing.T) {
 	e := echo.New()
 	c := e.NewContext(req, rec)
 	c.Set("userID", uint(42))
-	c.SetParamNames("id")
-	c.SetParamValues("1")
+	setParams(c, []string{"id"}, "1")
 
 	require.NoError(t, h.Upload(c))
 	assert.Equal(t, http.StatusOK, rec.Code)
@@ -123,8 +120,7 @@ func TestAttachmentHandler_Upload_ViewerForbidden(t *testing.T) {
 	e := echo.New()
 	c := e.NewContext(req, rec)
 	c.Set("userID", uint(7))
-	c.SetParamNames("id")
-	c.SetParamValues("1")
+	setParams(c, []string{"id"}, "1")
 
 	err := h.Upload(c)
 	require.Error(t, err)
@@ -145,8 +141,7 @@ func TestAttachmentHandler_Upload_IssueNotFound(t *testing.T) {
 	e := echo.New()
 	c := e.NewContext(req, rec)
 	c.Set("userID", uint(42))
-	c.SetParamNames("id")
-	c.SetParamValues("999")
+	setParams(c, []string{"id"}, "999")
 
 	err := h.Upload(c)
 	he, ok := err.(*echo.HTTPError)
@@ -166,8 +161,7 @@ func TestAttachmentHandler_Upload_CapReachedReturns409(t *testing.T) {
 	e := echo.New()
 	c := e.NewContext(req, rec)
 	c.Set("userID", uint(42))
-	c.SetParamNames("id")
-	c.SetParamValues("1")
+	setParams(c, []string{"id"}, "1")
 
 	err := h.Upload(c)
 	he, ok := err.(*echo.HTTPError)
@@ -183,8 +177,7 @@ func TestAttachmentHandler_Upload_NoFilesReturns400(t *testing.T) {
 	e := echo.New()
 	c := e.NewContext(req, rec)
 	c.Set("userID", uint(42))
-	c.SetParamNames("id")
-	c.SetParamValues("1")
+	setParams(c, []string{"id"}, "1")
 
 	err := h.Upload(c)
 	he, ok := err.(*echo.HTTPError)

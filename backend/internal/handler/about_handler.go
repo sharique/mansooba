@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
 )
@@ -25,7 +25,7 @@ func NewAboutHandler(svc service.InstanceService) *AboutHandler {
 // @Produce      json
 // @Success      200 {object} dto.AboutResponse
 // @Router       /about [get]
-func (h *AboutHandler) Get(c echo.Context) error {
+func (h *AboutHandler) Get(c *echo.Context) error {
 	info := h.svc.Info()
 	c.Response().Header().Set("Cache-Control", "public, max-age=300")
 	return c.JSON(http.StatusOK, dto.AboutResponse{

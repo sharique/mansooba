@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/handler"
@@ -45,7 +45,7 @@ func (s *stubIssueService) GetMyIssues(_ context.Context, _ uint, _ dto.IssueLis
 func newIssueEcho(h *handler.IssueHandler) *echo.Echo {
 	e := newEcho()
 	api := e.Group("/api/v1", func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			c.Set("userID", uint(1))
 			return next(c)
 		}

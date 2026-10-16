@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
@@ -35,7 +35,7 @@ func NewAttachmentHandler(svc service.AttachmentService) *AttachmentHandler {
 // @Failure      404 {object} apierror.APIError
 // @Failure      409 {object} apierror.APIError
 // @Router       /issues/{id}/attachments [post]
-func (h *AttachmentHandler) Upload(c echo.Context) error {
+func (h *AttachmentHandler) Upload(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	issueID, err := parseUintParam(c, "id")
 	if err != nil {
@@ -90,7 +90,7 @@ func (h *AttachmentHandler) Upload(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
 // @Router       /issues/{id}/attachments [get]
-func (h *AttachmentHandler) List(c echo.Context) error {
+func (h *AttachmentHandler) List(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	issueID, err := parseUintParam(c, "id")
 	if err != nil {
@@ -129,7 +129,7 @@ func (h *AttachmentHandler) List(c echo.Context) error {
 // JSON (authenticated, same-origin — no CORS involved) and then navigates
 // directly to the returned S3 URL, which needs no Authorization header at
 // all: the presigned signature *is* the authorization (research.md Decision 2).
-func (h *AttachmentHandler) Download(c echo.Context) error {
+func (h *AttachmentHandler) Download(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	issueID, err := parseUintParam(c, "id")
 	if err != nil {
@@ -157,7 +157,7 @@ func (h *AttachmentHandler) Download(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
 // @Router       /issues/{id}/attachments/{aid} [delete]
-func (h *AttachmentHandler) Delete(c echo.Context) error {
+func (h *AttachmentHandler) Delete(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	issueID, err := parseUintParam(c, "id")
 	if err != nil {

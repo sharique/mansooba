@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
@@ -33,7 +33,7 @@ func NewAuthHandler(svc service.AuthService, userSvc service.UserService) *AuthH
 // @Failure      400 {object} apierror.APIError "Bad request"
 // @Failure      409 {object} apierror.APIError "Email already registered"
 // @Router       /auth/register [post]
-func (h *AuthHandler) Register(c echo.Context) error {
+func (h *AuthHandler) Register(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	profile, err := h.userSvc.GetProfile(c.Request().Context(), callerID)
 	if err != nil || !profile.IsAdmin {
@@ -68,7 +68,7 @@ func (h *AuthHandler) Register(c echo.Context) error {
 // @Failure      400 {object} apierror.APIError "Bad request"
 // @Failure      401 {object} apierror.APIError "Invalid credentials"
 // @Router       /auth/login [post]
-func (h *AuthHandler) Login(c echo.Context) error {
+func (h *AuthHandler) Login(c *echo.Context) error {
 	var req dto.LoginRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
@@ -94,7 +94,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 // @Failure      401 {object} apierror.APIError "Unauthorized"
 // @Failure      503 {object} apierror.APIError "Revocation store unavailable"
 // @Router       /auth/refresh [post]
-func (h *AuthHandler) Refresh(c echo.Context) error {
+func (h *AuthHandler) Refresh(c *echo.Context) error {
 	cookie, err := c.Cookie("refresh_token")
 	if err != nil {
 		return echo.ErrUnauthorized
@@ -118,7 +118,7 @@ func (h *AuthHandler) Refresh(c echo.Context) error {
 // @Success      200 "Cookie cleared"
 // @Failure      500 {object} apierror.APIError "Unexpected server error"
 // @Router       /auth/logout [post]
-func (h *AuthHandler) Logout(c echo.Context) error {
+func (h *AuthHandler) Logout(c *echo.Context) error {
 	cookie, err := c.Cookie("refresh_token")
 	if err != nil || cookie.Value == "" {
 		// Nothing to revoke — clear cookie defensively and succeed.
@@ -135,7 +135,7 @@ func (h *AuthHandler) Logout(c echo.Context) error {
 
 // setRefreshCookie is a package-level helper (not a method) so
 // PasswordChangeHandler can reuse it too — see its ChangePassword.
-func setRefreshCookie(c echo.Context, value string) {
+func setRefreshCookie(c *echo.Context, value string) {
 	secure := os.Getenv("APP_ENV") != "development"
 	c.SetCookie(&http.Cookie{
 		Name:     "refresh_token",
@@ -148,7 +148,7 @@ func setRefreshCookie(c echo.Context, value string) {
 	})
 }
 
-func (h *AuthHandler) clearRefreshCookie(c echo.Context) {
+func (h *AuthHandler) clearRefreshCookie(c *echo.Context) {
 	secure := os.Getenv("APP_ENV") != "development"
 	c.SetCookie(&http.Cookie{
 		Name:     "refresh_token",

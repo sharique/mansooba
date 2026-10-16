@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
@@ -38,7 +38,7 @@ func NewPasswordChangeHandler(svc service.PasswordChangeService, authSvc service
 // @Success      200 {object} map[string]string
 // @Failure      400 {object} apierror.APIError "Validation error or incorrect current password"
 // @Router       /auth/me/password [put]
-func (h *PasswordChangeHandler) ChangePassword(c echo.Context) error {
+func (h *PasswordChangeHandler) ChangePassword(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 
 	var req dto.ChangePasswordRequest

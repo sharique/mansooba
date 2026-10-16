@@ -11,40 +11,26 @@ package main
 
 import (
 	"context"
-	"net/http"
+	"errors"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
-	"unicode"
 
-	"github.com/go-playground/validator/v10"
-	"github.com/labstack/echo/v4"
-	echomw "github.com/labstack/echo/v4/middleware"
 	_ "github.com/sharique/mansooba/docs"
 	"github.com/sharique/mansooba/internal/domain"
-	"github.com/sharique/mansooba/internal/email"
-	"github.com/sharique/mansooba/internal/handler"
-	apimw "github.com/sharique/mansooba/internal/middleware"
+	"github.com/sharique/mansooba/internal/httpserver"
 	"github.com/sharique/mansooba/internal/pkg/attachmentstorage"
 	"github.com/sharique/mansooba/internal/pkg/avatarstorage"
 	"github.com/sharique/mansooba/internal/pkg/lokiclient"
 	"github.com/sharique/mansooba/internal/pkg/rdsclient"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
-	"github.com/sharique/mansooba/pkg/apierror"
 	"github.com/sharique/mansooba/pkg/config"
 	"github.com/sharique/mansooba/pkg/database"
 	"github.com/sharique/mansooba/pkg/logger"
-	echoSwagger "github.com/swaggo/echo-swagger"
 	"go.uber.org/zap"
-	"golang.org/x/time/rate"
 )
-
-type customValidator struct{ v *validator.Validate }
-
-func (cv *customValidator) Validate(i any) error { return cv.v.Struct(i) }
 
 // version is baked in at image build time via -ldflags -X main.version=...
 // "dev" for a local build.
@@ -85,20 +71,11 @@ func main() {
 	}
 	log.Info("migrations applied")
 
-	// Repositories
-	userRepo := repository.NewUserRepository(db)
+	// Repositories main itself still needs (background jobs and the System
+	// Logs service); everything request-facing is wired by httpserver.NewHandlers.
 	revokedTokenRepo := repository.NewRevokedTokenRepository(db)
-	projectRepo := repository.NewProjectRepository(db)
-	projectMemberRepo := repository.NewProjectMemberRepository(db)
-	issueRepo := repository.NewIssueRepository(db)
-	sprintRepo := repository.NewSprintRepository(db)
-	commentRepo := repository.NewCommentRepository(db)
-	activityRepo := repository.NewActivityRepository(db)
-	notifRepo := repository.NewNotificationRepository(db)
 	settingRepo := repository.NewSettingRepository(db)
-	issueRelationRepo := repository.NewIssueRelationRepository(db)
 	passwordResetRepo := repository.NewPasswordResetRepository(db)
-	attachmentRepo := repository.NewAttachmentRepository(db)
 
 	// Attachment storage (S3-compatible: real AWS S3 in prod, LocalStack in
 	// local dev — same code path either way, only STORAGE_ENDPOINT differs).
@@ -223,326 +200,38 @@ func main() {
 			zap.String("dsn_host", cfg.RDSHostForDiagnostics()))
 	}
 
-	// Services
-	authSvc := service.NewAuthService(userRepo, revokedTokenRepo, systemLogSvc, log, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
-	userSvc := service.NewUserService(userRepo, avatarStorage)
-	notifSvc := service.NewNotificationService(notifRepo, projectMemberRepo, log)
-	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo, notifSvc)
-	activitySvc := service.NewActivityService(activityRepo, userRepo, issueRepo)
-	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, sprintRepo).
-		WithAttachments(attachmentRepo, attachmentStorage).
-		WithNotifier(notifSvc)
-	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo)
-	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
-	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc, notifRepo, userRepo)
-	attachmentSvc := service.NewAttachmentService(attachmentRepo, issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, attachmentStorage)
-	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
-	settingSvc := service.NewSettingService(settingRepo, userRepo, systemLogSvc)
-	issueRelationSvc := service.NewIssueRelationService(issueRelationRepo, issueRepo)
-	var emailSender domain.EmailSender
-	if cfg.SMTPHost != "" {
-		emailSender = email.SMTPSender{Host: cfg.SMTPHost, Port: cfg.SMTPPort, From: cfg.SMTPFrom, AppBaseURL: cfg.AppBaseURL}
-		log.Info("email delivery enabled", zap.String("smtp_host", cfg.SMTPHost), zap.String("smtp_port", cfg.SMTPPort))
-	} else {
-		emailSender = email.NoopSender{}
-		log.Info("email delivery disabled — token returned in API response only")
-	}
-	passwordResetSvc := service.NewPasswordResetService(userRepo, passwordResetRepo, emailSender)
-	passwordChangeSvc := service.NewPasswordChangeService(userRepo, systemLogSvc, emailSender)
-
-	adminUserSvc := service.NewAdminUserService(userRepo, systemLogSvc)
-
-	// Setup service (wizard)
-	accessTTL, _ := time.ParseDuration(cfg.JWTAccessTTL)
-	setupSvc := service.NewSetupService(userRepo, projectSvc, cfg.JWTSecret, accessTTL, log, db)
-
-	// Instance info: version and
-	// source location, both resolved above; License/LicenseURL are fixed.
-	instanceSvc := service.NewInstanceService(domain.InstanceInfo{
-		Version:   version,
-		SourceURL: sourceCodeURL,
+	// Handlers: repositories, services and handlers are wired in httpserver.
+	handlers := httpserver.NewHandlers(httpserver.Inputs{
+		Cfg: cfg, Log: log, DB: db, SQLDB: sqlDB, Loki: lokiClient, SystemLogSvc: systemLogSvc,
+		AttachmentStorage: attachmentStorage, AvatarStorage: avatarStorage,
+		Version: version, SourceCodeURL: sourceCodeURL,
 	})
 
-	// Handlers
-	healthHandler := handler.NewHealthHandler(sqlDB).WithLoki(lokiClient)
-	aboutHandler := handler.NewAboutHandler(instanceSvc)
-	systemLogHandler := handler.NewSystemLogHandler(systemLogSvc, userSvc)
-	authHandler := handler.NewAuthHandler(authSvc, userSvc)
-	setupHandler := handler.NewSetupHandler(setupSvc, settingSvc)
-	userHandler := handler.NewUserHandler(userSvc, activitySvc, issueSvc)
-	projectHandler := handler.NewProjectHandler(projectSvc)
-	issueHandler := handler.NewIssueHandler(issueSvc)
-	boardHandler := handler.NewBoardHandler(boardSvc)
-	sprintHandler := handler.NewSprintHandler(sprintSvc)
-	commentHandler := handler.NewCommentHandler(commentSvc)
-	attachmentHandler := handler.NewAttachmentHandler(attachmentSvc)
-	activityHandler := handler.NewActivityHandler(activitySvc)
-	labelHandler := handler.NewLabelHandler(labelSvc)
-	notifHandler := handler.NewNotificationHandler(notifRepo)
-	settingHandler := handler.NewSettingHandler(settingSvc, userSvc)
-	issueRelationHandler := handler.NewIssueRelationHandler(issueRelationSvc)
-	issueHandler = issueHandler.WithRelationRepo(issueRelationRepo)
-	adminUserHandler := handler.NewAdminUserHandler(adminUserSvc, userSvc)
-	passwordResetHandler := handler.NewPasswordResetHandler(passwordResetSvc)
-	passwordChangeHandler := handler.NewPasswordChangeHandler(passwordChangeSvc, authSvc)
-
-	// Echo
-	e := echo.New()
-	e.HideBanner = true
-	e.HidePort = true
-
-	v := validator.New()
-	v.RegisterValidation("password_complexity", func(fl validator.FieldLevel) bool { //nolint:errcheck
-		pw := fl.Field().String()
-		var hasUpper, hasLower, hasDigit bool
-		for _, r := range pw {
-			switch {
-			case unicode.IsUpper(r):
-				hasUpper = true
-			case unicode.IsLower(r):
-				hasLower = true
-			case unicode.IsDigit(r):
-				hasDigit = true
-			}
-		}
-		return len(pw) >= 8 && hasUpper && hasLower && hasDigit
+	// Echo: validator, error handler, middleware and routes.
+	e := httpserver.New(httpserver.Deps{
+		Cfg: cfg, Log: log, H: handlers,
+		Tracker: dbLifecycleTracker, RDS: rdsClient, SystemLogSvc: systemLogSvc,
 	})
-	e.Validator = &customValidator{v}
-	e.HTTPErrorHandler = apierror.HTTPErrorHandler
 
-	e.Use(echomw.Recover())
-	e.Use(echomw.CORSWithConfig(echomw.CORSConfig{
-		AllowOrigins:     strings.Split(cfg.CORSOrigins, ","),
-		AllowCredentials: true,
-	}))
-
-	// Body limit — reject payloads > BodySizeLimit with 413
-	e.Use(echomw.BodyLimit(cfg.BodySizeLimit))
-
-	// Request timeout — abort requests exceeding RequestTimeout with 503
-	requestTimeout, err := time.ParseDuration(cfg.RequestTimeout)
+	shutdownDuration, err := time.ParseDuration(cfg.ShutdownTimeout)
 	if err != nil {
-		log.Warn("invalid REQUEST_TIMEOUT value, defaulting to 30s", zap.String("value", cfg.RequestTimeout), zap.Error(err))
-		requestTimeout = 30 * time.Second
+		shutdownDuration = 30 * time.Second
 	}
-	e.Use(echomw.TimeoutWithConfig(echomw.TimeoutConfig{
-		Timeout: requestTimeout,
-	}))
-
-	// Database idle auto-stop / wake-on-hit (spec 010) — only registered when
-	// the feature is actually enabled (T009 above), so both are a complete
-	// no-op otherwise, not just an inert call. DBWake runs first so a request
-	// hitting a stopped database gets the waking_up signal immediately,
-	// without DBActivity or any handler attempting real (doomed) DB work.
-	if dbLifecycleTracker != nil {
-		e.Use(apimw.DBWake(dbLifecycleTracker, rdsClient, log, systemLogSvc))
-		e.Use(apimw.DBActivity(dbLifecycleTracker))
-	}
-
-	// Public routes
-	e.GET("/health", healthHandler.Check)
-	// Public by design (016-agpl-dual-licensing): lets any user of this
-	// instance, including on the sign-in page, find its source (AGPL-3.0
-	// section 13). Returns no user or instance-configuration data.
-	e.GET("/api/v1/about", aboutHandler.Get)
-
-	auth := e.Group("/api/v1/auth")
-	auth.Use(echomw.RateLimiterWithConfig(echomw.RateLimiterConfig{
-		Skipper: echomw.DefaultSkipper,
-		Store: echomw.NewRateLimiterMemoryStoreWithConfig(
-			echomw.RateLimiterMemoryStoreConfig{
-				Rate:      rate.Limit(cfg.AuthRateLimit),
-				Burst:     cfg.AuthRateLimit,
-				ExpiresIn: 3 * time.Minute,
-			},
-		),
-		IdentifierExtractor: func(ctx echo.Context) (string, error) {
-			return ctx.RealIP(), nil
-		},
-		ErrorHandler: func(context echo.Context, err error) error {
-			return context.JSON(http.StatusForbidden, map[string]string{"error": "forbidden"})
-		},
-		DenyHandler: func(context echo.Context, identifier string, err error) error {
-			return context.JSON(http.StatusTooManyRequests, map[string]string{"error": "rate limit exceeded"})
-		},
-	}))
-	auth.POST("/login", authHandler.Login)
-	auth.POST("/refresh", authHandler.Refresh)
-	auth.POST("/logout", authHandler.Logout)
-	auth.POST("/forgot-password", passwordResetHandler.ForgotPassword)
-	auth.POST("/reset-password", passwordResetHandler.ResetPassword)
-
-	// Setup wizard routes (public group — no JWT required)
-	setup := e.Group("/api/v1/setup")
-	setup.GET("/status", setupHandler.Status)
-
-	// Account-creation steps are rate-limited (same config as auth)
-	setupRateLimited := setup.Group("", echomw.RateLimiterWithConfig(echomw.RateLimiterConfig{
-		Skipper: echomw.DefaultSkipper,
-		Store: echomw.NewRateLimiterMemoryStoreWithConfig(
-			echomw.RateLimiterMemoryStoreConfig{
-				Rate:      rate.Limit(cfg.AuthRateLimit),
-				Burst:     cfg.AuthRateLimit,
-				ExpiresIn: 3 * time.Minute,
-			},
-		),
-		IdentifierExtractor: func(ctx echo.Context) (string, error) {
-			return ctx.RealIP(), nil
-		},
-		ErrorHandler: func(context echo.Context, err error) error {
-			return context.JSON(http.StatusForbidden, map[string]string{"error": "forbidden"})
-		},
-		DenyHandler: func(context echo.Context, identifier string, err error) error {
-			return context.JSON(http.StatusTooManyRequests, map[string]string{"error": "Too many attempts. Please wait a minute and try again."})
-		},
-	}))
-	setupRateLimited.POST("/admin", setupHandler.CreateAdmin)
-
-	// Authenticated setup steps (require JWT from step 1)
-	setupAuth := setup.Group("", apimw.JWTAuth(cfg.JWTSecret))
-	setupAuth.Use(echomw.RateLimiterWithConfig(echomw.RateLimiterConfig{
-		Skipper: echomw.DefaultSkipper,
-		Store: echomw.NewRateLimiterMemoryStoreWithConfig(
-			echomw.RateLimiterMemoryStoreConfig{
-				Rate:      rate.Limit(cfg.AuthRateLimit),
-				Burst:     cfg.AuthRateLimit,
-				ExpiresIn: 3 * time.Minute,
-			},
-		),
-		IdentifierExtractor: func(ctx echo.Context) (string, error) {
-			return ctx.RealIP(), nil
-		},
-		ErrorHandler: func(context echo.Context, err error) error {
-			return context.JSON(http.StatusForbidden, map[string]string{"error": "forbidden"})
-		},
-		DenyHandler: func(context echo.Context, identifier string, err error) error {
-			return context.JSON(http.StatusTooManyRequests, map[string]string{"error": "Too many attempts. Please wait a minute and try again."})
-		},
-	}))
-	setupAuth.POST("/user", setupHandler.CreateUser)
-	setupAuth.POST("/project", setupHandler.CreateProject)
-	setupAuth.POST("/seed", setupHandler.SeedData)
-
-	// Protected routes
-	api := e.Group("/api/v1", apimw.JWTAuth(cfg.JWTSecret))
-
-	authMe := api.Group("/auth")
-	authMe.POST("/register", authHandler.Register)
-	authMe.GET("/me", userHandler.GetProfile)
-	authMe.PUT("/me", userHandler.UpdateProfile)
-	authMe.GET("/me/activity", userHandler.GetMyActivity)
-	authMe.GET("/me/issues", userHandler.GetMyIssues)
-	authMe.POST("/me/avatar", userHandler.UploadAvatar)
-	authMe.DELETE("/me/avatar", userHandler.DeleteAvatar)
-
-	// Change-password is rate-limited per source IP, unlike authMe's other
-	// routes — mirrors the setupAuth pattern (the only existing precedent for
-	// "JWT-protected + rate-limited" in this codebase).
-	authMePasswordLimited := authMe.Group("")
-	authMePasswordLimited.Use(echomw.RateLimiterWithConfig(echomw.RateLimiterConfig{
-		Skipper: echomw.DefaultSkipper,
-		Store: echomw.NewRateLimiterMemoryStoreWithConfig(
-			echomw.RateLimiterMemoryStoreConfig{
-				Rate:      rate.Limit(cfg.AuthRateLimit),
-				Burst:     cfg.AuthRateLimit,
-				ExpiresIn: 3 * time.Minute,
-			},
-		),
-		IdentifierExtractor: func(ctx echo.Context) (string, error) {
-			return ctx.RealIP(), nil
-		},
-		ErrorHandler: func(context echo.Context, err error) error {
-			return context.JSON(http.StatusForbidden, map[string]string{"error": "forbidden"})
-		},
-		DenyHandler: func(context echo.Context, identifier string, err error) error {
-			return context.JSON(http.StatusTooManyRequests, map[string]string{"error": "Too many attempts. Please wait a minute and try again."})
-		},
-	}))
-	authMePasswordLimited.PUT("/me/password", passwordChangeHandler.ChangePassword)
-
-	// Public avatar serving, streamed from S3 (avatars/ prefix of the shared
-	// bucket). Intentionally unauthenticated — browser <img> tags fetch images
-	// as unauthenticated sub-resources and avatars carry no per-viewer access
-	// restriction. Rationale documented in ADR-033.
-	e.GET("/avatars/:filename", userHandler.ServeAvatar)
-
-	projects := api.Group("/projects")
-	projects.GET("", projectHandler.List)
-	projects.POST("", projectHandler.Create)
-	projects.GET("/:key", projectHandler.Get)
-	projects.PUT("/:key", projectHandler.Update)
-	projects.DELETE("/:key", projectHandler.Delete)
-	projects.GET("/:key/members", projectHandler.ListMembers)
-	projects.POST("/:key/members", projectHandler.AddMember)
-	projects.DELETE("/:key/members/:userId", projectHandler.RemoveMember)
-	projects.GET("/:key/labels", labelHandler.List)
-	projects.POST("/:key/labels", labelHandler.Create)
-	projects.DELETE("/:key/labels/:lid", labelHandler.Delete)
-
-	issues := api.Group("/projects/:key/issues")
-	issues.GET("", issueHandler.List)
-	issues.POST("", issueHandler.Create)
-	issues.GET("/:id", issueHandler.Get)
-	issues.PUT("/:id", issueHandler.Update)
-	issues.DELETE("/:id", issueHandler.Delete)
-
-	api.GET("/projects/:key/board", boardHandler.GetBoard)
-
-	sprints := api.Group("/projects/:key/sprints")
-	sprints.GET("", sprintHandler.List)
-	sprints.POST("", sprintHandler.Create)
-	sprints.GET("/:id", sprintHandler.Get)
-	sprints.PUT("/:id", sprintHandler.Update)
-	sprints.DELETE("/:id", sprintHandler.Delete)
-	sprints.POST("/:id/start", sprintHandler.Start)
-	sprints.POST("/:id/complete", sprintHandler.Complete)
-	sprints.GET("/:id/burndown", sprintHandler.Burndown)
-	sprints.GET("/:id/issues", sprintHandler.GetIssues)
-
-	api.GET("/projects/:key/backlog", sprintHandler.Backlog)
-	api.GET("/projects/:key/velocity", sprintHandler.Velocity)
-
-	issueItems := api.Group("/issues/:id")
-	issueItems.GET("/comments", commentHandler.List)
-	issueItems.POST("/comments", commentHandler.Create)
-	issueItems.PUT("/comments/:cid", commentHandler.Update)
-	issueItems.DELETE("/comments/:cid", commentHandler.Delete)
-	issueItems.GET("/activity", activityHandler.ListByIssue)
-	issueItems.GET("/labels", labelHandler.ListByIssue)
-	issueItems.POST("/labels/:lid", labelHandler.Attach)
-	issueItems.DELETE("/labels/:lid", labelHandler.Detach)
-	issueItems.GET("/relations", issueRelationHandler.List)
-	issueItems.POST("/relations", issueRelationHandler.Create)
-	issueItems.DELETE("/relations/:rid", issueRelationHandler.Delete)
-
-	// Attachment upload gets a larger body-size limit than the global default
-	// (research.md Decision 3) — batch uploads of multiple ~10MB files would
-	// otherwise be rejected by the global 4M BodyLimit applied to every route.
-	issueItems.POST("/attachments", attachmentHandler.Upload, echomw.BodyLimit("25M"))
-	issueItems.GET("/attachments", attachmentHandler.List)
-	issueItems.GET("/attachments/:aid/download", attachmentHandler.Download)
-	issueItems.DELETE("/attachments/:aid", attachmentHandler.Delete)
-
-	admin := api.Group("/admin")
-	admin.GET("/users", adminUserHandler.ListUsers)
-	admin.PATCH("/users/:id", adminUserHandler.PatchUser)
-	admin.GET("/system-logs", systemLogHandler.List)
-
-	settings := api.Group("/settings")
-	settings.GET("", settingHandler.GetAll)
-	settings.PATCH("", settingHandler.Patch)
-
-	notifs := api.Group("/notifications")
-	notifs.GET("", notifHandler.List)
-	notifs.PUT("/:id/read", notifHandler.MarkRead)
-
-	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
 	// Start the server in a goroutine so main() can wait for OS signals.
+	// Serve returns once the graceful shutdown (triggered by ctx) has finished.
+	serverDone := make(chan struct{})
 	go func() {
+		defer close(serverDone)
 		addr := ":" + cfg.ServerPort
 		log.Info("starting server", zap.String("address", addr))
-		if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
+		err := httpserver.Serve(ctx, e, addr, shutdownDuration, log, nil)
+		switch {
+		case err == nil:
+			log.Info("server shutdown complete")
+		case errors.Is(err, httpserver.ErrShutdown):
+			// already logged by Serve
+		default:
 			log.Fatal("server error", zap.Error(err))
 		}
 	}()
@@ -566,24 +255,10 @@ func main() {
 		}
 	}()
 
-	// Block until SIGTERM or SIGINT.
+	// Block until SIGTERM or SIGINT, then wait for the server to drain.
 	<-ctx.Done()
-
 	log.Info("shutdown signal received — draining requests")
-
-	shutdownDuration, err := time.ParseDuration(cfg.ShutdownTimeout)
-	if err != nil {
-		shutdownDuration = 30 * time.Second
-	}
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownDuration)
-	defer cancel()
-
-	if err := e.Shutdown(shutdownCtx); err != nil {
-		log.Error("graceful shutdown failed", zap.Error(err))
-	} else {
-		log.Info("server shutdown complete")
-	}
+	<-serverDone
 }
 
 // startDBIdleCheck launches a background goroutine that periodically checks

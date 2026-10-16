@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
@@ -35,7 +35,7 @@ func NewUserHandler(userSvc service.UserService, activitySvc service.ActivitySer
 // @Success      200 {object} dto.UserProfileResponse
 // @Failure      401 {object} apierror.APIError
 // @Router       /auth/me [get]
-func (h *UserHandler) GetProfile(c echo.Context) error {
+func (h *UserHandler) GetProfile(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	resp, err := h.userSvc.GetProfile(c.Request().Context(), callerID)
 	if err != nil {
@@ -55,7 +55,7 @@ func (h *UserHandler) GetProfile(c echo.Context) error {
 // @Failure      400 {object} apierror.APIError
 // @Failure      401 {object} apierror.APIError
 // @Router       /auth/me [put]
-func (h *UserHandler) UpdateProfile(c echo.Context) error {
+func (h *UserHandler) UpdateProfile(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	var req dto.UpdateProfileRequest
 	if err := c.Bind(&req); err != nil {
@@ -78,7 +78,7 @@ func (h *UserHandler) UpdateProfile(c echo.Context) error {
 // @Success      200 {array} dto.ActivityEventResponse
 // @Failure      401 {object} apierror.APIError
 // @Router       /auth/me/activity [get]
-func (h *UserHandler) GetMyActivity(c echo.Context) error {
+func (h *UserHandler) GetMyActivity(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	limit := 20
 	offset := 0
@@ -119,7 +119,7 @@ func (h *UserHandler) GetMyActivity(c echo.Context) error {
 // @Failure      413 {object} apierror.APIError
 // @Failure      502 {object} apierror.APIError
 // @Router       /auth/me/avatar [post]
-func (h *UserHandler) UploadAvatar(c echo.Context) error {
+func (h *UserHandler) UploadAvatar(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 
 	fileHeader, err := c.FormFile("avatar")
@@ -161,7 +161,7 @@ func (h *UserHandler) UploadAvatar(c echo.Context) error {
 // @Success      200 {object} dto.UserProfileResponse
 // @Failure      401 {object} apierror.APIError
 // @Router       /auth/me/avatar [delete]
-func (h *UserHandler) DeleteAvatar(c echo.Context) error {
+func (h *UserHandler) DeleteAvatar(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 
 	resp, err := h.userSvc.DeleteAvatar(c.Request().Context(), callerID)
@@ -191,7 +191,7 @@ var avatarFilenamePattern = regexp.MustCompile(`^avatar-\d+\.(jpg|png|webp)$`)
 // @Success      200 {file} binary
 // @Failure      404 {object} apierror.APIError
 // @Router       /avatars/{filename} [get]
-func (h *UserHandler) ServeAvatar(c echo.Context) error {
+func (h *UserHandler) ServeAvatar(c *echo.Context) error {
 	filename := c.Param("filename")
 	if !avatarFilenamePattern.MatchString(filename) {
 		return echo.NewHTTPError(http.StatusNotFound, "avatar not found")
@@ -222,7 +222,7 @@ func (h *UserHandler) ServeAvatar(c echo.Context) error {
 // @Success      200 {array} dto.IssueResponse
 // @Failure      401 {object} apierror.APIError
 // @Router       /auth/me/issues [get]
-func (h *UserHandler) GetMyIssues(c echo.Context) error {
+func (h *UserHandler) GetMyIssues(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	q := dto.IssueListQuery{
 		Status: c.QueryParam("status"),

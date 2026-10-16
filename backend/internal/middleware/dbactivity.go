@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/sharique/mansooba/internal/service"
 )
@@ -17,7 +17,7 @@ import (
 // to exclude that would change the idle-detection outcome.
 func DBActivity(tracker *service.DBLifecycleTracker) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			tracker.RecordActivity()
 			tracker.IncrementInFlight()
 			defer tracker.DecrementInFlight()

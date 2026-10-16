@@ -3,7 +3,7 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"go.uber.org/zap"
 
 	"github.com/sharique/mansooba/internal/domain"
@@ -35,7 +35,7 @@ type wakingUpBody struct {
 // non-retryable failure.
 func DBWake(tracker *service.DBLifecycleTracker, client domain.DBInstanceClient, log *zap.Logger, systemLogSvc service.SystemLogService) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			if tracker.CurrentState() == domain.DBInstanceRunning {
 				return next(c)
 			}
@@ -67,7 +67,7 @@ func DBWake(tracker *service.DBLifecycleTracker, client domain.DBInstanceClient,
 	}
 }
 
-func respondWakingUp(c echo.Context) error {
+func respondWakingUp(c *echo.Context) error {
 	c.Response().Header().Set("Retry-After", wakingUpRetryAfterSeconds)
 	return c.JSON(http.StatusServiceUnavailable, wakingUpBody{
 		Status:       "waking_up",

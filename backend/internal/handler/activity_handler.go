@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/service"
 )
 
@@ -26,7 +26,7 @@ func NewActivityHandler(svc service.ActivityService) *ActivityHandler {
 // @Failure      401 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
 // @Router       /issues/{id}/activity [get]
-func (h *ActivityHandler) ListByIssue(c echo.Context) error {
+func (h *ActivityHandler) ListByIssue(c *echo.Context) error {
 	issueID, err := parseUintParam(c, "id")
 	if err != nil {
 		return echo.ErrBadRequest

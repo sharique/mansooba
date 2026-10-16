@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
@@ -33,7 +33,7 @@ func NewCommentHandler(svc service.CommentService) *CommentHandler {
 // @Failure      403 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
 // @Router       /issues/{id}/comments [post]
-func (h *CommentHandler) Create(c echo.Context) error {
+func (h *CommentHandler) Create(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	issueID, err := parseUintParam(c, "id")
 	if err != nil {
@@ -61,7 +61,7 @@ func (h *CommentHandler) Create(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
 // @Router       /issues/{id}/comments [get]
-func (h *CommentHandler) List(c echo.Context) error {
+func (h *CommentHandler) List(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	issueID, err := parseUintParam(c, "id")
 	if err != nil {
@@ -89,7 +89,7 @@ func (h *CommentHandler) List(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
 // @Router       /issues/{id}/comments/{cid} [put]
-func (h *CommentHandler) Update(c echo.Context) error {
+func (h *CommentHandler) Update(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	cid, err := parseUintParam(c, "cid")
 	if err != nil {
@@ -120,7 +120,7 @@ func (h *CommentHandler) Update(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
 // @Router       /issues/{id}/comments/{cid} [delete]
-func (h *CommentHandler) Delete(c echo.Context) error {
+func (h *CommentHandler) Delete(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	cid, err := parseUintParam(c, "cid")
 	if err != nil {

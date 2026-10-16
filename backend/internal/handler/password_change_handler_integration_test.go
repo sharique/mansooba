@@ -18,7 +18,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/handler"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
@@ -65,7 +65,7 @@ func newPasswordChangeIntegrationSetup(t *testing.T) (*echo.Echo, *handler.AuthH
 	e := newEcho()
 	e.POST("/auth/login", authHandler.Login)
 	e.POST("/auth/refresh", authHandler.Refresh)
-	e.PUT("/auth/me/password", func(c echo.Context) error {
+	e.PUT("/auth/me/password", func(c *echo.Context) error {
 		id, err := strconv.ParseUint(c.Request().Header.Get(testUserIDHeader), 10, 64)
 		if err != nil {
 			return echo.ErrUnauthorized

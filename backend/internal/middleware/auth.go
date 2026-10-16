@@ -6,14 +6,14 @@ import (
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // JWTAuth returns an Echo middleware that validates Bearer tokens.
 // On success it stores the user ID (uint) under the "userID" context key.
 func JWTAuth(secret string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			header := c.Request().Header.Get("Authorization")
 			if !strings.HasPrefix(header, "Bearer ") {
 				return echo.ErrUnauthorized

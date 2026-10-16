@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
@@ -48,7 +48,7 @@ func NewSystemLogHandler(svc service.SystemLogService, userSvc service.UserServi
 // @Failure      400 {object} apierror.APIError "Invalid query params"
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Router       /admin/system-logs [get]
-func (h *SystemLogHandler) List(c echo.Context) error {
+func (h *SystemLogHandler) List(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	profile, err := h.userSvc.GetProfile(c.Request().Context(), callerID)
 	if err != nil || !profile.IsAdmin {
@@ -76,7 +76,7 @@ func (h *SystemLogHandler) List(c echo.Context) error {
 	return c.JSON(http.StatusOK, toSystemLogListResponse(result, query.Page, query.Size))
 }
 
-func parseSystemLogListQuery(c echo.Context) (dto.SystemLogListQuery, error) {
+func parseSystemLogListQuery(c *echo.Context) (dto.SystemLogListQuery, error) {
 	q := dto.SystemLogListQuery{Page: 1, Size: 20}
 
 	if cat := c.QueryParam("category"); cat != "" {

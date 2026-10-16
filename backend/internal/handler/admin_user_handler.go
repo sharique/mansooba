@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
@@ -18,6 +18,15 @@ type AdminUserHandler struct {
 }
 
 // NewAdminUserHandler creates an AdminUserHandler.
+// lastAdminConflictMessage is the message of the last-admin conflict. Under
+// Echo v4 these returns passed a map as the message, which the central error
+// handler (it only accepts string messages) discarded, so clients have always
+// received status 409 with the generic message "internal server error". Echo
+// v5 messages are strings; this constant keeps that response byte for byte
+// (feature 018, parity). Making the response informative (the LAST_ADMIN code
+// and the sentence the frontend looks for) is a separate change on the roadmap.
+const lastAdminConflictMessage = "internal server error"
+
 func NewAdminUserHandler(svc service.AdminUserService, userSvc service.UserService) *AdminUserHandler {
 	return &AdminUserHandler{svc: svc, userSvc: userSvc}
 }
@@ -33,7 +42,7 @@ func NewAdminUserHandler(svc service.AdminUserService, userSvc service.UserServi
 // @Failure      400 {object} apierror.APIError "Invalid query params"
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Router       /admin/users [get]
-func (h *AdminUserHandler) ListUsers(c echo.Context) error {
+func (h *AdminUserHandler) ListUsers(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	profile, err := h.userSvc.GetProfile(c.Request().Context(), callerID)
 	if err != nil || !profile.IsAdmin {
@@ -67,7 +76,7 @@ func (h *AdminUserHandler) ListUsers(c echo.Context) error {
 // @Failure      404 {object} apierror.APIError "User not found"
 // @Failure      409 {object} apierror.APIError "Cannot remove last admin"
 // @Router       /admin/users/{id} [patch]
-func (h *AdminUserHandler) PatchUser(c echo.Context) error {
+func (h *AdminUserHandler) PatchUser(c *echo.Context) error {
 	// Step 1: caller must be admin.
 	callerID := c.Get("userID").(uint)
 	profile, err := h.userSvc.GetProfile(c.Request().Context(), callerID)
@@ -96,10 +105,7 @@ func (h *AdminUserHandler) PatchUser(c echo.Context) error {
 	if req.IsAdmin != nil {
 		if err := h.svc.SetRole(ctx, callerID, targetID, *req.IsAdmin); err != nil {
 			if errors.Is(err, domain.ErrLastAdmin) {
-				return echo.NewHTTPError(http.StatusConflict, map[string]string{
-					"code":    "LAST_ADMIN",
-					"message": "Cannot remove the last active admin. Promote another user first.",
-				})
+				return echo.NewHTTPError(http.StatusConflict, lastAdminConflictMessage)
 			}
 			if errors.Is(err, domain.ErrNotFound) {
 				return echo.NewHTTPError(http.StatusNotFound, "user not found")
@@ -110,10 +116,7 @@ func (h *AdminUserHandler) PatchUser(c echo.Context) error {
 	if req.IsActive != nil {
 		if err := h.svc.SetActive(ctx, callerID, targetID, *req.IsActive); err != nil {
 			if errors.Is(err, domain.ErrLastAdmin) {
-				return echo.NewHTTPError(http.StatusConflict, map[string]string{
-					"code":    "LAST_ADMIN",
-					"message": "Cannot remove the last active admin. Promote another user first.",
-				})
+				return echo.NewHTTPError(http.StatusConflict, lastAdminConflictMessage)
 			}
 			if errors.Is(err, domain.ErrNotFound) {
 				return echo.NewHTTPError(http.StatusNotFound, "user not found")
@@ -133,7 +136,7 @@ func (h *AdminUserHandler) PatchUser(c echo.Context) error {
 	return c.JSON(http.StatusOK, updated)
 }
 
-func parsePagination(c echo.Context) (page, size int, err error) {
+func parsePagination(c *echo.Context) (page, size int, err error) {
 	page = 1
 	size = 20
 

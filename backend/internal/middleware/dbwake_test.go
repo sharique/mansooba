@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -79,12 +79,12 @@ func doRequest(t *testing.T, mw echo.MiddlewareFunc) (*httptest.ResponseRecorder
 	c := e.NewContext(req, rec)
 
 	handlerCalled := false
-	next := func(c echo.Context) error {
+	next := func(c *echo.Context) error {
 		handlerCalled = true
 		return c.NoContent(http.StatusOK)
 	}
 	if err := mw(next)(c); err != nil {
-		e.HTTPErrorHandler(err, c)
+		e.HTTPErrorHandler(c, err)
 	}
 	return rec, handlerCalled
 }

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
@@ -29,7 +29,7 @@ func NewProjectHandler(svc service.ProjectService) *ProjectHandler {
 // @Success      200 {array}  dto.ProjectResponse
 // @Failure      401 {object} apierror.APIError "Unauthorized"
 // @Router       /projects [get]
-func (h *ProjectHandler) List(c echo.Context) error {
+func (h *ProjectHandler) List(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	projects, err := h.svc.List(c.Request().Context(), callerID)
 	if err != nil {
@@ -50,7 +50,7 @@ func (h *ProjectHandler) List(c echo.Context) error {
 // @Failure      401 {object} apierror.APIError "Unauthorized"
 // @Failure      409 {object} apierror.APIError "Key already exists"
 // @Router       /projects [post]
-func (h *ProjectHandler) Create(c echo.Context) error {
+func (h *ProjectHandler) Create(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	var req dto.CreateProjectRequest
 	if err := c.Bind(&req); err != nil {
@@ -74,7 +74,7 @@ func (h *ProjectHandler) Create(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Failure      404 {object} apierror.APIError "Not found"
 // @Router       /projects/{key} [get]
-func (h *ProjectHandler) Get(c echo.Context) error {
+func (h *ProjectHandler) Get(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	resp, err := h.svc.FindByKey(c.Request().Context(), c.Param("key"), callerID)
 	if err != nil {
@@ -97,7 +97,7 @@ func (h *ProjectHandler) Get(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Failure      404 {object} apierror.APIError "Not found"
 // @Router       /projects/{key} [put]
-func (h *ProjectHandler) Update(c echo.Context) error {
+func (h *ProjectHandler) Update(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	var req dto.UpdateProjectRequest
 	if err := c.Bind(&req); err != nil {
@@ -120,7 +120,7 @@ func (h *ProjectHandler) Update(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Failure      404 {object} apierror.APIError "Not found"
 // @Router       /projects/{key} [delete]
-func (h *ProjectHandler) Delete(c echo.Context) error {
+func (h *ProjectHandler) Delete(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	if err := h.svc.Delete(c.Request().Context(), c.Param("key"), callerID); err != nil {
 		return mapProjectError(err)
@@ -139,7 +139,7 @@ func (h *ProjectHandler) Delete(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Failure      404 {object} apierror.APIError "Not found"
 // @Router       /projects/{key}/members [get]
-func (h *ProjectHandler) ListMembers(c echo.Context) error {
+func (h *ProjectHandler) ListMembers(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	members, err := h.svc.ListMembers(c.Request().Context(), c.Param("key"), callerID)
 	if err != nil {
@@ -161,7 +161,7 @@ func (h *ProjectHandler) ListMembers(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Failure      404 {object} apierror.APIError "Not found"
 // @Router       /projects/{key}/members [post]
-func (h *ProjectHandler) AddMember(c echo.Context) error {
+func (h *ProjectHandler) AddMember(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	var req dto.AddMemberRequest
 	if err := c.Bind(&req); err != nil {
@@ -185,7 +185,7 @@ func (h *ProjectHandler) AddMember(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Failure      404 {object} apierror.APIError "Not found"
 // @Router       /projects/{key}/members/{userId} [delete]
-func (h *ProjectHandler) RemoveMember(c echo.Context) error {
+func (h *ProjectHandler) RemoveMember(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	targetID, err := strconv.ParseUint(c.Param("userId"), 10, 64)
 	if err != nil {

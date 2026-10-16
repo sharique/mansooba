@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/handler"
@@ -72,15 +72,14 @@ var _ service.ActivityService = (*stubActivitySvcHandler)(nil)
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-func newCommentEchoCtx(method, path, body string, issueID string) (echo.Context, *httptest.ResponseRecorder) {
+func newCommentEchoCtx(method, path, body string, issueID string) (*echo.Context, *httptest.ResponseRecorder) {
 	e := echo.New()
 	req := httptest.NewRequest(method, path, strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("userID", uint(42))
-	c.SetParamNames("id")
-	c.SetParamValues(issueID)
+	setParams(c, []string{"id"}, issueID)
 	return c, rec
 }
 
@@ -130,9 +129,10 @@ func TestCommentHandler_Create_InvalidIssueIDReturns400(t *testing.T) {
 	c, rec := newCommentEchoCtx(http.MethodPost, "/issues/abc/comments", `{"body":"x"}`, "abc")
 
 	err := h.Create(c)
-	var httpErr *echo.HTTPError
-	require.ErrorAs(t, err, &httpErr)
-	assert.Equal(t, http.StatusBadRequest, httpErr.Code)
+	// Echo v5's sentinels (echo.ErrBadRequest) are no longer *echo.HTTPError;
+	// the status is read through echo.StatusCode (feature 018).
+	require.Error(t, err)
+	assert.Equal(t, http.StatusBadRequest, echo.StatusCode(err))
 	_ = rec
 }
 
@@ -149,8 +149,7 @@ func TestCommentHandler_Delete_ForbiddenPropagates(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("userID", uint(42))
-	c.SetParamNames("id", "cid")
-	c.SetParamValues("1", "2")
+	setParams(c, []string{"id", "cid"}, "1", "2")
 
 	err := h.Delete(c)
 	var httpErr *echo.HTTPError
@@ -168,8 +167,7 @@ func TestActivityHandler_List_Returns200(t *testing.T) {
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.Set("userID", uint(42))
-	c.SetParamNames("id")
-	c.SetParamValues("1")
+	setParams(c, []string{"id"}, "1")
 
 	require.NoError(t, h.ListByIssue(c))
 	assert.Equal(t, http.StatusOK, rec.Code)

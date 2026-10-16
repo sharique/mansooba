@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/service"
 )
@@ -30,7 +30,7 @@ func NewBoardHandler(svc service.BoardService) *BoardHandler {
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Failure      404 {object} apierror.APIError "Not found"
 // @Router       /projects/{key}/board [get]
-func (h *BoardHandler) GetBoard(c echo.Context) error {
+func (h *BoardHandler) GetBoard(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	resp, err := h.svc.GetBoard(c.Request().Context(), c.Param("key"), callerID)
 	if err != nil {
