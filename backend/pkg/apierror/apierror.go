@@ -28,6 +28,8 @@ func HTTPErrorHandler(c *echo.Context, err error) {
 		code, msg = http.StatusConflict, "conflict"
 	case errors.Is(err, domain.ErrForbidden):
 		code, msg = http.StatusForbidden, "forbidden"
+	case errors.Is(err, domain.ErrInvalidInput):
+		code, msg = http.StatusBadRequest, err.Error()
 	case errors.Is(err, domain.ErrSprintAlreadyActive):
 		code, msg = http.StatusConflict, err.Error()
 	case errors.Is(err, domain.ErrSprintNotDeletable):

@@ -503,19 +503,14 @@
   },
   {
     "name": "register_invalid",
-    "status": 201,
+    "status": 400,
     "headers": {
       "Content-Type": "application/json",
       "Vary": "Origin"
     },
     "body": {
-      "access_token": "\u003cjwt\u003e",
-      "refresh_token": "\u003cjwt\u003e",
-      "user": {
-        "email": "x",
-        "id": 4,
-        "name": ""
-      }
+      "code": "Bad Request",
+      "message": "full_name is required"
     }
   },
   {
@@ -544,17 +539,14 @@
   },
   {
     "name": "project_create_invalid",
-    "status": 201,
+    "status": 400,
     "headers": {
       "Content-Type": "application/json",
       "Vary": "Origin"
     },
     "body": {
-      "description": "",
-      "id": 3,
-      "key": "",
-      "name": "",
-      "owner_id": 1
+      "code": "Bad Request",
+      "message": "name is required"
     }
   },
   {
@@ -566,7 +558,7 @@
     },
     "body": {
       "description": "parity project",
-      "id": 4,
+      "id": 3,
       "key": "alpha",
       "name": "Alpha",
       "owner_id": 1
@@ -581,7 +573,7 @@
     },
     "body": {
       "description": "",
-      "id": 5,
+      "id": 4,
       "key": "alpha2",
       "name": "Alpha 2",
       "owner_id": 1
@@ -596,7 +588,7 @@
     },
     "body": {
       "description": "parity project",
-      "id": 4,
+      "id": 3,
       "key": "alpha",
       "name": "Alpha",
       "owner_id": 1
@@ -635,7 +627,7 @@
     },
     "body": {
       "description": "changed",
-      "id": 4,
+      "id": 3,
       "key": "alpha",
       "name": "Alpha Renamed",
       "owner_id": 1
@@ -659,9 +651,14 @@
   },
   {
     "name": "member_add_invalid",
-    "status": 201,
+    "status": 400,
     "headers": {
+      "Content-Type": "application/json",
       "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "email must be a valid email address"
     }
   },
   {
@@ -724,12 +721,6 @@
         "user_id": 1
       },
       {
-        "email": "x",
-        "name": "",
-        "role": "boss",
-        "user_id": 4
-      },
-      {
         "email": "demo@example.com",
         "name": "Demo User",
         "role": "member",
@@ -739,14 +730,26 @@
   },
   {
     "name": "label_create_invalid",
-    "status": 500,
+    "status": 400,
     "headers": {
       "Content-Type": "application/json",
       "Vary": "Origin"
     },
     "body": {
-      "code": "Internal Server Error",
-      "message": "internal server error"
+      "code": "Bad Request",
+      "message": "name is required"
+    }
+  },
+  {
+    "name": "label_create_bad_color",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "color \"#123456\" is not in the allowed palette"
     }
   },
   {
@@ -761,7 +764,7 @@
       "created_at": "\u003ctime\u003e",
       "id": 3,
       "name": "bug",
-      "project_id": 4
+      "project_id": 3
     }
   },
   {
@@ -777,29 +780,20 @@
         "created_at": "\u003ctime\u003e",
         "id": 3,
         "name": "bug",
-        "project_id": 4
+        "project_id": 3
       }
     ]
   },
   {
     "name": "issue_create_invalid",
-    "status": 201,
+    "status": 400,
     "headers": {
       "Content-Type": "application/json",
       "Vary": "Origin"
     },
     "body": {
-      "attachment_count": 0,
-      "created_at": "\u003ctime\u003e",
-      "description": "",
-      "id": 8,
-      "key": "alpha-1",
-      "priority": "low",
-      "project_id": 4,
-      "reporter_id": 1,
-      "status": "todo",
-      "title": "x",
-      "type": "nope"
+      "code": "Bad Request",
+      "message": "type must be one of: task, story, bug, epic"
     }
   },
   {
@@ -813,10 +807,10 @@
       "attachment_count": 0,
       "created_at": "\u003ctime\u003e",
       "description": "hello",
-      "id": 9,
-      "key": "alpha-2",
+      "id": 8,
+      "key": "alpha-1",
       "priority": "high",
-      "project_id": 4,
+      "project_id": 3,
       "reporter_id": 1,
       "status": "todo",
       "story_points": 3,
@@ -837,10 +831,10 @@
       "attachment_count": 0,
       "created_at": "\u003ctime\u003e",
       "description": "",
-      "id": 10,
-      "key": "alpha-3",
+      "id": 9,
+      "key": "alpha-2",
       "priority": "medium",
-      "project_id": 4,
+      "project_id": 3,
       "reporter_id": 2,
       "status": "todo",
       "title": "Second issue",
@@ -858,24 +852,11 @@
       {
         "attachment_count": 0,
         "created_at": "\u003ctime\u003e",
-        "description": "",
+        "description": "hello",
         "id": 8,
         "key": "alpha-1",
-        "priority": "low",
-        "project_id": 4,
-        "reporter_id": 1,
-        "status": "todo",
-        "title": "x",
-        "type": "nope"
-      },
-      {
-        "attachment_count": 0,
-        "created_at": "\u003ctime\u003e",
-        "description": "hello",
-        "id": 9,
-        "key": "alpha-2",
         "priority": "high",
-        "project_id": 4,
+        "project_id": 3,
         "reporter_id": 1,
         "status": "todo",
         "story_points": 3,
@@ -888,10 +869,10 @@
         "attachment_count": 0,
         "created_at": "\u003ctime\u003e",
         "description": "",
-        "id": 10,
-        "key": "alpha-3",
+        "id": 9,
+        "key": "alpha-2",
         "priority": "medium",
-        "project_id": 4,
+        "project_id": 3,
         "reporter_id": 2,
         "status": "todo",
         "title": "Second issue",
@@ -911,10 +892,10 @@
         "attachment_count": 0,
         "created_at": "\u003ctime\u003e",
         "description": "hello",
-        "id": 9,
-        "key": "alpha-2",
+        "id": 8,
+        "key": "alpha-1",
         "priority": "high",
-        "project_id": 4,
+        "project_id": 3,
         "reporter_id": 1,
         "status": "todo",
         "story_points": 3,
@@ -934,10 +915,10 @@
       "attachment_count": 0,
       "created_at": "\u003ctime\u003e",
       "description": "hello",
-      "id": 9,
-      "key": "alpha-2",
+      "id": 8,
+      "key": "alpha-1",
       "priority": "high",
-      "project_id": 4,
+      "project_id": 3,
       "reporter_id": 1,
       "status": "todo",
       "story_points": 3,
@@ -980,10 +961,10 @@
       "attachment_count": 0,
       "created_at": "\u003ctime\u003e",
       "description": "hello",
-      "id": 9,
-      "key": "alpha-2",
+      "id": 8,
+      "key": "alpha-1",
       "priority": "critical",
-      "project_id": 4,
+      "project_id": 3,
       "reporter_id": 1,
       "status": "in_progress",
       "story_points": 3,
@@ -993,14 +974,26 @@
   },
   {
     "name": "issue_update_invalid",
-    "status": 500,
+    "status": 400,
     "headers": {
       "Content-Type": "application/json",
       "Vary": "Origin"
     },
     "body": {
-      "code": "Internal Server Error",
-      "message": "internal server error"
+      "code": "Bad Request",
+      "message": "status must be one of: backlog, todo, in_progress, in_review, done"
+    }
+  },
+  {
+    "name": "issue_update_blank_title",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "title must not be empty"
     }
   },
   {
@@ -1014,10 +1007,10 @@
       "attachment_count": 0,
       "created_at": "\u003ctime\u003e",
       "description": "",
-      "id": 10,
-      "key": "alpha-3",
+      "id": 9,
+      "key": "alpha-2",
       "priority": "medium",
-      "project_id": 4,
+      "project_id": 3,
       "reporter_id": 2,
       "status": "todo",
       "title": "Second issue",
@@ -1039,23 +1032,10 @@
               "attachment_count": 0,
               "created_at": "\u003ctime\u003e",
               "description": "",
-              "id": 8,
-              "key": "alpha-1",
-              "priority": "low",
-              "project_id": 4,
-              "reporter_id": 1,
-              "status": "todo",
-              "title": "x",
-              "type": "nope"
-            },
-            {
-              "attachment_count": 0,
-              "created_at": "\u003ctime\u003e",
-              "description": "",
-              "id": 10,
-              "key": "alpha-3",
+              "id": 9,
+              "key": "alpha-2",
               "priority": "medium",
-              "project_id": 4,
+              "project_id": 3,
               "reporter_id": 2,
               "status": "todo",
               "title": "Second issue",
@@ -1070,10 +1050,10 @@
               "attachment_count": 0,
               "created_at": "\u003ctime\u003e",
               "description": "hello",
-              "id": 9,
-              "key": "alpha-2",
+              "id": 8,
+              "key": "alpha-1",
               "priority": "critical",
-              "project_id": 4,
+              "project_id": 3,
               "reporter_id": 1,
               "status": "in_progress",
               "story_points": 3,
@@ -1106,10 +1086,10 @@
         "attachment_count": 0,
         "created_at": "\u003ctime\u003e",
         "description": "hello",
-        "id": 9,
-        "key": "alpha-2",
+        "id": 8,
+        "key": "alpha-1",
         "priority": "critical",
-        "project_id": 4,
+        "project_id": 3,
         "reporter_id": 1,
         "status": "in_progress",
         "story_points": 3,
@@ -1120,27 +1100,14 @@
         "attachment_count": 0,
         "created_at": "\u003ctime\u003e",
         "description": "",
-        "id": 10,
-        "key": "alpha-3",
+        "id": 9,
+        "key": "alpha-2",
         "priority": "medium",
-        "project_id": 4,
+        "project_id": 3,
         "reporter_id": 2,
         "status": "todo",
         "title": "Second issue",
         "type": "bug"
-      },
-      {
-        "attachment_count": 0,
-        "created_at": "\u003ctime\u003e",
-        "description": "",
-        "id": 8,
-        "key": "alpha-1",
-        "priority": "low",
-        "project_id": 4,
-        "reporter_id": 1,
-        "status": "todo",
-        "title": "x",
-        "type": "nope"
       }
     ]
   },
@@ -1155,21 +1122,14 @@
   },
   {
     "name": "sprint_create_invalid",
-    "status": 201,
+    "status": 400,
     "headers": {
       "Content-Type": "application/json",
       "Vary": "Origin"
     },
     "body": {
-      "created_at": "\u003ctime\u003e",
-      "goal": "",
-      "id": 2,
-      "issue_count": 0,
-      "name": "",
-      "project_id": 4,
-      "status": "planning",
-      "total_story_points": 0,
-      "updated_at": "\u003ctime\u003e"
+      "code": "Bad Request",
+      "message": "name is required"
     }
   },
   {
@@ -1183,10 +1143,10 @@
       "created_at": "\u003ctime\u003e",
       "end_date": "\u003ctime\u003e",
       "goal": "ship",
-      "id": 3,
+      "id": 2,
       "issue_count": 0,
       "name": "Sprint One",
-      "project_id": 4,
+      "project_id": 3,
       "start_date": "\u003ctime\u003e",
       "status": "planning",
       "total_story_points": 0,
@@ -1227,23 +1187,12 @@
     "body": [
       {
         "created_at": "\u003ctime\u003e",
-        "goal": "",
-        "id": 2,
-        "issue_count": 0,
-        "name": "",
-        "project_id": 4,
-        "status": "planning",
-        "total_story_points": 0,
-        "updated_at": "\u003ctime\u003e"
-      },
-      {
-        "created_at": "\u003ctime\u003e",
         "end_date": "\u003ctime\u003e",
         "goal": "ship",
-        "id": 3,
+        "id": 2,
         "issue_count": 0,
         "name": "Sprint One",
-        "project_id": 4,
+        "project_id": 3,
         "start_date": "\u003ctime\u003e",
         "status": "planning",
         "total_story_points": 0,
@@ -1262,10 +1211,10 @@
       "created_at": "\u003ctime\u003e",
       "end_date": "\u003ctime\u003e",
       "goal": "ship",
-      "id": 3,
+      "id": 2,
       "issue_count": 0,
       "name": "Sprint One",
-      "project_id": 4,
+      "project_id": 3,
       "start_date": "\u003ctime\u003e",
       "status": "planning",
       "total_story_points": 0,
@@ -1283,10 +1232,10 @@
       "created_at": "\u003ctime\u003e",
       "end_date": "\u003ctime\u003e",
       "goal": "ship it",
-      "id": 3,
+      "id": 2,
       "issue_count": 0,
       "name": "Sprint One",
-      "project_id": 4,
+      "project_id": 3,
       "start_date": "\u003ctime\u003e",
       "status": "planning",
       "total_story_points": 0,
@@ -1304,12 +1253,12 @@
       "attachment_count": 0,
       "created_at": "\u003ctime\u003e",
       "description": "hello",
-      "id": 9,
-      "key": "alpha-2",
+      "id": 8,
+      "key": "alpha-1",
       "priority": "critical",
-      "project_id": 4,
+      "project_id": 3,
       "reporter_id": 1,
-      "sprint_id": 3,
+      "sprint_id": 2,
       "status": "in_progress",
       "story_points": 3,
       "title": "First issue",
@@ -1328,12 +1277,12 @@
         "attachment_count": 0,
         "created_at": "\u003ctime\u003e",
         "description": "hello",
-        "id": 9,
-        "key": "alpha-2",
+        "id": 8,
+        "key": "alpha-1",
         "priority": "critical",
-        "project_id": 4,
+        "project_id": 3,
         "reporter_id": 1,
-        "sprint_id": 3,
+        "sprint_id": 2,
         "status": "in_progress",
         "story_points": 3,
         "title": "First issue",
@@ -1352,10 +1301,10 @@
       "created_at": "\u003ctime\u003e",
       "end_date": "\u003ctime\u003e",
       "goal": "ship it",
-      "id": 3,
+      "id": 2,
       "issue_count": 1,
       "name": "Sprint One",
-      "project_id": 4,
+      "project_id": 3,
       "start_date": "\u003ctime\u003e",
       "status": "active",
       "total_story_points": 3,
@@ -1396,7 +1345,7 @@
     "body": {
       "data": null,
       "end_date": "2030-01-14",
-      "sprint_id": 3,
+      "sprint_id": 2,
       "sprint_name": "Sprint One",
       "start_date": "2030-01-01",
       "total_points": 3
@@ -1413,10 +1362,10 @@
       "created_at": "\u003ctime\u003e",
       "end_date": "\u003ctime\u003e",
       "goal": "ship it",
-      "id": 3,
+      "id": 2,
       "issue_count": 0,
       "name": "Sprint One",
-      "project_id": 4,
+      "project_id": 3,
       "start_date": "\u003ctime\u003e",
       "status": "completed",
       "total_story_points": 0,
@@ -1445,10 +1394,10 @@
     "body": {
       "created_at": "\u003ctime\u003e",
       "goal": "",
-      "id": 4,
+      "id": 3,
       "issue_count": 0,
       "name": "Sprint Two",
-      "project_id": 4,
+      "project_id": 3,
       "status": "planning",
       "total_story_points": 0,
       "updated_at": "\u003ctime\u003e"
@@ -1484,27 +1433,21 @@
       {
         "committed": 0,
         "completed": 0,
-        "sprint_id": 3,
+        "sprint_id": 2,
         "sprint_name": "Sprint One"
       }
     ]
   },
   {
     "name": "comment_create_invalid",
-    "status": 201,
+    "status": 400,
     "headers": {
       "Content-Type": "application/json",
       "Vary": "Origin"
     },
     "body": {
-      "author_avatar_url": "",
-      "author_id": 1,
-      "author_name": "",
-      "body": "",
-      "created_at": "\u003ctime\u003e",
-      "id": 3,
-      "issue_id": 9,
-      "updated_at": "\u003ctime\u003e"
+      "code": "Bad Request",
+      "message": "body is required"
     }
   },
   {
@@ -1520,8 +1463,8 @@
       "author_name": "",
       "body": "hello @demo please look",
       "created_at": "\u003ctime\u003e",
-      "id": 4,
-      "issue_id": 9,
+      "id": 3,
+      "issue_id": 8,
       "updated_at": "\u003ctime\u003e"
     }
   },
@@ -1538,8 +1481,8 @@
       "author_name": "",
       "body": "thanks",
       "created_at": "\u003ctime\u003e",
-      "id": 5,
-      "issue_id": 9,
+      "id": 4,
+      "issue_id": 8,
       "updated_at": "\u003ctime\u003e"
     }
   },
@@ -1555,20 +1498,10 @@
         "author_avatar_url": "",
         "author_id": 1,
         "author_name": "Admin Renamed",
-        "body": "",
-        "created_at": "\u003ctime\u003e",
-        "id": 3,
-        "issue_id": 9,
-        "updated_at": "\u003ctime\u003e"
-      },
-      {
-        "author_avatar_url": "",
-        "author_id": 1,
-        "author_name": "Admin Renamed",
         "body": "hello @demo please look",
         "created_at": "\u003ctime\u003e",
-        "id": 4,
-        "issue_id": 9,
+        "id": 3,
+        "issue_id": 8,
         "updated_at": "\u003ctime\u003e"
       },
       {
@@ -1577,8 +1510,8 @@
         "author_name": "Demo User",
         "body": "thanks",
         "created_at": "\u003ctime\u003e",
-        "id": 5,
-        "issue_id": 9,
+        "id": 4,
+        "issue_id": 8,
         "updated_at": "\u003ctime\u003e"
       }
     ]
@@ -1596,8 +1529,8 @@
       "author_name": "",
       "body": "edited",
       "created_at": "\u003ctime\u003e",
-      "id": 4,
-      "issue_id": 9,
+      "id": 3,
+      "issue_id": 8,
       "updated_at": "\u003ctime\u003e"
     }
   },
@@ -1634,8 +1567,8 @@
         "actor_name": "Admin Renamed",
         "created_at": "\u003ctime\u003e",
         "id": 1,
-        "issue_id": 9,
-        "issue_key": "alpha-2",
+        "issue_id": 8,
+        "issue_key": "alpha-1",
         "issue_title": "First issue",
         "kind": "status_changed",
         "new_value": "in_progress",
@@ -1647,8 +1580,8 @@
         "actor_name": "Admin Renamed",
         "created_at": "\u003ctime\u003e",
         "id": 2,
-        "issue_id": 9,
-        "issue_key": "alpha-2",
+        "issue_id": 8,
+        "issue_key": "alpha-1",
         "issue_title": "First issue",
         "kind": "priority_changed",
         "new_value": "critical",
@@ -1660,8 +1593,8 @@
         "actor_name": "Demo User",
         "created_at": "\u003ctime\u003e",
         "id": 4,
-        "issue_id": 9,
-        "issue_key": "alpha-2",
+        "issue_id": 8,
+        "issue_key": "alpha-1",
         "issue_title": "First issue",
         "kind": "sprint_changed",
         "new_value": "Sprint One",
@@ -1673,19 +1606,8 @@
         "actor_name": "Admin Renamed",
         "created_at": "\u003ctime\u003e",
         "id": 5,
-        "issue_id": 9,
-        "issue_key": "alpha-2",
-        "issue_title": "First issue",
-        "kind": "comment_added"
-      },
-      {
-        "actor_avatar_url": "",
-        "actor_id": 1,
-        "actor_name": "Admin Renamed",
-        "created_at": "\u003ctime\u003e",
-        "id": 6,
-        "issue_id": 9,
-        "issue_key": "alpha-2",
+        "issue_id": 8,
+        "issue_key": "alpha-1",
         "issue_title": "First issue",
         "kind": "comment_added"
       },
@@ -1694,13 +1616,25 @@
         "actor_id": 2,
         "actor_name": "Demo User",
         "created_at": "\u003ctime\u003e",
-        "id": 7,
-        "issue_id": 9,
-        "issue_key": "alpha-2",
+        "id": 6,
+        "issue_id": 8,
+        "issue_key": "alpha-1",
         "issue_title": "First issue",
         "kind": "comment_added"
       }
     ]
+  },
+  {
+    "name": "activity_non_member",
+    "status": 403,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Forbidden",
+      "message": "forbidden"
+    }
   },
   {
     "name": "notifications_demo",
@@ -1713,11 +1647,11 @@
       {
         "actor_id": 1,
         "actor_name": "Admin Renamed",
-        "comment_id": 4,
+        "comment_id": 3,
         "created_at": "\u003ctime\u003e",
-        "id": 7,
-        "issue_id": 9,
-        "issue_key": "alpha-2",
+        "id": 6,
+        "issue_id": 8,
+        "issue_key": "alpha-1",
         "kind": "mention",
         "project_key": "alpha",
         "project_name": "Alpha Renamed",
@@ -1729,7 +1663,7 @@
         "actor_name": "Admin Renamed",
         "comment_id": 0,
         "created_at": "\u003ctime\u003e",
-        "id": 3,
+        "id": 2,
         "issue_id": 0,
         "issue_key": "",
         "kind": "project_member_added",
@@ -1793,7 +1727,7 @@
         "created_at": "\u003ctime\u003e",
         "id": 3,
         "name": "bug",
-        "project_id": 4
+        "project_id": 3
       }
     ]
   },
@@ -1826,8 +1760,8 @@
     "body": {
       "id": 1,
       "related_issue": {
-        "id": 10,
-        "key": "alpha-3",
+        "id": 9,
+        "key": "alpha-2",
         "status": "todo",
         "title": "Second issue"
       },
@@ -1857,14 +1791,62 @@
       {
         "id": 1,
         "related_issue": {
-          "id": 10,
-          "key": "alpha-3",
+          "id": 9,
+          "key": "alpha-2",
           "status": "todo",
           "title": "Second issue"
         },
         "relation_type": "blocks"
       }
     ]
+  },
+  {
+    "name": "relations_list_non_member",
+    "status": 403,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Forbidden",
+      "message": "forbidden"
+    }
+  },
+  {
+    "name": "relation_create_non_member",
+    "status": 403,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Forbidden",
+      "message": "forbidden"
+    }
+  },
+  {
+    "name": "relation_delete_non_member",
+    "status": 403,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Forbidden",
+      "message": "forbidden"
+    }
+  },
+  {
+    "name": "relation_delete_wrong_issue",
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Not Found",
+      "message": "Not Found"
+    }
   },
   {
     "name": "relation_delete",
@@ -1985,16 +1967,8 @@
     "body": {
       "page": 1,
       "size": 20,
-      "total": 4,
+      "total": 3,
       "users": [
-        {
-          "created_at": "\u003ctime\u003e",
-          "email": "x",
-          "id": 4,
-          "is_active": true,
-          "is_admin": false,
-          "name": ""
-        },
         {
           "created_at": "\u003ctime\u003e",
           "email": "third@example.com",
@@ -2071,7 +2045,7 @@
     },
     "body": {
       "code": "Conflict",
-      "message": "internal server error"
+      "message": "Cannot remove the last active admin. Promote another user first."
     }
   },
   {

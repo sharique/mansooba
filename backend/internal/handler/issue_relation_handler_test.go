@@ -24,7 +24,7 @@ type stubIssueRelationService struct {
 	deleteFn func(relationID, userID uint) error
 }
 
-func (s *stubIssueRelationService) List(_ context.Context, issueID uint) ([]*dto.RelationResponse, error) {
+func (s *stubIssueRelationService) List(_ context.Context, issueID, _ uint) ([]*dto.RelationResponse, error) {
 	return s.listFn(issueID)
 }
 
@@ -32,7 +32,7 @@ func (s *stubIssueRelationService) Create(_ context.Context, issueID, userID uin
 	return s.createFn(issueID, userID, req)
 }
 
-func (s *stubIssueRelationService) Delete(_ context.Context, relationID, userID uint) error {
+func (s *stubIssueRelationService) Delete(_ context.Context, _, relationID, userID uint) error {
 	return s.deleteFn(relationID, userID)
 }
 

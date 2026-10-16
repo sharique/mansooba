@@ -85,7 +85,7 @@ func NewHandlers(in Inputs) Handlers {
 	userSvc := service.NewUserService(userRepo, in.AvatarStorage)
 	notifSvc := service.NewNotificationService(notifRepo, projectMemberRepo, log)
 	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo, notifSvc)
-	activitySvc := service.NewActivityService(activityRepo, userRepo, issueRepo)
+	activitySvc := service.NewActivityService(activityRepo, userRepo, issueRepo, projectMemberRepo)
 	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, sprintRepo).
 		WithAttachments(attachmentRepo, in.AttachmentStorage).
 		WithNotifier(notifSvc)
@@ -95,7 +95,7 @@ func NewHandlers(in Inputs) Handlers {
 	attachmentSvc := service.NewAttachmentService(attachmentRepo, issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, in.AttachmentStorage)
 	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
 	settingSvc := service.NewSettingService(settingRepo, userRepo, in.SystemLogSvc)
-	issueRelationSvc := service.NewIssueRelationService(issueRelationRepo, issueRepo)
+	issueRelationSvc := service.NewIssueRelationService(issueRelationRepo, issueRepo, projectMemberRepo)
 	var emailSender domain.EmailSender
 	if cfg.SMTPHost != "" {
 		emailSender = email.SMTPSender{Host: cfg.SMTPHost, Port: cfg.SMTPPort, From: cfg.SMTPFrom, AppBaseURL: cfg.AppBaseURL}

@@ -55,13 +55,23 @@ func (r *stubActivityRepo) FindByActorID(_ context.Context, actorID uint, limit,
 	return out, nil
 }
 
+// membersOf returns a member repository in which each given user belongs to
+// project 0, the project of the issues these tests create.
+func membersOf(userIDs ...uint) *stubProjectMemberRepo {
+	r := newStubProjectMemberRepo()
+	for _, id := range userIDs {
+		_ = r.Create(context.Background(), &domain.ProjectMember{ProjectID: 0, UserID: id, Role: "member"})
+	}
+	return r
+}
+
 // ── tests ─────────────────────────────────────────────────────────────────────
 
 func TestActivityService_Record_WritesEvent(t *testing.T) {
 	repo := newStubActivityRepo()
 	userRepo := newStubUserRepo()
 	issueRepo := newStubIssueRepo()
-	svc := service.NewActivityService(repo, userRepo, issueRepo)
+	svc := service.NewActivityService(repo, userRepo, issueRepo, membersOf(1))
 
 	event := &domain.ActivityEvent{
 		IssueID:  1,
@@ -84,12 +94,12 @@ func TestActivityService_ListByIssue_ReturnsEnrichedEvents(t *testing.T) {
 	issueRepo := newStubIssueRepo()
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, Key: "PROJ-1", Title: "Login bug"})
 
-	svc := service.NewActivityService(repo, userRepo, issueRepo)
+	svc := service.NewActivityService(repo, userRepo, issueRepo, membersOf(1))
 
 	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 1, ActorID: 2, Kind: domain.ActivityStatusChanged})
 	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 2, ActorID: 2, Kind: domain.ActivityCommentAdded})
 
-	events, err := svc.ListByIssue(context.Background(), 1)
+	events, err := svc.ListByIssue(context.Background(), 1, 1)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
 	assert.Equal(t, "Bob", events[0].ActorName)
@@ -104,7 +114,7 @@ func TestActivityService_GetMyActivity_ReturnsOnlyCallerEvents(t *testing.T) {
 	issueRepo := newStubIssueRepo()
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, Key: "P-1", Title: "T"})
 
-	svc := service.NewActivityService(repo, userRepo, issueRepo)
+	svc := service.NewActivityService(repo, userRepo, issueRepo, membersOf(1))
 
 	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 1, ActorID: 5, Kind: domain.ActivityStatusChanged})
 	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 1, ActorID: 9, Kind: domain.ActivityCommentAdded})
@@ -128,10 +138,10 @@ func TestActivityService_ListByIssue_ActorAvatarURLPopulated(t *testing.T) {
 	issueRepo := newStubIssueRepo()
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, Key: "P-1", Title: "Task"})
 
-	svc := service.NewActivityService(repo, userRepo, issueRepo)
+	svc := service.NewActivityService(repo, userRepo, issueRepo, membersOf(1))
 	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 1, ActorID: 3, Kind: domain.ActivityStatusChanged})
 
-	events, err := svc.ListByIssue(context.Background(), 1)
+	events, err := svc.ListByIssue(context.Background(), 1, 1)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
 	assert.Equal(t, "/uploads/avatars/avatar-3.jpg?v=500", events[0].ActorAvatarURL)
@@ -145,10 +155,10 @@ func TestActivityService_ListByIssue_EmptyAvatarURLWhenNoAvatar(t *testing.T) {
 	issueRepo := newStubIssueRepo()
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, Key: "P-1", Title: "Task"})
 
-	svc := service.NewActivityService(repo, userRepo, issueRepo)
+	svc := service.NewActivityService(repo, userRepo, issueRepo, membersOf(1))
 	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 1, ActorID: 4, Kind: domain.ActivityStatusChanged})
 
-	events, err := svc.ListByIssue(context.Background(), 1)
+	events, err := svc.ListByIssue(context.Background(), 1, 1)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
 	assert.Equal(t, "", events[0].ActorAvatarURL)
@@ -162,11 +172,34 @@ func TestActivityService_GetMyActivity_ActorAvatarURLPopulated(t *testing.T) {
 	issueRepo := newStubIssueRepo()
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, Key: "P-1", Title: "Task"})
 
-	svc := service.NewActivityService(repo, userRepo, issueRepo)
+	svc := service.NewActivityService(repo, userRepo, issueRepo, membersOf(1))
 	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 1, ActorID: 6, Kind: domain.ActivityStatusChanged})
 
 	events, err := svc.GetMyActivity(context.Background(), 6, 20, 0)
 	require.NoError(t, err)
 	require.Len(t, events, 1)
 	assert.Equal(t, "/uploads/avatars/avatar-6.jpg?v=777", events[0].ActorAvatarURL)
+}
+
+// Activity names people and quotes the issue's key and title, so only members
+// of the issue's project may read it (feature 018, access fix).
+func TestActivityService_ListByIssue_RefusesNonMembers(t *testing.T) {
+	repo := newStubActivityRepo()
+	userRepo := newStubUserRepo()
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 7, Key: "P-1", Title: "Secret"})
+	members := newStubProjectMemberRepo()
+	_ = members.Create(context.Background(), &domain.ProjectMember{ProjectID: 7, UserID: 2, Role: "member"})
+	svc := service.NewActivityService(repo, userRepo, issueRepo, members)
+	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 1, ActorID: 2, Kind: domain.ActivityStatusChanged})
+
+	_, err := svc.ListByIssue(context.Background(), 1, 99)
+	assert.ErrorIs(t, err, domain.ErrForbidden)
+
+	events, err := svc.ListByIssue(context.Background(), 1, 2)
+	require.NoError(t, err)
+	assert.Len(t, events, 1)
+
+	_, err = svc.ListByIssue(context.Background(), 12345, 2)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
 }

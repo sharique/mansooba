@@ -21,7 +21,7 @@ func (s *stubActivitySvc) Record(_ context.Context, e *domain.ActivityEvent) err
 	return nil
 }
 
-func (s *stubActivitySvc) ListByIssue(_ context.Context, _ uint) ([]*dto.ActivityEventResponse, error) {
+func (s *stubActivitySvc) ListByIssue(_ context.Context, _, _ uint) ([]*dto.ActivityEventResponse, error) {
 	return nil, nil
 }
 

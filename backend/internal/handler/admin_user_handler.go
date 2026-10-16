@@ -18,14 +18,12 @@ type AdminUserHandler struct {
 }
 
 // NewAdminUserHandler creates an AdminUserHandler.
-// lastAdminConflictMessage is the message of the last-admin conflict. Under
-// Echo v4 these returns passed a map as the message, which the central error
-// handler (it only accepts string messages) discarded, so clients have always
-// received status 409 with the generic message "internal server error". Echo
-// v5 messages are strings; this constant keeps that response byte for byte
-// (feature 018, parity). Making the response informative (the LAST_ADMIN code
-// and the sentence the frontend looks for) is a separate change on the roadmap.
-const lastAdminConflictMessage = "internal server error"
+// lastAdminConflictMessage explains the 409 returned when a change would leave
+// the instance without an active administrator. The frontend recognises the
+// phrase "last active admin" (pages/system/users.vue). Under Echo v4 this
+// message was passed as a map, which the error handler discarded, so clients
+// only ever saw "internal server error"; feature 018 fixed that.
+const lastAdminConflictMessage = "Cannot remove the last active admin. Promote another user first."
 
 func NewAdminUserHandler(svc service.AdminUserService, userSvc service.UserService) *AdminUserHandler {
 	return &AdminUserHandler{svc: svc, userSvc: userSvc}

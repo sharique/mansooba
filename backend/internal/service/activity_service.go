@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
@@ -11,27 +12,41 @@ import (
 type ActivityService interface {
 	Record(ctx context.Context, event *domain.ActivityEvent) error
 	// ListByIssue returns enriched activity events for an issue (actor name + issue key/title resolved).
-	ListByIssue(ctx context.Context, issueID uint) ([]*dto.ActivityEventResponse, error)
+	// The caller must be a member of the issue's project (domain.ErrForbidden otherwise).
+	ListByIssue(ctx context.Context, issueID, callerID uint) ([]*dto.ActivityEventResponse, error)
 	// GetMyActivity returns enriched events where the caller was the actor (paginated).
 	GetMyActivity(ctx context.Context, actorID uint, limit, offset int) ([]*dto.ActivityEventResponse, error)
 }
 
 type activityServiceImpl struct {
-	repo      domain.ActivityRepository
-	userRepo  domain.UserRepository
-	issueRepo domain.IssueRepository
+	repo       domain.ActivityRepository
+	userRepo   domain.UserRepository
+	issueRepo  domain.IssueRepository
+	memberRepo domain.ProjectMemberRepository
 }
 
 // NewActivityService returns an ActivityService backed by the given repositories.
-func NewActivityService(repo domain.ActivityRepository, userRepo domain.UserRepository, issueRepo domain.IssueRepository) ActivityService {
-	return &activityServiceImpl{repo: repo, userRepo: userRepo, issueRepo: issueRepo}
+func NewActivityService(repo domain.ActivityRepository, userRepo domain.UserRepository, issueRepo domain.IssueRepository, memberRepo domain.ProjectMemberRepository) ActivityService {
+	return &activityServiceImpl{repo: repo, userRepo: userRepo, issueRepo: issueRepo, memberRepo: memberRepo}
 }
 
 func (s *activityServiceImpl) Record(ctx context.Context, e *domain.ActivityEvent) error {
 	return s.repo.Create(ctx, e)
 }
 
-func (s *activityServiceImpl) ListByIssue(ctx context.Context, issueID uint) ([]*dto.ActivityEventResponse, error) {
+func (s *activityServiceImpl) ListByIssue(ctx context.Context, issueID, callerID uint) ([]*dto.ActivityEventResponse, error) {
+	issue, err := s.issueRepo.FindByID(ctx, issueID)
+	if err != nil {
+		return nil, err
+	}
+	// Activity names the people involved and quotes the issue's key and title,
+	// so it is as private as the issue itself: members only.
+	if _, err := s.memberRepo.FindByProjectAndUser(ctx, issue.ProjectID, callerID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.ErrForbidden
+		}
+		return nil, err
+	}
 	events, err := s.repo.FindByIssueID(ctx, issueID)
 	if err != nil {
 		return nil, err

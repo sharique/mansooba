@@ -60,6 +60,9 @@ func (h *SprintHandler) Create(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
 	}
+	if err := validateRequest(c, &req); err != nil {
+		return err
+	}
 	sprint, err := h.svc.Create(c.Request().Context(), c.Param("key"), callerID, req)
 	if err != nil {
 		return mapSprintError(err)
@@ -116,6 +119,9 @@ func (h *SprintHandler) Update(c *echo.Context) error {
 	var req dto.UpdateSprintRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
+	}
+	if err := validateRequest(c, &req); err != nil {
+		return err
 	}
 	sprint, err := h.svc.Update(c.Request().Context(), c.Param("key"), id, callerID, req)
 	if err != nil {

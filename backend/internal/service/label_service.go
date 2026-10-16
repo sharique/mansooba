@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
@@ -45,7 +44,7 @@ func NewLabelService(
 
 func (s *labelService) Create(ctx context.Context, projectKey string, callerID uint, req dto.CreateLabelRequest) (*dto.LabelResponse, error) {
 	if !domain.LabelPalette[req.Color] {
-		return nil, fmt.Errorf("color %q is not in the allowed palette", req.Color)
+		return nil, domain.NewInputError("color %q is not in the allowed palette", req.Color)
 	}
 	project, err := s.projectRepo.FindByKey(ctx, projectKey)
 	if err != nil {

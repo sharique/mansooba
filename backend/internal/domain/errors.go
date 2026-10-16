@@ -1,6 +1,9 @@
 package domain
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // Sentinel errors returned by repository implementations.
 // Service and handler layers check against these with errors.Is.
@@ -8,6 +11,11 @@ var (
 	ErrNotFound  = errors.New("not found")
 	ErrConflict  = errors.New("conflict")
 	ErrForbidden = errors.New("forbidden")
+
+	// ErrInvalidInput marks a request the caller got wrong (a value outside the
+	// allowed set, for example). Services return it through NewInputError;
+	// handlers map it to HTTP 400 with the message.
+	ErrInvalidInput = errors.New("invalid input")
 
 	// Sprint lifecycle errors. Handlers map these to HTTP 409 Conflict.
 	ErrSprintAlreadyActive     = errors.New("project already has an active sprint")
@@ -46,3 +54,17 @@ var (
 	ErrCurrentPasswordMismatch  = errors.New("current password is incorrect")
 	ErrNewPasswordSameAsCurrent = errors.New("new password must differ from current password")
 )
+
+// InputError is an ErrInvalidInput with a message that is safe to show the
+// caller.
+type InputError struct{ Msg string }
+
+func (e *InputError) Error() string { return e.Msg }
+
+// Is makes errors.Is(err, ErrInvalidInput) true for every InputError.
+func (e *InputError) Is(target error) bool { return target == ErrInvalidInput }
+
+// NewInputError returns an ErrInvalidInput with the formatted message.
+func NewInputError(format string, a ...any) error {
+	return &InputError{Msg: fmt.Sprintf(format, a...)}
+}

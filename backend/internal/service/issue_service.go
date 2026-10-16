@@ -247,8 +247,11 @@ func (s *issueService) Update(ctx context.Context, projectKey string, id uint, c
 		return nil, domain.ErrNotFound
 	}
 
+	if req.Title != nil && strings.TrimSpace(*req.Title) == "" {
+		return nil, domain.NewInputError("title must not be empty")
+	}
 	if req.Status != nil && !validStatuses[*req.Status] {
-		return nil, fmt.Errorf("invalid status: %s", *req.Status)
+		return nil, domain.NewInputError("invalid status: %s", *req.Status)
 	}
 
 	// Capture old values before patching so we can record what changed.

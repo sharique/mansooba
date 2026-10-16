@@ -79,6 +79,9 @@ func (h *IssueHandler) Create(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
 	}
+	if err := validateRequest(c, &req); err != nil {
+		return err
+	}
 	issue, err := h.svc.Create(c.Request().Context(), c.Param("key"), callerID, req)
 	if err != nil {
 		return mapIssueError(err)
@@ -136,6 +139,9 @@ func (h *IssueHandler) Update(c *echo.Context) error {
 	var req dto.UpdateIssueRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
+	}
+	if err := validateRequest(c, &req); err != nil {
+		return err
 	}
 	issue, err := h.svc.Update(c.Request().Context(), c.Param("key"), id, callerID, req)
 	if err != nil {

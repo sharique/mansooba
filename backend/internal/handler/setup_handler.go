@@ -159,6 +159,10 @@ func (h *SetupHandler) CreateProject(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	resp, err := h.svc.CreateProject(c.Request().Context(), callerID, req)
 	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			// add_user_id refers to a user that does not exist.
+			return echo.NewHTTPError(http.StatusNotFound, "user not found")
+		}
 		return err
 	}
 

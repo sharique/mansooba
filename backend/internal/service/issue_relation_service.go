@@ -28,22 +28,45 @@ var userSelectableTypes = map[string]bool{
 
 // IssueRelationService manages task-to-task relationships.
 type IssueRelationService interface {
-	List(ctx context.Context, issueID uint) ([]*dto.RelationResponse, error)
+	// All three require the caller to be a member of the issue's project
+	// (domain.ErrForbidden otherwise).
+	List(ctx context.Context, issueID, callerID uint) ([]*dto.RelationResponse, error)
 	Create(ctx context.Context, issueID, userID uint, req dto.CreateRelationRequest) (*dto.RelationResponse, error)
-	Delete(ctx context.Context, relationID, userID uint) error
+	// Delete removes relationID, which must involve issueID (ErrRelationNotFound otherwise).
+	Delete(ctx context.Context, issueID, relationID, userID uint) error
 }
 
 type issueRelationSvcImpl struct {
-	relRepo   domain.IssueRelationRepository
-	issueRepo domain.IssueRepository
+	relRepo    domain.IssueRelationRepository
+	issueRepo  domain.IssueRepository
+	memberRepo domain.ProjectMemberRepository
 }
 
 // NewIssueRelationService returns an IssueRelationService.
-func NewIssueRelationService(relRepo domain.IssueRelationRepository, issueRepo domain.IssueRepository) IssueRelationService {
-	return &issueRelationSvcImpl{relRepo: relRepo, issueRepo: issueRepo}
+func NewIssueRelationService(relRepo domain.IssueRelationRepository, issueRepo domain.IssueRepository, memberRepo domain.ProjectMemberRepository) IssueRelationService {
+	return &issueRelationSvcImpl{relRepo: relRepo, issueRepo: issueRepo, memberRepo: memberRepo}
 }
 
-func (s *issueRelationSvcImpl) List(ctx context.Context, issueID uint) ([]*dto.RelationResponse, error) {
+// requireMemberOfIssue loads the issue and refuses callers who are not members
+// of its project.
+func (s *issueRelationSvcImpl) requireMemberOfIssue(ctx context.Context, issueID, callerID uint) (*domain.Issue, error) {
+	issue, err := s.issueRepo.FindByID(ctx, issueID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.memberRepo.FindByProjectAndUser(ctx, issue.ProjectID, callerID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, domain.ErrForbidden
+		}
+		return nil, err
+	}
+	return issue, nil
+}
+
+func (s *issueRelationSvcImpl) List(ctx context.Context, issueID, callerID uint) ([]*dto.RelationResponse, error) {
+	if _, err := s.requireMemberOfIssue(ctx, issueID, callerID); err != nil {
+		return nil, err
+	}
 	rows, err := s.relRepo.FindByIssueID(ctx, issueID)
 	if err != nil {
 		return nil, err
@@ -67,7 +90,7 @@ func (s *issueRelationSvcImpl) Create(ctx context.Context, issueID, userID uint,
 		return nil, ErrSelfRelation
 	}
 
-	source, err := s.issueRepo.FindByID(ctx, issueID)
+	source, err := s.requireMemberOfIssue(ctx, issueID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -116,13 +139,21 @@ func (s *issueRelationSvcImpl) Create(ctx context.Context, issueID, userID uint,
 	return s.toResponse(ctx, issueID, rel)
 }
 
-func (s *issueRelationSvcImpl) Delete(ctx context.Context, relationID, userID uint) error {
+func (s *issueRelationSvcImpl) Delete(ctx context.Context, issueID, relationID, userID uint) error {
+	if _, err := s.requireMemberOfIssue(ctx, issueID, userID); err != nil {
+		return err
+	}
 	rel, err := s.relRepo.FindByID(ctx, relationID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return ErrRelationNotFound
 		}
 		return err
+	}
+	// The relation in the URL must belong to the issue in the URL, so a member
+	// of one project cannot remove relations in another by guessing ids.
+	if rel.IssueID != issueID && rel.RelatedIssueID != issueID {
+		return ErrRelationNotFound
 	}
 
 	// For "blocks", find and delete the reciprocal "is_blocked_by" row.

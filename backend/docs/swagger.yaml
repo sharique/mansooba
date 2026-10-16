@@ -7,16 +7,35 @@ definitions:
       message:
         type: string
     type: object
+  dto.AboutResponse:
+    properties:
+      license:
+        type: string
+      license_url:
+        type: string
+      source_url:
+        type: string
+      version:
+        type: string
+    type: object
   dto.ActivityEventResponse:
     properties:
+      actor_avatar_url:
+        type: string
       actor_id:
         type: integer
+      actor_name:
+        type: string
       created_at:
         type: string
       id:
         type: integer
       issue_id:
         type: integer
+      issue_key:
+        type: string
+      issue_title:
+        type: string
       kind:
         type: string
       new_value:
@@ -38,9 +57,97 @@ definitions:
     - email
     - role
     type: object
+  dto.AdminUserDTO:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      is_admin:
+        type: boolean
+      name:
+        type: string
+    type: object
+  dto.AdminUserListResponse:
+    properties:
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+      users:
+        items:
+          $ref: '#/definitions/dto.AdminUserDTO'
+        type: array
+    type: object
+  dto.AdminUserPatchRequest:
+    properties:
+      is_active:
+        type: boolean
+      is_admin:
+        type: boolean
+    type: object
+  dto.AttachmentDownloadResponse:
+    properties:
+      filename:
+        type: string
+      url:
+        type: string
+    type: object
+  dto.AttachmentListResponse:
+    properties:
+      attachments:
+        items:
+          $ref: '#/definitions/dto.AttachmentResponse'
+        type: array
+    type: object
+  dto.AttachmentRejection:
+    properties:
+      filename:
+        type: string
+      reason:
+        type: string
+    type: object
+  dto.AttachmentResponse:
+    properties:
+      content_type:
+        type: string
+      created_at:
+        type: string
+      filename:
+        type: string
+      id:
+        type: integer
+      issue_id:
+        type: integer
+      size_bytes:
+        type: integer
+      uploader_id:
+        type: integer
+      uploader_name:
+        type: string
+    type: object
+  dto.AttachmentUploadResult:
+    properties:
+      rejected:
+        items:
+          $ref: '#/definitions/dto.AttachmentRejection'
+        type: array
+      uploaded:
+        items:
+          $ref: '#/definitions/dto.AttachmentResponse'
+        type: array
+    type: object
   dto.AuthResponse:
     properties:
       access_token:
+        type: string
+      refresh_token:
         type: string
       user:
         $ref: '#/definitions/dto.UserDTO'
@@ -85,10 +192,24 @@ definitions:
       total_points:
         type: integer
     type: object
+  dto.ChangePasswordRequest:
+    properties:
+      current_password:
+        type: string
+      new_password:
+        type: string
+    required:
+    - current_password
+    - new_password
+    type: object
   dto.CommentResponse:
     properties:
+      author_avatar_url:
+        type: string
       author_id:
         type: integer
+      author_name:
+        type: string
       body:
         type: string
       created_at:
@@ -162,6 +283,13 @@ definitions:
     required:
     - name
     type: object
+  dto.CreateRelationRequest:
+    properties:
+      relation_type:
+        type: string
+      target_issue_id:
+        type: integer
+    type: object
   dto.CreateSprintRequest:
     properties:
       end_date:
@@ -177,9 +305,31 @@ definitions:
     required:
     - name
     type: object
+  dto.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  dto.ForgotPasswordResponse:
+    properties:
+      expires_at:
+        type: string
+      message:
+        type: string
+      token:
+        type: string
+    type: object
   dto.IssueResponse:
     properties:
+      assignee_avatar_url:
+        type: string
       assignee_id:
+        type: integer
+      assignee_name:
+        type: string
+      attachment_count:
         type: integer
       completed_at:
         type: string
@@ -246,6 +396,8 @@ definitions:
     properties:
       actor_id:
         type: integer
+      actor_name:
+        type: string
       comment_id:
         type: integer
       created_at:
@@ -254,10 +406,37 @@ definitions:
         type: integer
       issue_id:
         type: integer
+      issue_key:
+        type: string
+      kind:
+        type: string
+      project_key:
+        type: string
+      project_name:
+        type: string
       read:
         type: boolean
       recipient_id:
         type: integer
+    type: object
+  dto.PatchSettingsRequest:
+    properties:
+      date_format:
+        type: string
+      demo_banner_enabled:
+        type: string
+      demo_banner_message:
+        type: string
+      locale:
+        type: string
+      organization_name:
+        type: string
+      system_log_retention_days:
+        type: string
+      time_format:
+        type: string
+      week_start_day:
+        type: string
     type: object
   dto.ProjectResponse:
     properties:
@@ -279,12 +458,148 @@ definitions:
       full_name:
         type: string
       password:
-        minLength: 8
         type: string
     required:
     - email
     - full_name
     - password
+    type: object
+  dto.RelatedIssueInfo:
+    properties:
+      id:
+        type: integer
+      key:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.RelationResponse:
+    properties:
+      id:
+        type: integer
+      related_issue:
+        $ref: '#/definitions/dto.RelatedIssueInfo'
+      relation_type:
+        type: string
+    type: object
+  dto.ResetPasswordRequest:
+    properties:
+      password:
+        minLength: 8
+        type: string
+      token:
+        type: string
+    required:
+    - password
+    - token
+    type: object
+  dto.SettingsResponse:
+    properties:
+      date_format:
+        type: string
+      demo_banner_enabled:
+        description: |-
+          DemoBannerEnabled is "true"/"false" as a string, same reason as above
+          (013-demo-instance-banner, FR-001).
+        type: string
+      demo_banner_message:
+        type: string
+      locale:
+        type: string
+      organization_name:
+        type: string
+      system_log_retention_days:
+        description: |-
+          SystemLogRetentionDays is a string (not an int) for the same reason
+          every other setting value is a string: global_settings is a generic
+          key-value store (011-system-logs, FR-010).
+        type: string
+      time_format:
+        type: string
+      week_start_day:
+        type: string
+    type: object
+  dto.SetupAdminRequest:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - full_name
+    - password
+    type: object
+  dto.SetupProjectRequest:
+    properties:
+      add_user_id:
+        description: |-
+          AddUserID is non-zero when the team member created in step 2
+          should be added to this project as a "member".
+        type: integer
+      description:
+        type: string
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  dto.SetupProjectResponse:
+    properties:
+      name:
+        type: string
+      project_id:
+        type: integer
+      project_key:
+        type: string
+    type: object
+  dto.SetupSeedResponse:
+    properties:
+      project_key:
+        type: string
+      project_name:
+        type: string
+      skipped:
+        type: boolean
+    type: object
+  dto.SetupStatusResponse:
+    properties:
+      demo_banner_enabled:
+        description: |-
+          DemoBannerEnabled/DemoBannerMessage let unauthenticated pages (e.g.
+          /login) show the demo-instance banner without needing the JWT-gated
+          GET /settings (013-demo-instance-banner, research.md Decision 1).
+        type: boolean
+      demo_banner_message:
+        type: string
+      setup_required:
+        type: boolean
+    type: object
+  dto.SetupUserRequest:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - full_name
+    - password
+    type: object
+  dto.SetupUserResponse:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      user_id:
+        type: integer
     type: object
   dto.SprintResponse:
     properties:
@@ -311,6 +626,38 @@ definitions:
       updated_at:
         type: string
     type: object
+  dto.SystemLogEntryDTO:
+    properties:
+      action:
+        type: string
+      actor_label:
+        type: string
+      created_at:
+        type: string
+      detail:
+        type: string
+      event_category:
+        type: string
+      id:
+        type: string
+      outcome:
+        type: string
+      target_label:
+        type: string
+    type: object
+  dto.SystemLogListResponse:
+    properties:
+      entries:
+        items:
+          $ref: '#/definitions/dto.SystemLogEntryDTO'
+        type: array
+      page:
+        type: integer
+      size:
+        type: integer
+      total:
+        type: integer
+    type: object
   dto.UpdateCommentRequest:
     properties:
       body:
@@ -321,6 +668,8 @@ definitions:
   dto.UpdateIssueRequest:
     properties:
       assignee_id:
+        description: AssigneeID assigns the issue to a user. Send 0 to unassign; omit
+          to leave unchanged.
         type: integer
       description:
         type: string
@@ -355,6 +704,15 @@ definitions:
         - epic
         type: string
     type: object
+  dto.UpdateProfileRequest:
+    properties:
+      avatar_url:
+        type: string
+      full_name:
+        type: string
+      timezone:
+        type: string
+    type: object
   dto.UpdateProjectRequest:
     properties:
       description:
@@ -384,6 +742,51 @@ definitions:
       name:
         type: string
     type: object
+  dto.UserProfileResponse:
+    properties:
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      is_admin:
+        type: boolean
+      name:
+        type: string
+      timezone:
+        type: string
+    type: object
+  dto.VelocityDataPoint:
+    properties:
+      committed:
+        description: total story points across all sprint issues
+        type: number
+      completed:
+        description: story points of Done issues
+        type: number
+      sprint_id:
+        type: integer
+      sprint_name:
+        type: string
+    type: object
+  handler.healthResponse:
+    properties:
+      db:
+        type: string
+      db_latency_ms:
+        type: integer
+      error:
+        type: string
+      loki:
+        type: string
+      status:
+        type: string
+    type: object
 info:
   contact: {}
   description: Mini Jira clone REST API
@@ -393,6 +796,176 @@ info:
   title: jira-go API
   version: "1.0"
 paths:
+  /about:
+    get:
+      description: Public — no auth required. Lets any user of a running instance,
+        including on the sign-in page, find the source they are entitled to under
+        AGPL-3.0 section 13.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AboutResponse'
+      summary: This instance's version, source location and licence
+      tags:
+      - about
+  /admin/system-logs:
+    get:
+      parameters:
+      - description: authentication|admin_action|settings_change|db_lifecycle
+        in: query
+        name: category
+        type: string
+      - description: RFC3339 lower bound
+        in: query
+        name: from
+        type: string
+      - description: RFC3339 upper bound
+        in: query
+        name: to
+        type: string
+      - description: Actor filter
+        in: query
+        name: actor
+        type: string
+      - description: Free-text search
+        in: query
+        name: q
+        type: string
+      - default: 1
+        description: Page (1-based)
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size (max 100)
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SystemLogListResponse'
+        "400":
+          description: Invalid query params
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: List system log entries (Admin only)
+      tags:
+      - admin
+  /admin/users:
+    get:
+      parameters:
+      - default: 1
+        description: Page (1-based)
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size (max 100)
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminUserListResponse'
+        "400":
+          description: Invalid query params
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: List all users (admin only)
+      tags:
+      - admin
+  /admin/users/{id}:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AdminUserPatchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AdminUserDTO'
+        "400":
+          description: Invalid body or params
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "409":
+          description: Cannot remove last admin
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Update user role or status (admin only)
+      tags:
+      - admin
+  /auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Email address
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ForgotPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ForgotPasswordResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      summary: Request a password reset token
+      tags:
+      - auth
   /auth/login:
     post:
       consumes:
@@ -422,6 +995,206 @@ paths:
       summary: Authenticate a user
       tags:
       - auth
+  /auth/logout:
+    post:
+      description: Reads the refresh_token cookie. Missing or invalid tokens are ignored
+        — logout is always idempotent (200). Rate-limited per ADR-021.
+      responses:
+        "200":
+          description: Cookie cleared
+        "500":
+          description: Unexpected server error
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      summary: Revoke the refresh token and clear its cookie
+      tags:
+      - auth
+  /auth/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserProfileResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get current user profile
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Profile update payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserProfileResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Update current user profile
+      tags:
+      - users
+  /auth/me/activity:
+    get:
+      parameters:
+      - description: Max results (default 20, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.ActivityEventResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get activity feed for current user
+      tags:
+      - users
+  /auth/me/avatar:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserProfileResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Delete current user's avatar
+      tags:
+      - users
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Avatar image (JPEG/PNG/WebP, max 2 MB)
+        in: formData
+        name: avatar
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UserProfileResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Upload current user's avatar
+      tags:
+      - users
+  /auth/me/issues:
+    get:
+      parameters:
+      - description: Filter by status (todo, in_progress, in_review, done, backlog)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.IssueResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get issues assigned to the current user
+      tags:
+      - users
+  /auth/me/password:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Current and new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Validation error or incorrect current password
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Change the caller's own password
+      tags:
+      - auth
   /auth/refresh:
     post:
       produces:
@@ -435,6 +1208,10 @@ paths:
             type: object
         "401":
           description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "503":
+          description: Revocation store unavailable
           schema:
             $ref: '#/definitions/apierror.APIError'
       summary: Refresh access token using refresh_token cookie
@@ -469,6 +1246,81 @@ paths:
       summary: Register a new user
       tags:
       - auth
+  /auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Token and new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid or expired token / password too short
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      summary: Reset password using a reset token
+      tags:
+      - auth
+  /avatars/{filename}:
+    get:
+      description: 'PUBLIC — intentionally unauthenticated, like the /uploads static
+        route it replaces: browser <img> tags cannot send an Authorization header,
+        and avatars carry no per-viewer access restriction (ADR-033).'
+      parameters:
+      - description: avatar-{userID}.{jpg|png|webp}
+        in: path
+        name: filename
+        required: true
+        type: string
+      produces:
+      - image/jpeg
+      - image/png
+      - image/webp
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      summary: Serve a user avatar image
+      tags:
+      - users
+  /health:
+    get:
+      description: Returns overall service status, database connectivity, and (011-system-logs)
+        Loki reachability. Returns 200 when healthy, 503 when the database is unreachable.
+        A Loki outage is reported (loki=error) but does NOT flip the overall status
+        to 503 — the application continues operating normally without it (FR-012,
+        best-effort logging).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.healthResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handler.healthResponse'
+      summary: Health check
+      tags:
+      - infra
   /issues/{id}/activity:
     get:
       parameters:
@@ -490,6 +1342,10 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Not a member of the issue's project
+          schema:
+            $ref: '#/definitions/apierror.APIError'
         "404":
           description: Not Found
           schema:
@@ -499,6 +1355,134 @@ paths:
       summary: List activity events for an issue
       tags:
       - activity
+  /issues/{id}/attachments:
+    get:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AttachmentListResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: List an issue's attachments
+      tags:
+      - attachments
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: One or more files (repeat the field for each file)
+        in: formData
+        name: files
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AttachmentUploadResult'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Upload one or more files to an issue
+      tags:
+      - attachments
+  /issues/{id}/attachments/{aid}:
+    delete:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Attachment ID
+        in: path
+        name: aid
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Delete an attachment
+      tags:
+      - attachments
+  /issues/{id}/attachments/{aid}/download:
+    get:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Attachment ID
+        in: path
+        name: aid
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AttachmentDownloadResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get a presigned download URL for an attachment
+      tags:
+      - attachments
   /issues/{id}/comments:
     get:
       parameters:
@@ -657,6 +1641,40 @@ paths:
       summary: Edit a comment
       tags:
       - comments
+  /issues/{id}/labels:
+    get:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.LabelResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: List labels attached to an issue
+      tags:
+      - labels
   /issues/{id}/labels/{lid}:
     delete:
       parameters:
@@ -722,6 +1740,112 @@ paths:
       summary: Attach a label to an issue
       tags:
       - labels
+  /issues/{id}/relations:
+    get:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.RelationResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Not a member of the issue's project
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: List relations for an issue
+      tags:
+      - issue-relations
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Relation payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateRelationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.RelationResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Not a member of the issue's project
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Create a relation between two issues
+      tags:
+      - issue-relations
+  /issues/{id}/relations/{rid}:
+    delete:
+      parameters:
+      - description: Issue ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Relation ID
+        in: path
+        name: rid
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Not a member of the issue's project
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Remove a relation
+      tags:
+      - issue-relations
   /notifications:
     get:
       produces:
@@ -993,6 +2117,10 @@ paths:
         in: path
         name: key
         type: string
+      - description: Full-text search on title and description
+        in: query
+        name: q
+        type: string
       - description: Filter by type (task|story|bug|epic)
         in: query
         name: type
@@ -1001,9 +2129,17 @@ paths:
         in: query
         name: status
         type: string
+      - description: Filter by priority (low|medium|high|critical)
+        in: query
+        name: priority
+        type: string
       - description: Filter by assignee user ID
         in: query
         name: assignee_id
+        type: integer
+      - description: Filter by label ID
+        in: query
+        name: label_id
         type: integer
       - description: Page number
         in: query
@@ -1761,6 +2897,245 @@ paths:
       summary: Start a sprint
       tags:
       - sprints
+  /projects/{key}/velocity:
+    get:
+      description: Returns committed vs. completed story points for every completed
+        sprint in the project, ordered oldest-first.
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.VelocityDataPoint'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Project not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Sprint velocity data
+      tags:
+      - sprints
+  /settings:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SettingsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Get global settings
+      tags:
+      - settings
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Settings to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.PatchSettingsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SettingsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Update global settings (Admin only)
+      tags:
+      - settings
+  /setup/admin:
+    post:
+      consumes:
+      - application/json
+      description: Creates the first admin user and returns a JWT. Public — no auth
+        required. Rate-limited.
+      parameters:
+      - description: Admin account payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SetupAdminRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+        "400":
+          description: Validation error or password policy violation
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "409":
+          description: Admin already exists
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      summary: Create the initial admin account
+      tags:
+      - setup
+  /setup/project:
+    post:
+      consumes:
+      - application/json
+      description: Creates a project and optionally adds a team member. Requires the
+        JWT from step 1.
+      parameters:
+      - description: Project payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SetupProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.SetupProjectResponse'
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: add_user_id refers to non-existent user
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Create an optional first project during wizard step 3
+      tags:
+      - setup
+  /setup/seed:
+    post:
+      description: |-
+        Populates the workspace with a demo project, sprint, issues, and labels.
+        Idempotent — returns skipped:true if seed data already exists.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SetupSeedResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "500":
+          description: Seed failed
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Import example seed data (wizard step 4)
+      tags:
+      - setup
+  /setup/status:
+    get:
+      description: Returns true when no admin account exists (fresh install), plus
+        the demo-instance banner's current state. Public — no auth required.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.SetupStatusResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      summary: Check whether first-run setup is required
+      tags:
+      - setup
+  /setup/user:
+    post:
+      consumes:
+      - application/json
+      description: Creates a non-admin user. Requires the JWT issued by POST /setup/admin.
+      parameters:
+      - description: Team member payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.SetupUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.SetupUserResponse'
+        "400":
+          description: Validation error
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "409":
+          description: Email already registered
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "429":
+          description: Rate limit exceeded
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Create an optional team member during wizard step 2
+      tags:
+      - setup
 securityDefinitions:
   BearerAuth:
     in: header
