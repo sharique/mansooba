@@ -100,6 +100,7 @@ func Script() []Step {
 
 		// ---- labels ----
 		{Name: "label_create_invalid", Method: "POST", Path: "/api/v1/projects/{project_key}/labels", Auth: "admin_token", Body: m{}},
+		{Name: "label_create_bad_color", Method: "POST", Path: "/api/v1/projects/{project_key}/labels", Auth: "admin_token", Body: m{"name": "x", "color": "#123456"}},
 		{Name: "label_create", Method: "POST", Path: "/api/v1/projects/{project_key}/labels", Auth: "admin_token", Body: m{"name": "bug", "color": "#e11d48"},
 			Capture: m2("label_id", "id")},
 		{Name: "labels_list", Method: "GET", Path: "/api/v1/projects/{project_key}/labels", Auth: "demo_token"},
@@ -119,6 +120,7 @@ func Script() []Step {
 		{Name: "issue_get_bad_id", Method: "GET", Path: "/api/v1/projects/{project_key}/issues/abc", Auth: "admin_token"},
 		{Name: "issue_update", Method: "PUT", Path: "/api/v1/projects/{project_key}/issues/{issue1_id}", Auth: "admin_token", Body: m{"status": "in_progress", "priority": "critical"}},
 		{Name: "issue_update_invalid", Method: "PUT", Path: "/api/v1/projects/{project_key}/issues/{issue1_id}", Auth: "admin_token", Body: m{"status": "nope"}},
+		{Name: "issue_update_blank_title", Method: "PUT", Path: "/api/v1/projects/{project_key}/issues/{issue1_id}", Auth: "admin_token", Body: m{"title": "  "}},
 		{Name: "issue_assign_clear", Method: "PUT", Path: "/api/v1/projects/{project_key}/issues/{issue2_id}", Auth: "admin_token", Body: m{"assignee_id": 0}},
 		{Name: "board", Method: "GET", Path: "/api/v1/projects/{project_key}/board", Auth: "admin_token"},
 		{Name: "backlog", Method: "GET", Path: "/api/v1/projects/{project_key}/backlog", Auth: "admin_token"},
@@ -159,6 +161,7 @@ func Script() []Step {
 		{Name: "comment_update_other_users", Method: "PUT", Path: "/api/v1/issues/{issue1_id}/comments/{comment_id}", Auth: "demo_token", Body: m{"body": "hijack"}},
 		{Name: "comment_delete", Method: "DELETE", Path: "/api/v1/issues/{issue1_id}/comments/{comment2_id}", Auth: "demo_token"},
 		{Name: "activity", Method: "GET", Path: "/api/v1/issues/{issue1_id}/activity", Auth: "admin_token"},
+		{Name: "activity_non_member", Method: "GET", Path: "/api/v1/issues/{issue1_id}/activity", Auth: "third_token"},
 		{Name: "notifications_demo", Method: "GET", Path: "/api/v1/notifications", Auth: "demo_token"},
 		{Name: "notification_mark_read", Method: "PUT", Path: "/api/v1/notifications/1/read", Auth: "demo_token"},
 		{Name: "notification_mark_read_missing", Method: "PUT", Path: "/api/v1/notifications/99999/read", Auth: "demo_token"},
@@ -172,6 +175,10 @@ func Script() []Step {
 			Capture: m2("relation_id", "id")},
 		{Name: "relation_create_duplicate", Method: "POST", Path: "/api/v1/issues/{issue1_id}/relations", Auth: "admin_token", Body: m{"target_issue_id": "{issue2_id}", "relation_type": "blocks"}},
 		{Name: "relations_list", Method: "GET", Path: "/api/v1/issues/{issue1_id}/relations", Auth: "admin_token"},
+		{Name: "relations_list_non_member", Method: "GET", Path: "/api/v1/issues/{issue1_id}/relations", Auth: "third_token"},
+		{Name: "relation_create_non_member", Method: "POST", Path: "/api/v1/issues/{issue1_id}/relations", Auth: "third_token", Body: m{"target_issue_id": "{issue2_id}", "relation_type": "relates_to"}},
+		{Name: "relation_delete_non_member", Method: "DELETE", Path: "/api/v1/issues/{issue1_id}/relations/{relation_id}", Auth: "third_token"},
+		{Name: "relation_delete_wrong_issue", Method: "DELETE", Path: "/api/v1/issues/{issue2_id}/relations/99999", Auth: "admin_token"},
 		{Name: "relation_delete", Method: "DELETE", Path: "/api/v1/issues/{issue1_id}/relations/{relation_id}", Auth: "admin_token"},
 		{Name: "label_delete", Method: "DELETE", Path: "/api/v1/projects/{project_key}/labels/{label_id}", Auth: "admin_token"},
 

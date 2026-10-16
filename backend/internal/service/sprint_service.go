@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/sharique/mansooba/internal/domain"
@@ -195,6 +196,9 @@ func (s *sprintService) Update(ctx context.Context, projectKey string, id uint, 
 			dateChanged(req.StartDate, sprint.StartDate) {
 			return nil, domain.ErrSprintFieldLocked
 		}
+	}
+	if req.Name != nil && strings.TrimSpace(*req.Name) == "" {
+		return nil, domain.NewInputError("name must not be empty")
 	}
 	// Check the resulting length before touching the stored sprint.
 	start, end := sprint.StartDate, sprint.EndDate

@@ -3,10 +3,8 @@ package service
 import (
 	"context"
 	"errors"
-	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/seed"
@@ -131,7 +129,7 @@ func (s *setupService) CreateProject(ctx context.Context, adminID uint, req dto.
 		target, err := s.userRepo.FindByID(ctx, req.AddUserID)
 		if err != nil {
 			if errors.Is(err, domain.ErrNotFound) {
-				return nil, echo.NewHTTPError(http.StatusNotFound, "user not found")
+				return nil, domain.ErrNotFound
 			}
 			return nil, err
 		}

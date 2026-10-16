@@ -29,13 +29,15 @@ func NewIssueRelationHandler(svc service.IssueRelationService) *IssueRelationHan
 // @Success      200 {array}  dto.RelationResponse
 // @Failure      401 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
+// @Failure      403 {object} apierror.APIError "Not a member of the issue's project"
 // @Router       /issues/{id}/relations [get]
 func (h *IssueRelationHandler) List(c *echo.Context) error {
 	issueID, err := parseUintParam(c, "id")
 	if err != nil {
 		return echo.ErrBadRequest
 	}
-	relations, err := h.svc.List(c.Request().Context(), issueID)
+	callerID := c.Get("userID").(uint)
+	relations, err := h.svc.List(c.Request().Context(), issueID, callerID)
 	if err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			return echo.ErrNotFound
@@ -59,6 +61,7 @@ func (h *IssueRelationHandler) List(c *echo.Context) error {
 // @Success      201 {object} dto.RelationResponse
 // @Failure      400 {object} apierror.APIError
 // @Failure      401 {object} apierror.APIError
+// @Failure      403 {object} apierror.APIError "Not a member of the issue's project"
 // @Router       /issues/{id}/relations [post]
 func (h *IssueRelationHandler) Create(c *echo.Context) error {
 	issueID, err := parseUintParam(c, "id")
@@ -87,15 +90,20 @@ func (h *IssueRelationHandler) Create(c *echo.Context) error {
 // @Success      204
 // @Failure      401 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
+// @Failure      403 {object} apierror.APIError "Not a member of the issue's project"
 // @Router       /issues/{id}/relations/{rid} [delete]
 func (h *IssueRelationHandler) Delete(c *echo.Context) error {
+	issueID, err := parseUintParam(c, "id")
+	if err != nil {
+		return echo.ErrBadRequest
+	}
 	relationID, err := parseUintParam(c, "rid")
 	if err != nil {
 		return echo.ErrBadRequest
 	}
 	callerID := c.Get("userID").(uint)
 
-	if err := h.svc.Delete(c.Request().Context(), relationID, callerID); err != nil {
+	if err := h.svc.Delete(c.Request().Context(), issueID, relationID, callerID); err != nil {
 		if errors.Is(err, service.ErrRelationNotFound) {
 			return echo.ErrNotFound
 		}

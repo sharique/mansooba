@@ -59,7 +59,7 @@ type stubActivitySvcHandler struct{}
 func (s *stubActivitySvcHandler) Record(ctx context.Context, e *domain.ActivityEvent) error {
 	return nil
 }
-func (s *stubActivitySvcHandler) ListByIssue(ctx context.Context, issueID uint) ([]*dto.ActivityEventResponse, error) {
+func (s *stubActivitySvcHandler) ListByIssue(ctx context.Context, issueID, callerID uint) ([]*dto.ActivityEventResponse, error) {
 	return []*dto.ActivityEventResponse{
 		{ID: 1, IssueID: issueID, Kind: domain.ActivityStatusChanged, OldValue: "todo", NewValue: "in_progress"},
 	}, nil
@@ -73,7 +73,8 @@ var _ service.ActivityService = (*stubActivitySvcHandler)(nil)
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 func newCommentEchoCtx(method, path, body string, issueID string) (*echo.Context, *httptest.ResponseRecorder) {
-	e := echo.New()
+	// The handler validates its request body, so the context needs a validator.
+	e := newEcho()
 	req := httptest.NewRequest(method, path, strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()

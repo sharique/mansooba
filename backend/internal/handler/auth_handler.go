@@ -44,6 +44,9 @@ func (h *AuthHandler) Register(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
 	}
+	if err := validateRequest(c, &req); err != nil {
+		return err
+	}
 
 	resp, err := h.svc.Register(c.Request().Context(), req, callerID)
 	if err != nil {

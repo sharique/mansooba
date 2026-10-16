@@ -43,6 +43,9 @@ func (h *CommentHandler) Create(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
 	}
+	if err := validateRequest(c, &req); err != nil {
+		return err
+	}
 	resp, err := h.svc.Create(c.Request().Context(), issueID, callerID, req)
 	if err != nil {
 		return mapCommentError(err)
@@ -101,6 +104,9 @@ func (h *CommentHandler) Update(c *echo.Context) error {
 	var req dto.UpdateCommentRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
+	}
+	if err := validateRequest(c, &req); err != nil {
+		return err
 	}
 	resp, err := h.svc.Update(c.Request().Context(), cid, callerID, req)
 	if err != nil {

@@ -24,6 +24,7 @@ func NewActivityHandler(svc service.ActivityService) *ActivityHandler {
 // @Param        id path int true "Issue ID"
 // @Success      200 {array} dto.ActivityEventResponse
 // @Failure      401 {object} apierror.APIError
+// @Failure      403 {object} apierror.APIError "Not a member of the issue's project"
 // @Failure      404 {object} apierror.APIError
 // @Router       /issues/{id}/activity [get]
 func (h *ActivityHandler) ListByIssue(c *echo.Context) error {
@@ -31,7 +32,8 @@ func (h *ActivityHandler) ListByIssue(c *echo.Context) error {
 	if err != nil {
 		return echo.ErrBadRequest
 	}
-	events, err := h.svc.ListByIssue(c.Request().Context(), issueID)
+	callerID := c.Get("userID").(uint)
+	events, err := h.svc.ListByIssue(c.Request().Context(), issueID, callerID)
 	if err != nil {
 		return err
 	}
