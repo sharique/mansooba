@@ -31,6 +31,8 @@
       <span v-if="errors.email" role="alert" class="text-error text-sm">{{ errors.email }}</span>
     </div>
 
+    <UsernameField :field="usernameField" id="admin-username" :disabled="loading" />
+
     <div class="form-control gap-1">
       <label for="admin-password" class="label label-text font-medium">Password</label>
       <input
@@ -75,14 +77,22 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed } from 'vue'
+import { reactive, computed, toRef } from 'vue'
 import { useSetupStore } from '~/stores/setup.store'
+import { useUsernameField } from '~/composables/useUsernameField'
+import UsernameField from '~/components/common/UsernameField.vue'
 
 const setupStore = useSetupStore()
 
 const form = reactive({ full_name: '', email: '', password: '' })
 const errors = reactive({ full_name: '', email: '', password: '', server: '' })
 const loading = ref(false)
+
+// Pre-filled from the email; this first account has nothing to clash with and
+// no token to ask the server with, so only the rules are checked here.
+const emailRef = toRef(form, 'email')
+const usernameField = useUsernameField(emailRef, { check: null })
+const usernameBlocked = computed(() => ['invalid', 'reserved'].includes(usernameField.status.value.kind))
 
 const rules = reactive({ length: false, upper: false, lower: false, digit: false })
 
@@ -107,7 +117,7 @@ function validateEmail() {
 const allRulesPassed = computed(() => rules.length && rules.upper && rules.lower && rules.digit)
 
 const canSubmit = computed(
-  () => form.full_name.trim() !== '' && form.email !== '' && allRulesPassed.value
+  () => form.full_name.trim() !== '' && form.email !== '' && allRulesPassed.value && !usernameBlocked.value
 )
 
 async function submit() {
@@ -122,10 +132,12 @@ async function submit() {
 
   loading.value = true
   try {
-    await setupStore.completeAdmin({ full_name: form.full_name, email: form.email, password: form.password })
+    await setupStore.completeAdmin({ full_name: form.full_name, email: form.email, password: form.password, username: usernameField.username.value || undefined })
   } catch (err: any) {
     if (err?.data?.message?.includes('429') || err?.statusCode === 429) {
       errors.server = 'Too many attempts. Please wait a minute and try again.'
+    } else if (/username|reserved/i.test(err?.data?.message ?? '')) {
+      usernameField.setServerError(err.data.message)
     } else if (err?.statusCode === 409) {
       errors.server = 'Setup is already complete. Please log in.'
     } else {

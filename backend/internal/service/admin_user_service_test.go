@@ -24,8 +24,12 @@ func (r *stubAdminUserRepo) Create(_ context.Context, _ *domain.User) error { re
 func (r *stubAdminUserRepo) FindByEmail(_ context.Context, _ string) (*domain.User, error) {
 	return nil, domain.ErrNotFound
 }
-func (r *stubAdminUserRepo) FindByEmailPrefix(_ context.Context, _ string) (*domain.User, error) {
+func (r *stubAdminUserRepo) FindByUsername(_ context.Context, _ string) (*domain.User, error) {
 	return nil, domain.ErrNotFound
+}
+func (r *stubAdminUserRepo) SetUsername(_ context.Context, _ uint, _ string) error { return nil }
+func (r *stubAdminUserRepo) ListMissingUsername(_ context.Context) ([]*domain.User, error) {
+	return nil, nil
 }
 func (r *stubAdminUserRepo) FindByID(_ context.Context, id uint) (*domain.User, error) {
 	if r.findByIDFn != nil {

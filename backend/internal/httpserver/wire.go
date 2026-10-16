@@ -58,6 +58,7 @@ type Handlers struct {
 	AdminUser      *handler.AdminUserHandler
 	PasswordReset  *handler.PasswordResetHandler
 	PasswordChange *handler.PasswordChangeHandler
+	Username       *handler.UsernameHandler
 }
 
 // NewHandlers constructs repositories, services and handlers exactly as
@@ -141,6 +142,7 @@ func NewHandlers(in Inputs) Handlers {
 		AdminUser:      handler.NewAdminUserHandler(adminUserSvc, userSvc),
 		PasswordReset:  handler.NewPasswordResetHandler(passwordResetSvc),
 		PasswordChange: handler.NewPasswordChangeHandler(passwordChangeSvc, authSvc),
+		Username:       handler.NewUsernameHandler(service.NewUsernameService(userRepo), userSvc),
 	}
 	return h
 }

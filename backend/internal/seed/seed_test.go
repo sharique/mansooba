@@ -40,7 +40,7 @@ func newTestDB(t *testing.T) *gorm.DB {
 
 func createAdmin(t *testing.T, db *gorm.DB) *domain.User {
 	t.Helper()
-	admin := &domain.User{Name: "Admin", Email: "admin@example.com", Password: "hash", IsAdmin: true}
+	admin := &domain.User{Name: "Admin", Email: "admin@example.com", Username: "admin2", Password: "hash", IsAdmin: true}
 	require.NoError(t, db.Create(admin).Error)
 	return admin
 }
@@ -163,4 +163,21 @@ func TestSeed_TransactionRollback(t *testing.T) {
 	// Also test that a partial-insert scenario doesn't leave data:
 	// (this is guaranteed by GORM's db.Transaction auto-rollback on error)
 	_ = admin // admin exists but not used here
+}
+
+// Seeding creates demo data for an existing administrator and no accounts of
+// its own, so there are no seeded accounts that could lack a username
+// (feature 018, FR-019).
+func TestSeed_CreatesNoUserAccounts(t *testing.T) {
+	db := newTestDB(t)
+	admin := &domain.User{Name: "Admin", Email: "admin@example.com", Username: "admin2", Password: "hash", IsAdmin: true}
+	require.NoError(t, db.Create(admin).Error)
+
+	var before, after int64
+	db.Model(&domain.User{}).Count(&before)
+	_, err := seed.Seed(context.Background(), db, admin.ID)
+	require.NoError(t, err)
+	db.Model(&domain.User{}).Count(&after)
+
+	assert.Equal(t, before, after)
 }

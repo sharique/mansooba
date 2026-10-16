@@ -121,6 +121,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/usernames/check": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Read-only. Reason is empty when available, else invalid, reserved or taken.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Check whether a username can be used (Admin only)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Username to check",
+                        "name": "username",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UsernameCheckResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing username",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/users": {
             "get": {
                 "security": [
@@ -3771,6 +3823,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -3802,6 +3857,10 @@ const docTemplate = `{
                 },
                 "is_admin": {
                     "type": "boolean"
+                },
+                "username": {
+                    "description": "Username is never writable; the field exists so a request that tries is\nrefused (400) instead of being silently ignored.",
+                    "type": "string"
                 }
             }
         },
@@ -4250,6 +4309,10 @@ const docTemplate = `{
                 "email": {
                     "type": "string"
                 },
+                "is_active": {
+                    "description": "IsActive is false for a deactivated account; the mention suggestions leave those out.",
+                    "type": "boolean"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -4258,6 +4321,9 @@ const docTemplate = `{
                 },
                 "user_id": {
                     "type": "integer"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -4367,6 +4433,10 @@ const docTemplate = `{
                 },
                 "password": {
                     "type": "string"
+                },
+                "username": {
+                    "description": "Username is optional; when empty one is generated from the email.\nValidated by the service (rules, reserved names, uniqueness).",
+                    "type": "string"
                 }
             }
         },
@@ -4464,6 +4534,9 @@ const docTemplate = `{
                 },
                 "password": {
                     "type": "string"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -4544,6 +4617,9 @@ const docTemplate = `{
                 },
                 "password": {
                     "type": "string"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -4558,6 +4634,9 @@ const docTemplate = `{
                 },
                 "user_id": {
                     "type": "integer"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -4720,6 +4799,10 @@ const docTemplate = `{
                 },
                 "timezone": {
                     "type": "string"
+                },
+                "username": {
+                    "description": "Username cannot be changed; the field exists only so a request that tries\nis refused instead of silently ignored. The current value is accepted.",
+                    "type": "string"
                 }
             }
         },
@@ -4764,6 +4847,9 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "username": {
+                    "type": "string"
                 }
             }
         },
@@ -4792,6 +4878,23 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "timezone": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UsernameCheckResponse": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "reason": {
                     "type": "string"
                 }
             }

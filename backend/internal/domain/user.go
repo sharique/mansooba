@@ -11,14 +11,18 @@ import (
 // IsAdmin grants platform-wide admin privileges (global settings, project creation).
 // IsActive is false when an admin has disabled the account; all token issuance is blocked.
 type User struct {
-	ID        uint      `gorm:"primaryKey"`
-	Name      string    `gorm:"not null"`
-	Email     string    `gorm:"uniqueIndex;not null"`
-	Password  string    `gorm:"not null"`
-	AvatarURL string    // optional; full URL or empty
-	Timezone  string    // IANA timezone name (e.g. "America/New_York"); empty = UTC
-	IsAdmin   bool      `gorm:"not null;default:false"`
-	IsActive  bool      `gorm:"not null;default:true"`
+	ID    uint   `gorm:"primaryKey"`
+	Name  string `gorm:"not null"`
+	Email string `gorm:"uniqueIndex;not null"`
+	// Username is the unique, permanent, lower-case name used in mentions (ADR-038).
+	// NOT NULL: every creation path sets it, and the upgrade path (database.Migrate,
+	// cmd/backfill-usernames) gives existing accounts one before the constraint applies.
+	Username  string `gorm:"size:30;not null;uniqueIndex"`
+	Password  string `gorm:"not null"`
+	AvatarURL string // optional; full URL or empty
+	Timezone  string // IANA timezone name (e.g. "America/New_York"); empty = UTC
+	IsAdmin   bool   `gorm:"not null;default:false"`
+	IsActive  bool   `gorm:"not null;default:true"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
@@ -35,10 +39,18 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id uint) (*User, error)
 	// FindByEmail returns a user by email address, or ErrNotFound if absent.
 	FindByEmail(ctx context.Context, email string) (*User, error)
-	// FindByEmailPrefix returns the user whose email starts with the given local part
-	// (everything before '@'). Returns ErrNotFound when no match exists.
-	FindByEmailPrefix(ctx context.Context, prefix string) (*User, error)
-	// Update persists all writable fields of an existing user (name, avatar_url, timezone).
+	// FindByUsername returns the user with the given (already normalised,
+	// lower-case) username, or ErrNotFound.
+	FindByUsername(ctx context.Context, username string) (*User, error)
+	// SetUsername writes only the username column. It returns ErrUsernameTaken
+	// when the name is already used. Used by account creation and the backfill;
+	// Update never writes the username.
+	SetUsername(ctx context.Context, id uint, username string) error
+	// ListMissingUsername returns the accounts without a username, ordered by id
+	// (legacy rows before the backfill).
+	ListMissingUsername(ctx context.Context) ([]*User, error)
+	// Update persists all writable fields of an existing user except the
+	// username, which is permanent.
 	Update(ctx context.Context, user *User) error
 	// HasAdmin returns true if at least one user with IsAdmin=true exists.
 	// Used exclusively by the setup service to detect fresh-install state.

@@ -6,52 +6,58 @@
 # The frontend proxies /api/ to the backend via nginx (see frontend/nginx.conf),
 # so the browser never needs direct access to port 8080.
 
+x-backend-env: &backend-env
+  SERVER_PORT: "8080"
+  DB_DRIVER: sqlite
+  DB_DSN: /data/dev.db
+  JWT_SECRET: dev-secret-change-me
+  JWT_ACCESS_TTL: 15m
+  JWT_REFRESH_TTL: 168h
+  LOG_LEVEL: debug
+  CORS_ORIGINS: "http://localhost:3000"
+  STORAGE_ENDPOINT: "http://localstack:4566"
+  # PresignEndpoint overrides the host baked into presigned download URLs.
+  # The backend container reaches LocalStack via the Docker-internal
+  # hostname above, but the browser that follows those URLs runs on the
+  # host machine and needs "localhost" instead.
+  STORAGE_PRESIGN_ENDPOINT: "http://localhost:4566"
+  STORAGE_BUCKET: "mansooba-attachments"
+  STORAGE_ACCESS_KEY_ID: "test"
+  STORAGE_SECRET_ACCESS_KEY: "test"
+  STORAGE_REGION: "us-east-1"
+  STORAGE_PRESIGN_TTL: "1h"
+  STORAGE_USE_PATH_STYLE: "true"
+  SMTP_HOST: mailpit
+  SMTP_PORT: "1025"
+  SMTP_FROM: noreply@mansooba.local
+  APP_BASE_URL: "http://localhost:3000"
+  # Where this instance's source is published (016-agpl-dual-licensing).
+  # The default below is fine for local dev; an operator running a
+  # MODIFIED version as a network service should point this at their own
+  # fork instead, e.g. SOURCE_CODE_URL: "https://github.com/you/your-fork"
+  SOURCE_CODE_URL: "https://github.com/sharique/mansooba"
+  LOKI_BASE_URL: "http://loki:3100"
+  # Same host file Loki's -runtime-config.file points at (below), bind-
+  # mounted into this container too — the backend and Loki are separate
+  # containers with separate filesystems, so sharing this file between
+  # them requires mounting the same host path into both.
+  LOKI_RUNTIME_OVERRIDES_PATH: "/etc/loki/runtime-overrides.yaml"
+  LOKI_RETENTION_SYNC_INTERVAL: "1m"
+
 services:
   backend:
     build: ./backend
     ports:
       - "8080:8080"
-    environment:
-      SERVER_PORT: "8080"
-      DB_DRIVER: sqlite
-      DB_DSN: /data/dev.db
-      JWT_SECRET: dev-secret-change-me
-      JWT_ACCESS_TTL: 15m
-      JWT_REFRESH_TTL: 168h
-      LOG_LEVEL: debug
-      CORS_ORIGINS: "http://localhost:3000"
-      STORAGE_ENDPOINT: "http://localstack:4566"
-      # PresignEndpoint overrides the host baked into presigned download URLs.
-      # The backend container reaches LocalStack via the Docker-internal
-      # hostname above, but the browser that follows those URLs runs on the
-      # host machine and needs "localhost" instead.
-      STORAGE_PRESIGN_ENDPOINT: "http://localhost:4566"
-      STORAGE_BUCKET: "mansooba-attachments"
-      STORAGE_ACCESS_KEY_ID: "test"
-      STORAGE_SECRET_ACCESS_KEY: "test"
-      STORAGE_REGION: "us-east-1"
-      STORAGE_PRESIGN_TTL: "1h"
-      STORAGE_USE_PATH_STYLE: "true"
-      SMTP_HOST: mailpit
-      SMTP_PORT: "1025"
-      SMTP_FROM: noreply@mansooba.local
-      APP_BASE_URL: "http://localhost:3000"
-      # Where this instance's source is published (016-agpl-dual-licensing).
-      # The default below is fine for local dev; an operator running a
-      # MODIFIED version as a network service should point this at their own
-      # fork instead, e.g. SOURCE_CODE_URL: "https://github.com/you/your-fork"
-      SOURCE_CODE_URL: "https://github.com/sharique/mansooba"
-      LOKI_BASE_URL: "http://loki:3100"
-      # Same host file Loki's -runtime-config.file points at (below), bind-
-      # mounted into this container too — the backend and Loki are separate
-      # containers with separate filesystems, so sharing this file between
-      # them requires mounting the same host path into both.
-      LOKI_RUNTIME_OVERRIDES_PATH: "/etc/loki/runtime-overrides.yaml"
-      LOKI_RETENTION_SYNC_INTERVAL: "1m"
+    environment: *backend-env
     volumes:
       - sqlite_data:/data
       - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
     depends_on:
+      # Usernames are assigned to existing accounts by this one-off process
+      # (constitution VI.12, ADR-038), which must finish before the server starts.
+      backfill-usernames:
+        condition: service_completed_successfully
       localstack-init:
         condition: service_completed_successfully
       loki-ready:
@@ -62,6 +68,18 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+
+  # One-off: migrates the schema and gives every account without a username a
+  # generated one, then exits (idempotent). Same image, settings and data
+  # volume as the backend. Run it by hand with:
+  #   docker compose run --rm backfill-usernames
+  backfill-usernames:
+    build: ./backend
+    command: ["./backfill-usernames"]
+    environment: *backend-env
+    volumes:
+      - sqlite_data:/data
+    restart: "no"
 
   frontend:
     build:

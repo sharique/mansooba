@@ -8,6 +8,17 @@
 # `docker inspect` or accidental version-control inclusion.
 
 services:
+  # One-off: migrates the schema and gives every account without a username a
+  # generated one, then exits (idempotent). Same image and settings as the
+  # backend; the backend starts only after it has finished (constitution VI.12,
+  # ADR-038). Run it by hand with:
+  #   docker compose -f compose.prod.yml run --rm backfill-usernames
+  backfill-usernames:
+    image: ghcr.io/sharique/mansooba-backend:latest
+    command: ["./backfill-usernames"]
+    env_file: .env
+    restart: "no"
+
   backend:
     image: ghcr.io/sharique/mansooba-backend:latest
     restart: unless-stopped
@@ -19,6 +30,8 @@ services:
       # must match LOKI_RUNTIME_OVERRIDES_PATH in .env (user-data.sh).
       - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
     depends_on:
+      backfill-usernames:
+        condition: service_completed_successfully
       loki-ready:
         condition: service_healthy
     healthcheck:

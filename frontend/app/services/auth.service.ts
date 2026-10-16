@@ -22,13 +22,13 @@ export const authService = {
     return data
   },
 
-  async register(email: string, password: string, fullName: string): Promise<AuthResponse> {
+  async register(email: string, password: string, fullName: string, username?: string): Promise<AuthResponse> {
     const { $api } = useNuxtApp()
     // Do NOT call setAuth here — register is an admin action that creates another
     // user's account. Overwriting the auth store would immediately sign the admin out.
     return $api<AuthResponse>('/auth/register', {
       method: 'POST',
-      body: { email, password, full_name: fullName },
+      body: { email, password, full_name: fullName, ...(username ? { username } : {}) },
     })
   },
 

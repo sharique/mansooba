@@ -93,6 +93,10 @@ func (h *AdminUserHandler) PatchUser(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "invalid request body")
 	}
+	// A username is permanent; nobody, administrators included, can change it.
+	if req.Username != nil {
+		return domain.ErrUsernameImmutable
+	}
 	if req.IsAdmin == nil && req.IsActive == nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "at least one field (is_admin, is_active) is required")
 	}

@@ -6,6 +6,9 @@ type RegisterRequest struct {
 	FullName string `json:"full_name" validate:"required"`
 	Email    string `json:"email"     validate:"required,email"`
 	Password string `json:"password"  validate:"required,password_complexity"`
+	// Username is optional; when empty one is generated from the email.
+	// Validated by the service (rules, reserved names, uniqueness).
+	Username string `json:"username"`
 }
 
 type LoginRequest struct {
@@ -20,9 +23,10 @@ type AuthResponse struct {
 }
 
 type UserDTO struct {
-	ID    uint   `json:"id"`
-	Name  string `json:"name"`
-	Email string `json:"email"`
+	ID       uint   `json:"id"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
 }
 
 // UserProfileResponse is returned by GET /auth/me and PUT /auth/me.
@@ -30,6 +34,7 @@ type UserProfileResponse struct {
 	ID        uint      `json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
+	Username  string    `json:"username"`
 	AvatarURL string    `json:"avatar_url"`
 	Timezone  string    `json:"timezone"`
 	IsAdmin   bool      `json:"is_admin"`
@@ -43,4 +48,7 @@ type UpdateProfileRequest struct {
 	FullName  string `json:"full_name"`
 	AvatarURL string `json:"avatar_url"`
 	Timezone  string `json:"timezone"`
+	// Username cannot be changed; the field exists only so a request that tries
+	// is refused instead of silently ignored. The current value is accepted.
+	Username *string `json:"username"`
 }

@@ -2,6 +2,7 @@ export interface User {
   id: number
   name: string
   email: string
+  username?: string
 }
 
 export interface Project {
@@ -25,7 +26,16 @@ export interface MemberResponse {
   user_id: number
   name: string
   email: string
+  username: string
   role: string
+  is_active: boolean
+}
+
+// GET /admin/usernames/check
+export interface UsernameCheckResponse {
+  available: boolean
+  reason: '' | 'invalid' | 'reserved' | 'taken'
+  message: string
 }
 
 export interface Issue {
@@ -235,6 +245,7 @@ export interface UserProfileResponse {
   id: number
   name: string
   email: string
+  username: string
   avatar_url: string
   timezone: string
   is_admin: boolean

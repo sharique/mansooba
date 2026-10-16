@@ -78,6 +78,15 @@ func Script() []Step {
 			Capture: m2("third_id", "user.id", "third_token", "access_token")},
 		{Name: "register_conflict", Method: "POST", Path: "/api/v1/auth/register", Auth: "admin_token", Body: m{"full_name": "Third User", "email": thirdEmail, "password": password}},
 		{Name: "register_invalid", Method: "POST", Path: "/api/v1/auth/register", Auth: "admin_token", Body: m{"full_name": "", "email": "x"}},
+		{Name: "register_with_username", Method: "POST", Path: "/api/v1/auth/register", Auth: "admin_token", Body: m{"full_name": "Named User", "email": "named@example.com", "password": password, "username": "Named_User"}},
+		{Name: "register_username_taken", Method: "POST", Path: "/api/v1/auth/register", Auth: "admin_token", Body: m{"full_name": "Other", "email": "other@example.com", "password": password, "username": "named_user"}},
+		{Name: "register_username_reserved", Method: "POST", Path: "/api/v1/auth/register", Auth: "admin_token", Body: m{"full_name": "Other", "email": "other@example.com", "password": password, "username": "admin"}},
+		{Name: "register_username_invalid", Method: "POST", Path: "/api/v1/auth/register", Auth: "admin_token", Body: m{"full_name": "Other", "email": "other@example.com", "password": password, "username": "no way"}},
+		{Name: "username_check_available", Method: "GET", Path: "/api/v1/admin/usernames/check?username=fresh_name", Auth: "admin_token"},
+		{Name: "username_check_taken", Method: "GET", Path: "/api/v1/admin/usernames/check?username=Named_User", Auth: "admin_token"},
+		{Name: "username_check_non_admin", Method: "GET", Path: "/api/v1/admin/usernames/check?username=fresh_name", Auth: "demo_token"},
+		{Name: "username_change_refused", Method: "PUT", Path: "/api/v1/auth/me", Auth: "admin_token", Body: m{"username": "someone_else"}},
+		{Name: "username_change_refused_by_admin", Method: "PATCH", Path: "/api/v1/admin/users/{demo_id}", Auth: "admin_token", Body: m{"username": "someone_else"}},
 
 		// ---- projects and members ----
 		{Name: "projects_list", Method: "GET", Path: "/api/v1/projects", Auth: "admin_token"},

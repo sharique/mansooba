@@ -5,70 +5,72 @@ import { describe, expect, it } from 'vitest'
 import { renderMentions } from './useMentions'
 import type { MemberResponse } from '~/types/domain.types'
 
+const m = (user_id: number, name: string, username: string, email = `${username}@example.com`): MemberResponse =>
+  ({ user_id, name, email, username, role: 'member', is_active: true })
+
 const members: MemberResponse[] = [
-  { user_id: 1, name: 'Priya Nair', email: 'priya.nair@example.com', role: 'member' },
-  { user_id: 2, name: 'Sam', email: 'sam@example.com', role: 'admin' },
-  { user_id: 3, name: '<b>Evil</b>', email: 'evil@example.com', role: 'member' },
+  m(1, 'Priya Nair', 'priya_nair', 'priya.nair@example.com'),
+  m(2, 'Sam', 'sam'),
+  m(3, '<b>Evil</b>', 'evil'),
 ]
 
-const span = (handle: string, name: string) => `<span class="mention" title="@${handle}">@${name}</span>`
+const span = (username: string, name: string) => `<span class="mention" title="@${username}">@${name}</span>`
 
-describe('renderMentions', () => {
-  it('replaces @handle with the member display name and keeps the handle in the title', () => {
+describe('renderMentions (by username)', () => {
+  it('replaces @username with the display name and keeps the username in the title', () => {
     expect(renderMentions('hi @sam please look', members)).toBe(`hi ${span('sam', 'Sam')} please look`)
   })
 
-  it('supports dots in the handle (email local part)', () => {
-    expect(renderMentions('@priya.nair ok', members)).toBe(`${span('priya.nair', 'Priya Nair')} ok`)
+  it('supports underscores and digits in the username', () => {
+    expect(renderMentions('@priya_nair ok', members)).toBe(`${span('priya_nair', 'Priya Nair')} ok`)
+  })
+
+  it('matches without regard to letter case, like the server', () => {
+    expect(renderMentions('@Sam @SAM', members)).toBe(`${span('sam', 'Sam')} ${span('sam', 'Sam')}`)
   })
 
   it('handles several and repeated mentions', () => {
-    expect(renderMentions('@sam and @priya.nair and @sam', members))
-      .toBe(`${span('sam', 'Sam')} and ${span('priya.nair', 'Priya Nair')} and ${span('sam', 'Sam')}`)
+    expect(renderMentions('@sam and @priya_nair and @sam', members))
+      .toBe(`${span('sam', 'Sam')} and ${span('priya_nair', 'Priya Nair')} and ${span('sam', 'Sam')}`)
   })
 
-  it('leaves unknown handles and non-members as typed', () => {
+  it('leaves unknown names and non-members as typed', () => {
     expect(renderMentions('hello @nobody', members)).toBe('hello @nobody')
   })
 
-  it('is exact and case-sensitive', () => {
-    expect(renderMentions('@Sam @SAM', members)).toBe('@Sam @SAM')
+  it('a trailing sentence dot is not part of the username', () => {
+    expect(renderMentions('thanks @sam.', members)).toBe(`thanks ${span('sam', 'Sam')}.`)
   })
 
-  it('mirrors the server pattern: a trailing dot is part of the handle and matches nobody', () => {
-    expect(renderMentions('thanks @sam.', members)).toBe('thanks @sam.')
+  it('works after punctuation and markdown markers, as on the server', () => {
+    expect(renderMentions('(@sam)', members)).toBe(`(${span('sam', 'Sam')})`)
+    expect(renderMentions('**@sam**', members)).toBe(`**${span('sam', 'Sam')}**`)
+    expect(renderMentions('> @sam quoted', members)).toBe(`> ${span('sam', 'Sam')} quoted`)
+    expect(renderMentions('thanks,@sam', members)).toBe(`thanks,${span('sam', 'Sam')}`)
+    expect(renderMentions('line\n@sam', members)).toBe(`line\n${span('sam', 'Sam')}`)
   })
 
-  it('does not treat an email address as a mention of a member', () => {
+  it('does not treat an email address or a word-internal @ as a mention', () => {
     expect(renderMentions('mail a@sam.com', members)).toBe('mail a@sam.com')
+    expect(renderMentions('a.b@sam', members)).toBe('a.b@sam')
+    expect(renderMentions('x_@sam', members)).toBe('x_@sam')
+  })
+
+  it('no longer matches the start of an email address', () => {
+    // priya.nair@example.com belongs to the username priya_nair, not "priya.nair".
+    expect(renderMentions('@priya.nair', members)).toBe('@priya.nair')
   })
 
   it('escapes HTML in display names', () => {
     expect(renderMentions('@evil', members)).toBe(span('evil', '&lt;b&gt;Evil&lt;/b&gt;'))
   })
 
-  it('consumes the whole address when the full email was typed', () => {
-    expect(renderMentions('@sam@example.com it looks good.', members)).toBe(`${span('sam', 'Sam')} it looks good.`)
-  })
-
-  it('keeps a trailing sentence dot after a full-email mention', () => {
-    expect(renderMentions('thanks @sam@example.com.', members)).toBe(`thanks ${span('sam', 'Sam')}.`)
-  })
-
-  it('matches the domain without regard to case', () => {
-    expect(renderMentions('@sam@Example.COM ok', members)).toBe(`${span('sam', 'Sam')} ok`)
-  })
-
-  it('leaves a different domain text alone (only the handle is substituted)', () => {
-    expect(renderMentions('@sam@other.org ok', members)).toBe(`${span('sam', 'Sam')}@other.org ok`)
-  })
-
-  it('does not swallow text that merely starts like the domain', () => {
-    expect(renderMentions('@sam@example.community', members)).toBe(`${span('sam', 'Sam')}@example.community`)
-  })
-
   it('returns the body unchanged without members', () => {
     expect(renderMentions('@sam', [])).toBe('@sam')
+  })
+
+  it('ignores members that have no username yet', () => {
+    expect(renderMentions('@sam', [{ ...m(9, 'Legacy', ''), username: '' }])).toBe('@sam')
   })
 
   it('does not touch mentions inside code', () => {
@@ -79,10 +81,5 @@ describe('renderMentions', () => {
   it('survives markdown + DOMPurify with the span and title intact', () => {
     const html = DOMPurify.sanitize(marked.parse(renderMentions('hi @sam', members)) as string)
     expect(html).toContain('<span class="mention" title="@sam">@Sam</span>')
-  })
-
-  it('cannot smuggle markup through a name', () => {
-    const html = DOMPurify.sanitize(marked.parse(renderMentions('@evil', members)) as string)
-    expect(html).not.toContain('<b>')
   })
 })

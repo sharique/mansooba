@@ -4,12 +4,17 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"strings"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 )
 
-var mentionRe = regexp.MustCompile(`@([\w.]+)`)
+// A mention is "@" plus a username (letters, digits, underscore). The "@" must not
+// follow a letter, digit, underscore, dot or another "@", so "(@sam)", "**@sam**"
+// and "> @sam" are mentions while "a@b.com" and "a.b@c" are not (ADR-038). RE2 has
+// no lookbehind, so the preceding character is part of the match.
+var mentionRe = regexp.MustCompile(`(?:^|[^A-Za-z0-9_.@])@([A-Za-z0-9_]+)`)
 
 // CommentService manages comments on issues.
 type CommentService interface {
@@ -167,7 +172,7 @@ func (s *commentService) sendMentionNotifications(ctx context.Context, comment *
 	seen := make(map[uint]bool)
 	for _, m := range matches {
 		handle := m[1]
-		user, err := s.userRepo.FindByEmailPrefix(ctx, handle)
+		user, err := s.userRepo.FindByUsername(ctx, strings.ToLower(handle))
 		if err != nil {
 			continue
 		}

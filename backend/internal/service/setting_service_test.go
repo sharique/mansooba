@@ -200,7 +200,7 @@ func TestSettingService_Patch_RecordsOneEntryPerChangedKey(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&domain.GlobalSetting{}, &domain.User{}))
 	userRepo := repository.NewUserRepository(db)
-	require.NoError(t, userRepo.Create(context.Background(), &domain.User{Name: "Admin", Email: "admin@example.com", IsActive: true}))
+	require.NoError(t, userRepo.Create(context.Background(), &domain.User{Name: "Admin", Email: "admin@example.com", Username: "admin2", IsActive: true}))
 	admin, err := userRepo.FindByEmail(context.Background(), "admin@example.com")
 	require.NoError(t, err)
 

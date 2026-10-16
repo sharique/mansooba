@@ -32,8 +32,8 @@ type notifFixture struct {
 func newNotifFixture(t *testing.T) *notifFixture {
 	t.Helper()
 	db := newNotificationTestDB(t)
-	actor := &domain.User{Name: "Priya", Email: "priya@x.com", Password: "h", IsActive: true}
-	bob := &domain.User{Name: "Bob", Email: "bob@x.com", Password: "h", IsActive: true}
+	actor := &domain.User{Name: "Priya", Email: "priya@x.com", Username: "priya", Password: "h", IsActive: true}
+	bob := &domain.User{Name: "Bob", Email: "bob@x.com", Username: "bob", Password: "h", IsActive: true}
 	require.NoError(t, db.Create(actor).Error)
 	require.NoError(t, db.Create(bob).Error)
 	project := &domain.Project{Key: "APOL", Name: "Apollo", OwnerID: actor.ID}

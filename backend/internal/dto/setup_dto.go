@@ -15,6 +15,7 @@ type SetupAdminRequest struct {
 	FullName string `json:"full_name" validate:"required"`
 	Email    string `json:"email"     validate:"required,email"`
 	Password string `json:"password"  validate:"required,password_complexity"`
+	Username string `json:"username"`
 }
 
 // SetupAdminResponse is returned by POST /api/v1/setup/admin.
@@ -26,13 +27,15 @@ type SetupUserRequest struct {
 	FullName string `json:"full_name" validate:"required"`
 	Email    string `json:"email"     validate:"required,email"`
 	Password string `json:"password"  validate:"required,password_complexity"`
+	Username string `json:"username"`
 }
 
 // SetupUserResponse is returned by POST /api/v1/setup/user.
 type SetupUserResponse struct {
-	UserID uint   `json:"user_id"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
+	UserID   uint   `json:"user_id"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
 }
 
 // SetupProjectRequest creates an optional project during wizard step 3.

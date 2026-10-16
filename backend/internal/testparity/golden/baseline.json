@@ -217,7 +217,8 @@
       "user": {
         "email": "admin@example.com",
         "id": 1,
-        "name": "Admin User"
+        "name": "Admin User",
+        "username": "admin2"
       }
     }
   },
@@ -268,7 +269,8 @@
     "body": {
       "email": "demo@example.com",
       "name": "Demo User",
-      "user_id": 2
+      "user_id": 2,
+      "username": "demo"
     }
   },
   {
@@ -359,7 +361,8 @@
       "user": {
         "email": "demo@example.com",
         "id": 2,
-        "name": "Demo User"
+        "name": "Demo User",
+        "username": "demo"
       }
     }
   },
@@ -409,7 +412,8 @@
       "is_active": false,
       "is_admin": true,
       "name": "Admin User",
-      "timezone": ""
+      "timezone": "",
+      "username": "admin2"
     }
   },
   {
@@ -427,7 +431,8 @@
       "is_active": false,
       "is_admin": true,
       "name": "Admin Renamed",
-      "timezone": "UTC"
+      "timezone": "UTC",
+      "username": "admin2"
     }
   },
   {
@@ -485,7 +490,8 @@
       "user": {
         "email": "third@example.com",
         "id": 3,
-        "name": "Third User"
+        "name": "Third User",
+        "username": "third"
       }
     }
   },
@@ -511,6 +517,122 @@
     "body": {
       "code": "Bad Request",
       "message": "full_name is required"
+    }
+  },
+  {
+    "name": "register_with_username",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "access_token": "\u003cjwt\u003e",
+      "refresh_token": "\u003cjwt\u003e",
+      "user": {
+        "email": "named@example.com",
+        "id": 4,
+        "name": "Named User",
+        "username": "named_user"
+      }
+    }
+  },
+  {
+    "name": "register_username_taken",
+    "status": 409,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Conflict",
+      "message": "That username is already taken."
+    }
+  },
+  {
+    "name": "register_username_reserved",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "That username is reserved."
+    }
+  },
+  {
+    "name": "register_username_invalid",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "Usernames are 3 to 30 characters: letters, digits and underscores only."
+    }
+  },
+  {
+    "name": "username_check_available",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "available": true,
+      "message": "",
+      "reason": ""
+    }
+  },
+  {
+    "name": "username_check_taken",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "available": false,
+      "message": "That username is already taken.",
+      "reason": "taken"
+    }
+  },
+  {
+    "name": "username_check_non_admin",
+    "status": 403,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Forbidden",
+      "message": "forbidden"
+    }
+  },
+  {
+    "name": "username_change_refused",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "username cannot be changed"
+    }
+  },
+  {
+    "name": "username_change_refused_by_admin",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "username cannot be changed"
     }
   },
   {
@@ -643,9 +765,11 @@
     "body": [
       {
         "email": "admin@example.com",
+        "is_active": true,
         "name": "Admin Renamed",
         "role": "admin",
-        "user_id": 1
+        "user_id": 1,
+        "username": "admin2"
       }
     ]
   },
@@ -716,15 +840,19 @@
     "body": [
       {
         "email": "admin@example.com",
+        "is_active": true,
         "name": "Admin Renamed",
         "role": "admin",
-        "user_id": 1
+        "user_id": 1,
+        "username": "admin2"
       },
       {
         "email": "demo@example.com",
+        "is_active": true,
         "name": "Demo User",
         "role": "member",
-        "user_id": 2
+        "user_id": 2,
+        "username": "demo"
       }
     ]
   },
@@ -1967,15 +2095,25 @@
     "body": {
       "page": 1,
       "size": 20,
-      "total": 3,
+      "total": 4,
       "users": [
+        {
+          "created_at": "\u003ctime\u003e",
+          "email": "named@example.com",
+          "id": 4,
+          "is_active": true,
+          "is_admin": false,
+          "name": "Named User",
+          "username": "named_user"
+        },
         {
           "created_at": "\u003ctime\u003e",
           "email": "third@example.com",
           "id": 3,
           "is_active": true,
           "is_admin": false,
-          "name": "Third User"
+          "name": "Third User",
+          "username": "third"
         },
         {
           "created_at": "\u003ctime\u003e",
@@ -1983,7 +2121,8 @@
           "id": 2,
           "is_active": true,
           "is_admin": false,
-          "name": "Demo User"
+          "name": "Demo User",
+          "username": "demo"
         },
         {
           "created_at": "\u003ctime\u003e",
@@ -1991,7 +2130,8 @@
           "id": 1,
           "is_active": true,
           "is_admin": true,
-          "name": "Admin Renamed"
+          "name": "Admin Renamed",
+          "username": "admin2"
         }
       ]
     }
@@ -2033,7 +2173,8 @@
       "id": 3,
       "is_active": false,
       "is_admin": false,
-      "name": "Third User"
+      "name": "Third User",
+      "username": "third"
     }
   },
   {
@@ -2195,7 +2336,8 @@
       "user": {
         "email": "demo@example.com",
         "id": 2,
-        "name": "Demo User"
+        "name": "Demo User",
+        "username": "demo"
       }
     }
   },

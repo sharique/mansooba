@@ -307,13 +307,19 @@ func (r *stubUserRepoMention) FindByID(_ context.Context, id uint) (*domain.User
 func (r *stubUserRepoMention) FindByEmail(_ context.Context, _ string) (*domain.User, error) {
 	return nil, domain.ErrNotFound
 }
-func (r *stubUserRepoMention) FindByEmailPrefix(_ context.Context, prefix string) (*domain.User, error) {
+func (r *stubUserRepoMention) FindByUsername(_ context.Context, username string) (*domain.User, error) {
 	for _, u := range r.users {
-		if len(u.Email) > len(prefix) && u.Email[:len(prefix)] == prefix && u.Email[len(prefix)] == '@' {
+		if u.Username == username {
 			return u, nil
 		}
 	}
 	return nil, domain.ErrNotFound
+}
+
+func (r *stubUserRepoMention) SetUsername(_ context.Context, _ uint, _ string) error { return nil }
+
+func (r *stubUserRepoMention) ListMissingUsername(_ context.Context) ([]*domain.User, error) {
+	return nil, nil
 }
 
 func (r *stubUserRepoMention) Update(_ context.Context, u *domain.User) error {
@@ -350,8 +356,11 @@ func newCommentTestEnvWithNotifications() (service.CommentService, *stubCommentR
 	notifRepo := newStubNotificationRepo()
 	userRepo := &stubUserRepoMention{
 		users: []*domain.User{
-			{ID: 7, Name: "Alice Smith", Email: "alice@example.com"},
-			{ID: 8, Name: "Bob Jones", Email: "bob@example.com"},
+			{ID: 7, Name: "Alice Smith", Email: "alice@example.com", Username: "alice"},
+			{ID: 8, Name: "Bob Jones", Email: "bob@example.com", Username: "bob"},
+			// Email prefix "sam" belongs to a different account than username "sam".
+			{ID: 9, Name: "Sam Two", Email: "sam@example.com", Username: "sam2"},
+			{ID: 10, Name: "Sam One", Email: "sam.one@other.com", Username: "sam"},
 		},
 	}
 
@@ -387,4 +396,64 @@ func TestCommentService_Create_MultipleMentionsCreatesMultipleNotifications(t *t
 	_, err := svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "@alice and @bob review this"})
 	require.NoError(t, err)
 	assert.Len(t, notifRepo.notifications, 2)
+}
+
+// ── mentions resolve by username (feature 018, story 2) ──────────────────────
+
+func notifiedUsers(r *stubNotificationRepo) []uint {
+	var ids []uint
+	for _, n := range r.notifications {
+		ids = append(ids, n.RecipientID)
+	}
+	return ids
+}
+
+func TestCommentService_Mentions_ResolveByUsernameIgnoringCase(t *testing.T) {
+	svc, _, _, notifRepo := newCommentTestEnvWithNotifications()
+	_, err := svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "hi @Alice and @BOB"})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []uint{7, 8}, notifiedUsers(notifRepo))
+}
+
+func TestCommentService_Mentions_EmailPrefixNoLongerCounts(t *testing.T) {
+	svc, _, _, notifRepo := newCommentTestEnvWithNotifications()
+	// "sam@example.com" belongs to user 9, whose username is sam2; only the
+	// username "sam" (user 10) is a mention target now.
+	_, err := svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "@sam please look"})
+	require.NoError(t, err)
+	assert.Equal(t, []uint{10}, notifiedUsers(notifRepo))
+}
+
+func TestCommentService_Mentions_BoundaryRule(t *testing.T) {
+	notified := map[string][]uint{
+		"@alice at the start":          {7},
+		"thanks @alice":                {7},
+		"see (@alice) please":          {7},
+		"**@alice** please":            {7},
+		"> @alice quoted":              {7},
+		"thanks,@alice":                {7},
+		"line one\n@alice on line two": {7},
+		"done. @alice.":                {7},
+		"mail alice@example.com":       nil,
+		"a.b@alice":                    nil,
+		"x_@alice":                     nil,
+		"user@alice.example":           nil,
+		"plain text, no mention":       nil,
+		"email me at sam@example.com":  nil,
+	}
+	for body, want := range notified {
+		svc, _, _, notifRepo := newCommentTestEnvWithNotifications()
+		_, err := svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: body})
+		require.NoError(t, err, body)
+		assert.ElementsMatch(t, want, notifiedUsers(notifRepo), "body %q", body)
+	}
+}
+
+// A mention of a user who is not a member of the project still notifies them
+// under today's rule (limiting it to members is a roadmap item).
+func TestCommentService_Mentions_NonMemberStillNotified(t *testing.T) {
+	svc, _, _, notifRepo := newCommentTestEnvWithNotifications()
+	_, err := svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "@bob"})
+	require.NoError(t, err) // bob (id 8) is not a member of project 10 in this fixture
+	assert.Equal(t, []uint{8}, notifiedUsers(notifRepo))
 }

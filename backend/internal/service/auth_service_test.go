@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"errors"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -78,6 +79,13 @@ func (s *stubUserRepo) Create(_ context.Context, u *domain.User) error {
 	if _, exists := s.users[u.Email]; exists {
 		return domain.ErrConflict
 	}
+	if u.Username != "" {
+		for _, other := range s.users {
+			if other.Username == u.Username {
+				return domain.ErrUsernameTaken
+			}
+		}
+	}
 	if u.ID == 0 {
 		u.ID = s.nextID
 		s.nextID++
@@ -104,8 +112,39 @@ func (s *stubUserRepo) FindByEmail(_ context.Context, email string) (*domain.Use
 	return u, nil
 }
 
-func (s *stubUserRepo) FindByEmailPrefix(_ context.Context, _ string) (*domain.User, error) {
+func (s *stubUserRepo) FindByUsername(_ context.Context, username string) (*domain.User, error) {
+	for _, u := range s.users {
+		if u.Username == username {
+			return u, nil
+		}
+	}
 	return nil, domain.ErrNotFound
+}
+
+func (s *stubUserRepo) SetUsername(_ context.Context, id uint, username string) error {
+	for _, other := range s.users {
+		if other.Username == username {
+			return domain.ErrUsernameTaken
+		}
+	}
+	for _, u := range s.users {
+		if u.ID == id {
+			u.Username = username
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+
+func (s *stubUserRepo) ListMissingUsername(_ context.Context) ([]*domain.User, error) {
+	var out []*domain.User
+	for _, u := range s.users {
+		if u.Username == "" {
+			out = append(out, u)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
 }
 
 func (s *stubUserRepo) Update(_ context.Context, u *domain.User) error {

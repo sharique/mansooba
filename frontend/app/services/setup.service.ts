@@ -10,18 +10,22 @@ export interface SetupAdminRequest {
   full_name: string
   email: string
   password: string
+  /** Optional; the server generates one from the email when omitted. */
+  username?: string
 }
 
 export interface SetupUserRequest {
   full_name: string
   email: string
   password: string
+  username?: string
 }
 
 export interface SetupUserResponse {
   user_id: number
   name: string
   email: string
+  username: string
 }
 
 export interface SetupProjectRequest {

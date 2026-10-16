@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"gorm.io/gorm"
@@ -19,10 +20,29 @@ func NewUserRepository(db *gorm.DB) domain.UserRepository {
 
 // Create inserts a new user record and populates the ID field on success.
 func (r *userRepo) Create(ctx context.Context, user *domain.User) error {
+	// The column is NOT NULL and unique: an empty username would be stored as
+	// "" and collide with the next account that has none. Services always set one.
+	if user.Username == "" {
+		return domain.ErrUsernameInvalid
+	}
 	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
-		return err
+		return translateUsernameConflict(err)
 	}
 	return nil
+}
+
+// translateUsernameConflict turns a unique-index violation on the username
+// column into domain.ErrUsernameTaken. The drivers word it differently
+// (SQLite "UNIQUE constraint failed: users.username", PostgreSQL "duplicate key
+// value violates unique constraint "idx_users_username"", MySQL "Duplicate
+// entry ... for key ... username"), so match on the words; every other error
+// is returned unchanged.
+func translateUsernameConflict(err error) error {
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "username") && (strings.Contains(msg, "unique") || strings.Contains(msg, "duplicate")) {
+		return domain.ErrUsernameTaken
+	}
+	return err
 }
 
 // FindByID retrieves a user by primary key.
@@ -51,13 +71,11 @@ func (r *userRepo) FindByEmail(ctx context.Context, email string) (*domain.User,
 	return &user, nil
 }
 
-// FindByEmailPrefix retrieves a user whose email starts with the given local part (before '@').
+// FindByUsername retrieves a user by their (lower-case) username.
 // Returns domain.ErrNotFound when no row matches.
-func (r *userRepo) FindByEmailPrefix(ctx context.Context, prefix string) (*domain.User, error) {
+func (r *userRepo) FindByUsername(ctx context.Context, username string) (*domain.User, error) {
 	var u domain.User
-	if err := r.db.WithContext(ctx).
-		Where("email LIKE ?", prefix+"@%").
-		First(&u).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("username = ?", username).First(&u).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrNotFound
 		}
@@ -66,9 +84,29 @@ func (r *userRepo) FindByEmailPrefix(ctx context.Context, prefix string) (*domai
 	return &u, nil
 }
 
-// Update persists name, avatar_url, and timezone for an existing user.
+// SetUsername writes only the username column; a duplicate is domain.ErrUsernameTaken.
+func (r *userRepo) SetUsername(ctx context.Context, id uint, username string) error {
+	if err := r.db.WithContext(ctx).Model(&domain.User{}).Where("id = ?", id).Update("username", username).Error; err != nil {
+		return translateUsernameConflict(err)
+	}
+	return nil
+}
+
+// ListMissingUsername returns accounts without a username (NULL or empty, which
+// only exist on a database being upgraded), ordered by id.
+func (r *userRepo) ListMissingUsername(ctx context.Context) ([]*domain.User, error) {
+	var users []*domain.User
+	if err := r.db.WithContext(ctx).Where("username IS NULL OR username = ''").Order("id ASC").Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+// Update persists every column of an existing user except the username, which
+// is permanent: password change and reset rely on Update for the password and
+// token fields, and a stale or altered struct must never rewrite the username.
 func (r *userRepo) Update(ctx context.Context, user *domain.User) error {
-	return r.db.WithContext(ctx).Save(user).Error
+	return r.db.WithContext(ctx).Omit("username").Save(user).Error
 }
 
 // HasAdmin returns true if at least one user with is_admin=true exists.

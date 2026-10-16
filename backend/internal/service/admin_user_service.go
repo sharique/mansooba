@@ -38,7 +38,7 @@ func (s *adminUserService) GetUser(ctx context.Context, id uint) (*dto.AdminUser
 		return nil, err
 	}
 	return &dto.AdminUserDTO{
-		ID: u.ID, Name: u.Name, Email: u.Email,
+		ID: u.ID, Name: u.Name, Email: u.Email, Username: usernameValue(u),
 		IsAdmin: u.IsAdmin, IsActive: u.IsActive, CreatedAt: u.CreatedAt,
 	}, nil
 }
@@ -55,6 +55,7 @@ func (s *adminUserService) ListUsers(ctx context.Context, page, size int) (*dto.
 			ID:        u.ID,
 			Name:      u.Name,
 			Email:     u.Email,
+			Username:  usernameValue(u),
 			IsAdmin:   u.IsAdmin,
 			IsActive:  u.IsActive,
 			CreatedAt: u.CreatedAt,

@@ -24,6 +24,10 @@ COPY . .
 # GET /api/v1/about. Defaults to "dev" for a local, non-CI build.
 ARG APP_VERSION=dev
 RUN go build -ldflags="-s -w -X main.version=${APP_VERSION}" -o /app/server ./cmd/server
+# One-off admin process (constitution VI.12): gives accounts that have no
+# username a generated one. Shipped in the same image so compose can run it
+# before the server starts; see compose.yml and compose.prod.yml.
+RUN go build -ldflags="-s -w" -o /app/backfill-usernames ./cmd/backfill-usernames
 
 # ── final ──────────────────────────────────────────────────────────────────────
 # Alpine keeps the image small (~10 MB). ca-certificates is needed for any
@@ -40,6 +44,7 @@ LABEL org.opencontainers.image.source="https://github.com/sharique/mansooba"
 
 WORKDIR /app
 COPY --from=builder /app/server .
+COPY --from=builder /app/backfill-usernames .
 # Populated at CI build time by scripts/generate-notices.sh;
 # the placeholder keeps `docker compose build` working locally.
 COPY legal/ /licenses/

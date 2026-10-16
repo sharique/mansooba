@@ -53,6 +53,8 @@ docker compose up --build
 
 On first visit the setup wizard walks you through creating the admin account.
 
+Every account has a unique username (used for `@mentions`). Accounts created before usernames existed get one from a one-off command, `backfill-usernames`, which `docker compose up` runs before the backend starts. Without Docker, run it yourself after upgrading: `cd backend && go run ./cmd/backfill-usernames` (safe to run repeatedly). The server refuses to start, with a message naming the command, while any account is still missing a username.
+
 Other ways to run:
 - [Docker with PostgreSQL or hot-reload dev mode](docs/deployments/running-locally-using-docker.md)
 - [Pre-built GHCR images](docs/deployments/running-from-ghcr.md) - no Go toolchain needed

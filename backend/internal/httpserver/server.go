@@ -247,6 +247,7 @@ func New(d Deps) *echo.Echo {
 	admin := api.Group("/admin")
 	admin.GET("/users", h.AdminUser.ListUsers)
 	admin.PATCH("/users/:id", h.AdminUser.PatchUser)
+	admin.GET("/usernames/check", h.Username.Check)
 	admin.GET("/system-logs", h.SystemLog.List)
 
 	settings := api.Group("/settings")

@@ -32,6 +32,8 @@
       <span v-if="errors.email" role="alert" class="text-error text-sm">{{ errors.email }}</span>
     </div>
 
+    <UsernameField :field="usernameField" id="user-username" :disabled="loading" />
+
     <div class="form-control gap-1">
       <label for="user-password" class="label label-text font-medium">Password</label>
       <input
@@ -74,13 +76,22 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, ref } from 'vue'
+import { reactive, computed, ref, toRef } from 'vue'
 import { useSetupStore } from '~/stores/setup.store'
+import { adminService } from '~/services/admin.service'
+import { useUsernameField } from '~/composables/useUsernameField'
+import UsernameField from '~/components/common/UsernameField.vue'
 
 const setupStore = useSetupStore()
 const form = reactive({ full_name: '', email: '', password: '' })
 const errors = reactive({ full_name: '', email: '', server: '' })
 const loading = ref(false)
+
+// Pre-filled from the email, editable until the account is created. The new
+// administrator's token is in place by this step, so availability can be checked.
+const emailRef = toRef(form, 'email')
+const usernameField = useUsernameField(emailRef, { check: (u) => adminService.checkUsername(u) })
+const usernameBlocked = computed(() => ['invalid', 'reserved', 'taken'].includes(usernameField.status.value.kind))
 const rules = reactive({ length: false, upper: false, lower: false, digit: false })
 
 function validatePassword() {
@@ -102,7 +113,7 @@ function validateEmail() {
 }
 
 const allRulesPassed = computed(() => rules.length && rules.upper && rules.lower && rules.digit)
-const canSubmit = computed(() => form.full_name.trim() !== '' && form.email !== '' && allRulesPassed.value)
+const canSubmit = computed(() => form.full_name.trim() !== '' && form.email !== '' && allRulesPassed.value && !usernameBlocked.value)
 
 function skip() {
   setupStore.skipUser()
@@ -117,10 +128,12 @@ async function submit() {
 
   loading.value = true
   try {
-    await setupStore.completeUser({ full_name: form.full_name, email: form.email, password: form.password })
+    await setupStore.completeUser({ full_name: form.full_name, email: form.email, password: form.password, username: usernameField.username.value || undefined })
   } catch (err: any) {
     if (err?.statusCode === 429) {
       errors.server = 'Too many attempts. Please wait a minute and try again.'
+    } else if (/username|reserved/i.test(err?.data?.message ?? '')) {
+      usernameField.setServerError(err.data.message)
     } else if (err?.statusCode === 409) {
       errors.server = 'This email is already registered.'
     } else {

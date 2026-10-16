@@ -7,6 +7,7 @@ type AdminUserDTO struct {
 	ID        uint      `json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
+	Username  string    `json:"username"`
 	IsAdmin   bool      `json:"is_admin"`
 	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
@@ -25,4 +26,7 @@ type AdminUserListResponse struct {
 type AdminUserPatchRequest struct {
 	IsAdmin  *bool `json:"is_admin"`
 	IsActive *bool `json:"is_active"`
+	// Username is never writable; the field exists so a request that tries is
+	// refused (400) instead of being silently ignored.
+	Username *string `json:"username"`
 }
