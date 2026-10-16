@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/handler"
@@ -56,7 +56,7 @@ func setupPasswordChangeRoute(svc *stubPasswordChangeService, userID uint) *echo
 func setupPasswordChangeRouteWithAuth(svc *stubPasswordChangeService, authSvc *stubAuthService, userID uint) *echo.Echo {
 	e := newEcho()
 	h := handler.NewPasswordChangeHandler(svc, authSvc)
-	e.PUT("/auth/me/password", func(c echo.Context) error {
+	e.PUT("/auth/me/password", func(c *echo.Context) error {
 		c.Set("userID", userID)
 		return h.ChangePassword(c)
 	})

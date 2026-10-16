@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 )
@@ -27,7 +27,7 @@ func NewNotificationHandler(repo domain.NotificationRepository) *NotificationHan
 // @Success      200 {array} dto.NotificationResponse
 // @Failure      401 {object} apierror.APIError
 // @Router       /notifications [get]
-func (h *NotificationHandler) List(c echo.Context) error {
+func (h *NotificationHandler) List(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	notifications, err := h.repo.FindUnreadByRecipientID(c.Request().Context(), callerID)
 	if err != nil {
@@ -56,7 +56,7 @@ func (h *NotificationHandler) List(c echo.Context) error {
 // @Failure      401 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
 // @Router       /notifications/{id}/read [put]
-func (h *NotificationHandler) MarkRead(c echo.Context) error {
+func (h *NotificationHandler) MarkRead(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseUintParam(c, "id")
 	if err != nil {

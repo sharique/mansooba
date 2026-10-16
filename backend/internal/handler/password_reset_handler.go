@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
@@ -29,7 +29,7 @@ func NewPasswordResetHandler(svc service.PasswordResetService) *PasswordResetHan
 // @Success      200 {object} dto.ForgotPasswordResponse
 // @Failure      400 {object} apierror.APIError "Bad request"
 // @Router       /auth/forgot-password [post]
-func (h *PasswordResetHandler) ForgotPassword(c echo.Context) error {
+func (h *PasswordResetHandler) ForgotPassword(c *echo.Context) error {
 	var req dto.ForgotPasswordRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
@@ -57,7 +57,7 @@ func (h *PasswordResetHandler) ForgotPassword(c echo.Context) error {
 // @Success      200 {object} map[string]string
 // @Failure      400 {object} apierror.APIError "Invalid or expired token / password too short"
 // @Router       /auth/reset-password [post]
-func (h *PasswordResetHandler) ResetPassword(c echo.Context) error {
+func (h *PasswordResetHandler) ResetPassword(c *echo.Context) error {
 	var req dto.ResetPasswordRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest

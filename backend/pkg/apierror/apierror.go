@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 )
 
@@ -15,11 +15,12 @@ type APIError struct {
 }
 
 // HTTPErrorHandler maps domain and Echo errors to JSON responses with appropriate status codes.
-func HTTPErrorHandler(err error, c echo.Context) {
+func HTTPErrorHandler(c *echo.Context, err error) {
 	code := http.StatusInternalServerError
 	msg := "internal server error"
 
 	var he *echo.HTTPError
+	var sc echo.HTTPStatusCoder
 	switch {
 	case errors.Is(err, domain.ErrNotFound):
 		code, msg = http.StatusNotFound, "not found"
@@ -41,12 +42,20 @@ func HTTPErrorHandler(err error, c echo.Context) {
 		code, msg = http.StatusConflict, err.Error()
 	case errors.As(err, &he):
 		code = he.Code
-		if s, ok := he.Message.(string); ok {
-			msg = s
+		msg = he.Message
+		if msg == "" {
+			msg = http.StatusText(code)
 		}
+	case errors.As(err, &sc):
+		// Echo's own sentinels (echo.ErrBadRequest, router 404/405, ...) carry
+		// only a status code.
+		code = sc.StatusCode()
+		msg = http.StatusText(code)
 	}
 
-	if !c.Response().Committed {
-		c.JSON(code, APIError{Code: http.StatusText(code), Message: msg}) //nolint:errcheck
+	// A response that has already started cannot be replaced.
+	if resp, uerr := echo.UnwrapResponse(c.Response()); uerr == nil && resp.Committed {
+		return
 	}
+	c.JSON(code, APIError{Code: http.StatusText(code), Message: msg}) //nolint:errcheck
 }

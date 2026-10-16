@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/handler"
@@ -69,11 +69,11 @@ func newAdminHandler(svc service.AdminUserService, isAdmin bool) (*echo.Echo, *h
 }
 
 func withAdminAuth(e *echo.Echo, h *handler.AdminUserHandler) {
-	e.GET("/admin/users", func(c echo.Context) error {
+	e.GET("/admin/users", func(c *echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.ListUsers(c)
 	})
-	e.PATCH("/admin/users/:id", func(c echo.Context) error {
+	e.PATCH("/admin/users/:id", func(c *echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.PatchUser(c)
 	})

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
@@ -31,7 +31,7 @@ func NewSprintHandler(svc service.SprintService) *SprintHandler {
 // @Failure      401 {object} apierror.APIError "Unauthorized"
 // @Router       /projects/{key}/sprints [get]
 // @Security     BearerAuth
-func (h *SprintHandler) List(c echo.Context) error {
+func (h *SprintHandler) List(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	sprints, err := h.svc.List(c.Request().Context(), c.Param("key"), callerID)
 	if err != nil {
@@ -54,7 +54,7 @@ func (h *SprintHandler) List(c echo.Context) error {
 // @Failure      404 {object} apierror.APIError "Project not found"
 // @Router       /projects/{key}/sprints [post]
 // @Security     BearerAuth
-func (h *SprintHandler) Create(c echo.Context) error {
+func (h *SprintHandler) Create(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	var req dto.CreateSprintRequest
 	if err := c.Bind(&req); err != nil {
@@ -79,7 +79,7 @@ func (h *SprintHandler) Create(c echo.Context) error {
 // @Failure      401 {object} apierror.APIError "Unauthorized"
 // @Router       /projects/{key}/sprints/{id} [get]
 // @Security     BearerAuth
-func (h *SprintHandler) Get(c echo.Context) error {
+func (h *SprintHandler) Get(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseSprintID(c)
 	if err != nil {
@@ -107,7 +107,7 @@ func (h *SprintHandler) Get(c echo.Context) error {
 // @Failure      404 {object} apierror.APIError "Sprint or project not found"
 // @Router       /projects/{key}/sprints/{id} [put]
 // @Security     BearerAuth
-func (h *SprintHandler) Update(c echo.Context) error {
+func (h *SprintHandler) Update(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseSprintID(c)
 	if err != nil {
@@ -136,7 +136,7 @@ func (h *SprintHandler) Update(c echo.Context) error {
 // @Failure      404 {object} apierror.APIError "Sprint or project not found"
 // @Router       /projects/{key}/sprints/{id} [delete]
 // @Security     BearerAuth
-func (h *SprintHandler) Delete(c echo.Context) error {
+func (h *SprintHandler) Delete(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseSprintID(c)
 	if err != nil {
@@ -161,7 +161,7 @@ func (h *SprintHandler) Delete(c echo.Context) error {
 // @Failure      404 {object} apierror.APIError "Sprint or project not found"
 // @Router       /projects/{key}/sprints/{id}/start [post]
 // @Security     BearerAuth
-func (h *SprintHandler) Start(c echo.Context) error {
+func (h *SprintHandler) Start(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseSprintID(c)
 	if err != nil {
@@ -189,7 +189,7 @@ func (h *SprintHandler) Start(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError "Insufficient role"
 // @Router       /projects/{key}/sprints/{id}/complete [post]
 // @Security     BearerAuth
-func (h *SprintHandler) Complete(c echo.Context) error {
+func (h *SprintHandler) Complete(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseSprintID(c)
 	if err != nil {
@@ -217,7 +217,7 @@ func (h *SprintHandler) Complete(c echo.Context) error {
 // @Failure      401 {object} apierror.APIError "Unauthorized"
 // @Router       /projects/{key}/backlog [get]
 // @Security     BearerAuth
-func (h *SprintHandler) Backlog(c echo.Context) error {
+func (h *SprintHandler) Backlog(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	issues, err := h.svc.Backlog(c.Request().Context(), c.Param("key"), callerID)
 	if err != nil {
@@ -255,7 +255,7 @@ func (h *SprintHandler) Backlog(c echo.Context) error {
 // @Failure      401 {object} apierror.APIError "Unauthorized"
 // @Router       /projects/{key}/sprints/{id}/issues [get]
 // @Security     BearerAuth
-func (h *SprintHandler) GetIssues(c echo.Context) error {
+func (h *SprintHandler) GetIssues(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseSprintID(c)
 	if err != nil {
@@ -297,7 +297,7 @@ func (h *SprintHandler) GetIssues(c echo.Context) error {
 // @Failure      404 {object} apierror.APIError "Sprint or project not found"
 // @Router       /projects/{key}/sprints/{id}/burndown [get]
 // @Security     BearerAuth
-func (h *SprintHandler) Burndown(c echo.Context) error {
+func (h *SprintHandler) Burndown(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseSprintID(c)
 	if err != nil {
@@ -321,7 +321,7 @@ func (h *SprintHandler) Burndown(c echo.Context) error {
 // @Failure      401 {object} apierror.APIError "Unauthorized"
 // @Router       /projects/{key}/velocity [get]
 // @Security     BearerAuth
-func (h *SprintHandler) Velocity(c echo.Context) error {
+func (h *SprintHandler) Velocity(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	data, err := h.svc.Velocity(c.Request().Context(), c.Param("key"), callerID)
 	if err != nil {
@@ -330,7 +330,7 @@ func (h *SprintHandler) Velocity(c echo.Context) error {
 	return c.JSON(http.StatusOK, data)
 }
 
-func parseSprintID(c echo.Context) (uint, error) {
+func parseSprintID(c *echo.Context) (uint, error) {
 	raw, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		return 0, err

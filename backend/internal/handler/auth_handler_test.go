@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/handler"
@@ -53,7 +53,6 @@ func (tv *testValidator) Validate(i any) error { return tv.v.Struct(i) }
 
 func newEcho() *echo.Echo {
 	e := echo.New()
-	e.HideBanner = true
 	v := validator.New()
 	v.RegisterValidation("password_complexity", func(fl validator.FieldLevel) bool { //nolint:errcheck
 		pw := fl.Field().String()
@@ -91,7 +90,7 @@ func TestAuthHandler_Register_Returns201(t *testing.T) {
 
 	e := newEcho()
 	h := handler.NewAuthHandler(svc, adminUserSvc)
-	e.POST("/auth/register", func(c echo.Context) error {
+	e.POST("/auth/register", func(c *echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.Register(c)
 	})
@@ -206,7 +205,7 @@ func TestAuthHandler_Register_Returns403_ForNonAdmin(t *testing.T) {
 
 	e := newEcho()
 	h := handler.NewAuthHandler(svc, userSvc)
-	e.POST("/auth/register", func(c echo.Context) error {
+	e.POST("/auth/register", func(c *echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.Register(c)
 	})
@@ -239,7 +238,7 @@ func TestAuthHandler_Register_Returns201_ForAdmin(t *testing.T) {
 
 	e := newEcho()
 	h := handler.NewAuthHandler(svc, userSvc)
-	e.POST("/auth/register", func(c echo.Context) error {
+	e.POST("/auth/register", func(c *echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.Register(c)
 	})
@@ -269,7 +268,7 @@ func TestAuthHandler_Register_Returns409_OnDuplicate(t *testing.T) {
 
 	e := newEcho()
 	h := handler.NewAuthHandler(svc, adminUserSvc)
-	e.POST("/auth/register", func(c echo.Context) error {
+	e.POST("/auth/register", func(c *echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.Register(c)
 	})

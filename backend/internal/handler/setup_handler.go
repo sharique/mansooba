@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
@@ -32,7 +32,7 @@ func NewSetupHandler(svc service.SetupService, settingSvc service.SettingService
 // @Success      200 {object} dto.SetupStatusResponse
 // @Failure      500 {object} apierror.APIError
 // @Router       /setup/status [get]
-func (h *SetupHandler) Status(c echo.Context) error {
+func (h *SetupHandler) Status(c *echo.Context) error {
 	required, err := h.svc.SetupRequired(c.Request().Context())
 	if err != nil {
 		return err
@@ -60,7 +60,7 @@ func (h *SetupHandler) Status(c echo.Context) error {
 // @Failure      409 {object} apierror.APIError "Admin already exists"
 // @Failure      429 {object} apierror.APIError "Rate limit exceeded"
 // @Router       /setup/admin [post]
-func (h *SetupHandler) CreateAdmin(c echo.Context) error {
+func (h *SetupHandler) CreateAdmin(c *echo.Context) error {
 	var req dto.SetupAdminRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
@@ -94,7 +94,7 @@ func (h *SetupHandler) CreateAdmin(c echo.Context) error {
 // @Failure      409 {object} apierror.APIError "Email already registered"
 // @Failure      429 {object} apierror.APIError "Rate limit exceeded"
 // @Router       /setup/user [post]
-func (h *SetupHandler) CreateUser(c echo.Context) error {
+func (h *SetupHandler) CreateUser(c *echo.Context) error {
 	var req dto.SetupUserRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
@@ -125,7 +125,7 @@ func (h *SetupHandler) CreateUser(c echo.Context) error {
 // @Failure      401 {object} apierror.APIError "Unauthorized"
 // @Failure      500 {object} apierror.APIError "Seed failed"
 // @Router       /setup/seed [post]
-func (h *SetupHandler) SeedData(c echo.Context) error {
+func (h *SetupHandler) SeedData(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	resp, err := h.svc.SeedData(c.Request().Context(), callerID)
 	if err != nil {
@@ -147,7 +147,7 @@ func (h *SetupHandler) SeedData(c echo.Context) error {
 // @Failure      401 {object} apierror.APIError "Unauthorized"
 // @Failure      404 {object} apierror.APIError "add_user_id refers to non-existent user"
 // @Router       /setup/project [post]
-func (h *SetupHandler) CreateProject(c echo.Context) error {
+func (h *SetupHandler) CreateProject(c *echo.Context) error {
 	var req dto.SetupProjectRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest

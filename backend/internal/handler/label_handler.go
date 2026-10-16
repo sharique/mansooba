@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
@@ -33,7 +33,7 @@ func NewLabelHandler(svc service.LabelService) *LabelHandler {
 // @Failure      401 {object} apierror.APIError
 // @Failure      403 {object} apierror.APIError
 // @Router       /projects/{key}/labels [post]
-func (h *LabelHandler) Create(c echo.Context) error {
+func (h *LabelHandler) Create(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	var req dto.CreateLabelRequest
 	if err := c.Bind(&req); err != nil {
@@ -56,7 +56,7 @@ func (h *LabelHandler) Create(c echo.Context) error {
 // @Failure      401 {object} apierror.APIError
 // @Failure      403 {object} apierror.APIError
 // @Router       /projects/{key}/labels [get]
-func (h *LabelHandler) List(c echo.Context) error {
+func (h *LabelHandler) List(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	labels, err := h.svc.ListByProject(c.Request().Context(), c.Param("key"), callerID)
 	if err != nil {
@@ -76,7 +76,7 @@ func (h *LabelHandler) List(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
 // @Router       /projects/{key}/labels/{lid} [delete]
-func (h *LabelHandler) Delete(c echo.Context) error {
+func (h *LabelHandler) Delete(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	lid, err := parseUintParam(c, "lid")
 	if err != nil {
@@ -99,7 +99,7 @@ func (h *LabelHandler) Delete(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
 // @Router       /issues/{id}/labels [get]
-func (h *LabelHandler) ListByIssue(c echo.Context) error {
+func (h *LabelHandler) ListByIssue(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	issueID, err := parseUintParam(c, "id")
 	if err != nil {
@@ -123,7 +123,7 @@ func (h *LabelHandler) ListByIssue(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
 // @Router       /issues/{id}/labels/{lid} [post]
-func (h *LabelHandler) Attach(c echo.Context) error {
+func (h *LabelHandler) Attach(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	issueID, err := parseUintParam(c, "id")
 	if err != nil {
@@ -150,7 +150,7 @@ func (h *LabelHandler) Attach(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError
 // @Failure      404 {object} apierror.APIError
 // @Router       /issues/{id}/labels/{lid} [delete]
-func (h *LabelHandler) Detach(c echo.Context) error {
+func (h *LabelHandler) Detach(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	issueID, err := parseUintParam(c, "id")
 	if err != nil {

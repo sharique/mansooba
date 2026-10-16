@@ -1,0 +1,2290 @@
+[
+  {
+    "name": "health",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "db": "ok",
+      "db_latency_ms": 0,
+      "loki": "error",
+      "status": "ok"
+    }
+  },
+  {
+    "name": "about",
+    "status": 200,
+    "headers": {
+      "Cache-Control": "public, max-age=300",
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "license": "AGPL-3.0-only",
+      "license_url": "https://www.gnu.org/licenses/agpl-3.0.html",
+      "source_url": "https://github.com/sharique/mansooba",
+      "version": "dev"
+    }
+  },
+  {
+    "name": "setup_status_before",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "demo_banner_enabled": false,
+      "demo_banner_message": "This is a demo instance. Data may be reset at any time.",
+      "setup_required": true
+    }
+  },
+  {
+    "name": "router_not_found",
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Not Found",
+      "message": "Not Found"
+    }
+  },
+  {
+    "name": "router_not_found_in_api",
+    "status": 401,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Unauthorized",
+      "message": "Unauthorized"
+    }
+  },
+  {
+    "name": "router_method_not_allowed",
+    "status": 405,
+    "headers": {
+      "Allow": "OPTIONS, GET",
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Method Not Allowed",
+      "message": "Method Not Allowed"
+    }
+  },
+  {
+    "name": "cors_preflight_allowed",
+    "status": 204,
+    "headers": {
+      "Access-Control-Allow-Credentials": "true",
+      "Access-Control-Allow-Methods": "GET,HEAD,PUT,PATCH,POST,DELETE",
+      "Access-Control-Allow-Origin": "http://localhost:3000",
+      "Vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers"
+    }
+  },
+  {
+    "name": "cors_preflight_other_origin",
+    "status": 204,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "cors_simple_request_allowed_origin",
+    "status": 200,
+    "headers": {
+      "Access-Control-Allow-Credentials": "true",
+      "Access-Control-Allow-Origin": "http://localhost:3000",
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "db": "ok",
+      "db_latency_ms": 0,
+      "loki": "error",
+      "status": "ok"
+    }
+  },
+  {
+    "name": "protected_without_token",
+    "status": 401,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Unauthorized",
+      "message": "Unauthorized"
+    }
+  },
+  {
+    "name": "protected_bad_token",
+    "status": 401,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Unauthorized",
+      "message": "Unauthorized"
+    }
+  },
+  {
+    "name": "swagger_index",
+    "status": 200,
+    "headers": {
+      "Content-Type": "text/html; charset=utf-8",
+      "Vary": "Origin"
+    },
+    "body_text": "\u003ctext\u003e"
+  },
+  {
+    "name": "avatar_missing",
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Not Found",
+      "message": "avatar not found"
+    }
+  },
+  {
+    "name": "body_too_large",
+    "status": 413,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Request Entity Too Large",
+      "message": "Request Entity Too Large"
+    }
+  },
+  {
+    "name": "invalid_json",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "Bad Request"
+    }
+  },
+  {
+    "name": "setup_admin_invalid",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "Key: 'SetupAdminRequest.FullName' Error:Field validation for 'FullName' failed on the 'required' tag\nKey: 'SetupAdminRequest.Email' Error:Field validation for 'Email' failed on the 'required' tag\nKey: 'SetupAdminRequest.Password' Error:Field validation for 'Password' failed on the 'required' tag"
+    }
+  },
+  {
+    "name": "setup_admin_weak_password",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "Key: 'SetupAdminRequest.Password' Error:Field validation for 'Password' failed on the 'password_complexity' tag"
+    }
+  },
+  {
+    "name": "setup_admin",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "access_token": "\u003cjwt\u003e",
+      "refresh_token": "",
+      "user": {
+        "email": "admin@example.com",
+        "id": 1,
+        "name": "Admin User"
+      }
+    }
+  },
+  {
+    "name": "setup_admin_again",
+    "status": 409,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Conflict",
+      "message": "Setup is already complete. Please log in."
+    }
+  },
+  {
+    "name": "setup_status_after",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "demo_banner_enabled": false,
+      "demo_banner_message": "This is a demo instance. Data may be reset at any time.",
+      "setup_required": false
+    }
+  },
+  {
+    "name": "setup_user_without_token",
+    "status": 401,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Unauthorized",
+      "message": "Unauthorized"
+    }
+  },
+  {
+    "name": "setup_user",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "email": "demo@example.com",
+      "name": "Demo User",
+      "user_id": 2
+    }
+  },
+  {
+    "name": "setup_user_conflict",
+    "status": 409,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Conflict",
+      "message": "Email already registered."
+    }
+  },
+  {
+    "name": "setup_project",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "name": "Setup Project",
+      "project_id": 1,
+      "project_key": "setu"
+    }
+  },
+  {
+    "name": "setup_seed",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "project_key": "DEMO",
+      "project_name": "Mansooba Demo",
+      "skipped": false
+    }
+  },
+  {
+    "name": "login_wrong_password",
+    "status": 401,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Unauthorized",
+      "message": "invalid credentials"
+    }
+  },
+  {
+    "name": "login_unknown_user",
+    "status": 401,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Unauthorized",
+      "message": "invalid credentials"
+    }
+  },
+  {
+    "name": "login_validation",
+    "status": 401,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Unauthorized",
+      "message": "invalid credentials"
+    }
+  },
+  {
+    "name": "login_demo",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Set-Cookie": "refresh_token=\u003cvalue\u003e; Path=/; expires=\u003cn\u003e; HttpOnly; Secure; SameSite=Strict",
+      "Vary": "Origin"
+    },
+    "body": {
+      "access_token": "\u003cjwt\u003e",
+      "refresh_token": "\u003cjwt\u003e",
+      "user": {
+        "email": "demo@example.com",
+        "id": 2,
+        "name": "Demo User"
+      }
+    }
+  },
+  {
+    "name": "refresh",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "access_token": "\u003cjwt\u003e"
+    }
+  },
+  {
+    "name": "logout",
+    "status": 200,
+    "headers": {
+      "Set-Cookie": "refresh_token=\u003cvalue\u003e; Path=/; max-age=\u003cn\u003e; HttpOnly; Secure; SameSite=Strict",
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "refresh_after_logout",
+    "status": 401,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Unauthorized",
+      "message": "Unauthorized"
+    }
+  },
+  {
+    "name": "me",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "avatar_url": "",
+      "created_at": "\u003ctime\u003e",
+      "email": "admin@example.com",
+      "id": 1,
+      "is_active": false,
+      "is_admin": true,
+      "name": "Admin User",
+      "timezone": ""
+    }
+  },
+  {
+    "name": "me_update",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "avatar_url": "",
+      "created_at": "\u003ctime\u003e",
+      "email": "admin@example.com",
+      "id": 1,
+      "is_active": false,
+      "is_admin": true,
+      "name": "Admin Renamed",
+      "timezone": "UTC"
+    }
+  },
+  {
+    "name": "me_update_bad_timezone",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "invalid timezone \"Not/AZone\": unknown time zone Not/AZone"
+    }
+  },
+  {
+    "name": "me_activity",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": []
+  },
+  {
+    "name": "me_issues",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": []
+  },
+  {
+    "name": "register_as_non_admin",
+    "status": 403,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Forbidden",
+      "message": "forbidden"
+    }
+  },
+  {
+    "name": "register",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "access_token": "\u003cjwt\u003e",
+      "refresh_token": "\u003cjwt\u003e",
+      "user": {
+        "email": "third@example.com",
+        "id": 3,
+        "name": "Third User"
+      }
+    }
+  },
+  {
+    "name": "register_conflict",
+    "status": 409,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Conflict",
+      "message": "email already registered"
+    }
+  },
+  {
+    "name": "register_invalid",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "access_token": "\u003cjwt\u003e",
+      "refresh_token": "\u003cjwt\u003e",
+      "user": {
+        "email": "x",
+        "id": 4,
+        "name": ""
+      }
+    }
+  },
+  {
+    "name": "projects_list",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "description": "from the wizard",
+        "id": 1,
+        "key": "setu",
+        "name": "Setup Project",
+        "owner_id": 1
+      },
+      {
+        "description": "A sample project to explore Mansooba's features",
+        "id": 2,
+        "key": "demo",
+        "name": "Mansooba Demo",
+        "owner_id": 1
+      }
+    ]
+  },
+  {
+    "name": "project_create_invalid",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "description": "",
+      "id": 3,
+      "key": "",
+      "name": "",
+      "owner_id": 1
+    }
+  },
+  {
+    "name": "project_create",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "description": "parity project",
+      "id": 4,
+      "key": "alpha",
+      "name": "Alpha",
+      "owner_id": 1
+    }
+  },
+  {
+    "name": "project_create_duplicate_key",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "description": "",
+      "id": 5,
+      "key": "alpha2",
+      "name": "Alpha 2",
+      "owner_id": 1
+    }
+  },
+  {
+    "name": "project_get",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "description": "parity project",
+      "id": 4,
+      "key": "alpha",
+      "name": "Alpha",
+      "owner_id": 1
+    }
+  },
+  {
+    "name": "project_get_not_found",
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Not Found",
+      "message": "not found"
+    }
+  },
+  {
+    "name": "project_get_non_member",
+    "status": 403,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Forbidden",
+      "message": "forbidden"
+    }
+  },
+  {
+    "name": "project_update",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "description": "changed",
+      "id": 4,
+      "key": "alpha",
+      "name": "Alpha Renamed",
+      "owner_id": 1
+    }
+  },
+  {
+    "name": "members_list",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "email": "admin@example.com",
+        "name": "Admin Renamed",
+        "role": "admin",
+        "user_id": 1
+      }
+    ]
+  },
+  {
+    "name": "member_add_invalid",
+    "status": 201,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "member_add_demo",
+    "status": 201,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "member_add_unknown_email",
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Not Found",
+      "message": "not found"
+    }
+  },
+  {
+    "name": "member_add_by_non_admin",
+    "status": 403,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Forbidden",
+      "message": "forbidden"
+    }
+  },
+  {
+    "name": "member_add_third",
+    "status": 201,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "member_remove_third",
+    "status": 204,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "members_list_after",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "email": "admin@example.com",
+        "name": "Admin Renamed",
+        "role": "admin",
+        "user_id": 1
+      },
+      {
+        "email": "x",
+        "name": "",
+        "role": "boss",
+        "user_id": 4
+      },
+      {
+        "email": "demo@example.com",
+        "name": "Demo User",
+        "role": "member",
+        "user_id": 2
+      }
+    ]
+  },
+  {
+    "name": "label_create_invalid",
+    "status": 500,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Internal Server Error",
+      "message": "internal server error"
+    }
+  },
+  {
+    "name": "label_create",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "color": "#e11d48",
+      "created_at": "\u003ctime\u003e",
+      "id": 3,
+      "name": "bug",
+      "project_id": 4
+    }
+  },
+  {
+    "name": "labels_list",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "color": "#e11d48",
+        "created_at": "\u003ctime\u003e",
+        "id": 3,
+        "name": "bug",
+        "project_id": 4
+      }
+    ]
+  },
+  {
+    "name": "issue_create_invalid",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "attachment_count": 0,
+      "created_at": "\u003ctime\u003e",
+      "description": "",
+      "id": 8,
+      "key": "alpha-1",
+      "priority": "low",
+      "project_id": 4,
+      "reporter_id": 1,
+      "status": "todo",
+      "title": "x",
+      "type": "nope"
+    }
+  },
+  {
+    "name": "issue_create_one",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "attachment_count": 0,
+      "created_at": "\u003ctime\u003e",
+      "description": "hello",
+      "id": 9,
+      "key": "alpha-2",
+      "priority": "high",
+      "project_id": 4,
+      "reporter_id": 1,
+      "status": "todo",
+      "story_points": 3,
+      "title": "First issue",
+      "type": "task"
+    }
+  },
+  {
+    "name": "issue_create_two",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "assignee_id": 1,
+      "assignee_name": "Admin Renamed",
+      "attachment_count": 0,
+      "created_at": "\u003ctime\u003e",
+      "description": "",
+      "id": 10,
+      "key": "alpha-3",
+      "priority": "medium",
+      "project_id": 4,
+      "reporter_id": 2,
+      "status": "todo",
+      "title": "Second issue",
+      "type": "bug"
+    }
+  },
+  {
+    "name": "issues_list",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "attachment_count": 0,
+        "created_at": "\u003ctime\u003e",
+        "description": "",
+        "id": 8,
+        "key": "alpha-1",
+        "priority": "low",
+        "project_id": 4,
+        "reporter_id": 1,
+        "status": "todo",
+        "title": "x",
+        "type": "nope"
+      },
+      {
+        "attachment_count": 0,
+        "created_at": "\u003ctime\u003e",
+        "description": "hello",
+        "id": 9,
+        "key": "alpha-2",
+        "priority": "high",
+        "project_id": 4,
+        "reporter_id": 1,
+        "status": "todo",
+        "story_points": 3,
+        "title": "First issue",
+        "type": "task"
+      },
+      {
+        "assignee_id": 1,
+        "assignee_name": "Admin Renamed",
+        "attachment_count": 0,
+        "created_at": "\u003ctime\u003e",
+        "description": "",
+        "id": 10,
+        "key": "alpha-3",
+        "priority": "medium",
+        "project_id": 4,
+        "reporter_id": 2,
+        "status": "todo",
+        "title": "Second issue",
+        "type": "bug"
+      }
+    ]
+  },
+  {
+    "name": "issues_list_filtered",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "attachment_count": 0,
+        "created_at": "\u003ctime\u003e",
+        "description": "hello",
+        "id": 9,
+        "key": "alpha-2",
+        "priority": "high",
+        "project_id": 4,
+        "reporter_id": 1,
+        "status": "todo",
+        "story_points": 3,
+        "title": "First issue",
+        "type": "task"
+      }
+    ]
+  },
+  {
+    "name": "issue_get",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "attachment_count": 0,
+      "created_at": "\u003ctime\u003e",
+      "description": "hello",
+      "id": 9,
+      "key": "alpha-2",
+      "priority": "high",
+      "project_id": 4,
+      "reporter_id": 1,
+      "status": "todo",
+      "story_points": 3,
+      "title": "First issue",
+      "type": "task"
+    }
+  },
+  {
+    "name": "issue_get_not_found",
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Not Found",
+      "message": "not found"
+    }
+  },
+  {
+    "name": "issue_get_bad_id",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "Bad Request"
+    }
+  },
+  {
+    "name": "issue_update",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "attachment_count": 0,
+      "created_at": "\u003ctime\u003e",
+      "description": "hello",
+      "id": 9,
+      "key": "alpha-2",
+      "priority": "critical",
+      "project_id": 4,
+      "reporter_id": 1,
+      "status": "in_progress",
+      "story_points": 3,
+      "title": "First issue",
+      "type": "task"
+    }
+  },
+  {
+    "name": "issue_update_invalid",
+    "status": 500,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Internal Server Error",
+      "message": "internal server error"
+    }
+  },
+  {
+    "name": "issue_assign_clear",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "attachment_count": 0,
+      "created_at": "\u003ctime\u003e",
+      "description": "",
+      "id": 10,
+      "key": "alpha-3",
+      "priority": "medium",
+      "project_id": 4,
+      "reporter_id": 2,
+      "status": "todo",
+      "title": "Second issue",
+      "type": "bug"
+    }
+  },
+  {
+    "name": "board",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "columns": [
+        {
+          "issues": [
+            {
+              "attachment_count": 0,
+              "created_at": "\u003ctime\u003e",
+              "description": "",
+              "id": 8,
+              "key": "alpha-1",
+              "priority": "low",
+              "project_id": 4,
+              "reporter_id": 1,
+              "status": "todo",
+              "title": "x",
+              "type": "nope"
+            },
+            {
+              "attachment_count": 0,
+              "created_at": "\u003ctime\u003e",
+              "description": "",
+              "id": 10,
+              "key": "alpha-3",
+              "priority": "medium",
+              "project_id": 4,
+              "reporter_id": 2,
+              "status": "todo",
+              "title": "Second issue",
+              "type": "bug"
+            }
+          ],
+          "status": "todo"
+        },
+        {
+          "issues": [
+            {
+              "attachment_count": 0,
+              "created_at": "\u003ctime\u003e",
+              "description": "hello",
+              "id": 9,
+              "key": "alpha-2",
+              "priority": "critical",
+              "project_id": 4,
+              "reporter_id": 1,
+              "status": "in_progress",
+              "story_points": 3,
+              "title": "First issue",
+              "type": "task"
+            }
+          ],
+          "status": "in_progress"
+        },
+        {
+          "issues": [],
+          "status": "in_review"
+        },
+        {
+          "issues": [],
+          "status": "done"
+        }
+      ]
+    }
+  },
+  {
+    "name": "backlog",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "attachment_count": 0,
+        "created_at": "\u003ctime\u003e",
+        "description": "hello",
+        "id": 9,
+        "key": "alpha-2",
+        "priority": "critical",
+        "project_id": 4,
+        "reporter_id": 1,
+        "status": "in_progress",
+        "story_points": 3,
+        "title": "First issue",
+        "type": "task"
+      },
+      {
+        "attachment_count": 0,
+        "created_at": "\u003ctime\u003e",
+        "description": "",
+        "id": 10,
+        "key": "alpha-3",
+        "priority": "medium",
+        "project_id": 4,
+        "reporter_id": 2,
+        "status": "todo",
+        "title": "Second issue",
+        "type": "bug"
+      },
+      {
+        "attachment_count": 0,
+        "created_at": "\u003ctime\u003e",
+        "description": "",
+        "id": 8,
+        "key": "alpha-1",
+        "priority": "low",
+        "project_id": 4,
+        "reporter_id": 1,
+        "status": "todo",
+        "title": "x",
+        "type": "nope"
+      }
+    ]
+  },
+  {
+    "name": "velocity",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": []
+  },
+  {
+    "name": "sprint_create_invalid",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "created_at": "\u003ctime\u003e",
+      "goal": "",
+      "id": 2,
+      "issue_count": 0,
+      "name": "",
+      "project_id": 4,
+      "status": "planning",
+      "total_story_points": 0,
+      "updated_at": "\u003ctime\u003e"
+    }
+  },
+  {
+    "name": "sprint_create",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "created_at": "\u003ctime\u003e",
+      "end_date": "\u003ctime\u003e",
+      "goal": "ship",
+      "id": 3,
+      "issue_count": 0,
+      "name": "Sprint One",
+      "project_id": 4,
+      "start_date": "\u003ctime\u003e",
+      "status": "planning",
+      "total_story_points": 0,
+      "updated_at": "\u003ctime\u003e"
+    }
+  },
+  {
+    "name": "sprint_create_too_long",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "a sprint cannot be longer than 28 days (4 weeks)"
+    }
+  },
+  {
+    "name": "sprint_create_by_member",
+    "status": 403,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Forbidden",
+      "message": "forbidden"
+    }
+  },
+  {
+    "name": "sprints_list",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "created_at": "\u003ctime\u003e",
+        "goal": "",
+        "id": 2,
+        "issue_count": 0,
+        "name": "",
+        "project_id": 4,
+        "status": "planning",
+        "total_story_points": 0,
+        "updated_at": "\u003ctime\u003e"
+      },
+      {
+        "created_at": "\u003ctime\u003e",
+        "end_date": "\u003ctime\u003e",
+        "goal": "ship",
+        "id": 3,
+        "issue_count": 0,
+        "name": "Sprint One",
+        "project_id": 4,
+        "start_date": "\u003ctime\u003e",
+        "status": "planning",
+        "total_story_points": 0,
+        "updated_at": "\u003ctime\u003e"
+      }
+    ]
+  },
+  {
+    "name": "sprint_get",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "created_at": "\u003ctime\u003e",
+      "end_date": "\u003ctime\u003e",
+      "goal": "ship",
+      "id": 3,
+      "issue_count": 0,
+      "name": "Sprint One",
+      "project_id": 4,
+      "start_date": "\u003ctime\u003e",
+      "status": "planning",
+      "total_story_points": 0,
+      "updated_at": "\u003ctime\u003e"
+    }
+  },
+  {
+    "name": "sprint_update",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "created_at": "\u003ctime\u003e",
+      "end_date": "\u003ctime\u003e",
+      "goal": "ship it",
+      "id": 3,
+      "issue_count": 0,
+      "name": "Sprint One",
+      "project_id": 4,
+      "start_date": "\u003ctime\u003e",
+      "status": "planning",
+      "total_story_points": 0,
+      "updated_at": "\u003ctime\u003e"
+    }
+  },
+  {
+    "name": "sprint_add_issue",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "attachment_count": 0,
+      "created_at": "\u003ctime\u003e",
+      "description": "hello",
+      "id": 9,
+      "key": "alpha-2",
+      "priority": "critical",
+      "project_id": 4,
+      "reporter_id": 1,
+      "sprint_id": 3,
+      "status": "in_progress",
+      "story_points": 3,
+      "title": "First issue",
+      "type": "task"
+    }
+  },
+  {
+    "name": "sprint_issues",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "attachment_count": 0,
+        "created_at": "\u003ctime\u003e",
+        "description": "hello",
+        "id": 9,
+        "key": "alpha-2",
+        "priority": "critical",
+        "project_id": 4,
+        "reporter_id": 1,
+        "sprint_id": 3,
+        "status": "in_progress",
+        "story_points": 3,
+        "title": "First issue",
+        "type": "task"
+      }
+    ]
+  },
+  {
+    "name": "sprint_start",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "created_at": "\u003ctime\u003e",
+      "end_date": "\u003ctime\u003e",
+      "goal": "ship it",
+      "id": 3,
+      "issue_count": 1,
+      "name": "Sprint One",
+      "project_id": 4,
+      "start_date": "\u003ctime\u003e",
+      "status": "active",
+      "total_story_points": 3,
+      "updated_at": "\u003ctime\u003e"
+    }
+  },
+  {
+    "name": "sprint_start_again",
+    "status": 409,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Conflict",
+      "message": "invalid sprint state transition"
+    }
+  },
+  {
+    "name": "sprint_delete_active",
+    "status": 409,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Conflict",
+      "message": "only planning sprints can be deleted"
+    }
+  },
+  {
+    "name": "sprint_burndown",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "data": null,
+      "end_date": "2030-01-14",
+      "sprint_id": 3,
+      "sprint_name": "Sprint One",
+      "start_date": "2030-01-01",
+      "total_points": 3
+    }
+  },
+  {
+    "name": "sprint_complete",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "created_at": "\u003ctime\u003e",
+      "end_date": "\u003ctime\u003e",
+      "goal": "ship it",
+      "id": 3,
+      "issue_count": 0,
+      "name": "Sprint One",
+      "project_id": 4,
+      "start_date": "\u003ctime\u003e",
+      "status": "completed",
+      "total_story_points": 0,
+      "updated_at": "\u003ctime\u003e"
+    }
+  },
+  {
+    "name": "sprint_update_completed",
+    "status": 409,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Conflict",
+      "message": "completed sprints cannot be modified"
+    }
+  },
+  {
+    "name": "sprint_create_second",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "created_at": "\u003ctime\u003e",
+      "goal": "",
+      "id": 4,
+      "issue_count": 0,
+      "name": "Sprint Two",
+      "project_id": 4,
+      "status": "planning",
+      "total_story_points": 0,
+      "updated_at": "\u003ctime\u003e"
+    }
+  },
+  {
+    "name": "sprint_delete",
+    "status": 204,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "sprint_get_not_found",
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Not Found",
+      "message": "not found"
+    }
+  },
+  {
+    "name": "velocity_after",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "committed": 0,
+        "completed": 0,
+        "sprint_id": 3,
+        "sprint_name": "Sprint One"
+      }
+    ]
+  },
+  {
+    "name": "comment_create_invalid",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "author_avatar_url": "",
+      "author_id": 1,
+      "author_name": "",
+      "body": "",
+      "created_at": "\u003ctime\u003e",
+      "id": 3,
+      "issue_id": 9,
+      "updated_at": "\u003ctime\u003e"
+    }
+  },
+  {
+    "name": "comment_create",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "author_avatar_url": "",
+      "author_id": 1,
+      "author_name": "",
+      "body": "hello @demo please look",
+      "created_at": "\u003ctime\u003e",
+      "id": 4,
+      "issue_id": 9,
+      "updated_at": "\u003ctime\u003e"
+    }
+  },
+  {
+    "name": "comment_create_by_demo",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "author_avatar_url": "",
+      "author_id": 2,
+      "author_name": "",
+      "body": "thanks",
+      "created_at": "\u003ctime\u003e",
+      "id": 5,
+      "issue_id": 9,
+      "updated_at": "\u003ctime\u003e"
+    }
+  },
+  {
+    "name": "comments_list",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "author_avatar_url": "",
+        "author_id": 1,
+        "author_name": "Admin Renamed",
+        "body": "",
+        "created_at": "\u003ctime\u003e",
+        "id": 3,
+        "issue_id": 9,
+        "updated_at": "\u003ctime\u003e"
+      },
+      {
+        "author_avatar_url": "",
+        "author_id": 1,
+        "author_name": "Admin Renamed",
+        "body": "hello @demo please look",
+        "created_at": "\u003ctime\u003e",
+        "id": 4,
+        "issue_id": 9,
+        "updated_at": "\u003ctime\u003e"
+      },
+      {
+        "author_avatar_url": "",
+        "author_id": 2,
+        "author_name": "Demo User",
+        "body": "thanks",
+        "created_at": "\u003ctime\u003e",
+        "id": 5,
+        "issue_id": 9,
+        "updated_at": "\u003ctime\u003e"
+      }
+    ]
+  },
+  {
+    "name": "comment_update",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "author_avatar_url": "",
+      "author_id": 1,
+      "author_name": "",
+      "body": "edited",
+      "created_at": "\u003ctime\u003e",
+      "id": 4,
+      "issue_id": 9,
+      "updated_at": "\u003ctime\u003e"
+    }
+  },
+  {
+    "name": "comment_update_other_users",
+    "status": 403,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Forbidden",
+      "message": "forbidden"
+    }
+  },
+  {
+    "name": "comment_delete",
+    "status": 204,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "activity",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "actor_avatar_url": "",
+        "actor_id": 1,
+        "actor_name": "Admin Renamed",
+        "created_at": "\u003ctime\u003e",
+        "id": 1,
+        "issue_id": 9,
+        "issue_key": "alpha-2",
+        "issue_title": "First issue",
+        "kind": "status_changed",
+        "new_value": "in_progress",
+        "old_value": "todo"
+      },
+      {
+        "actor_avatar_url": "",
+        "actor_id": 1,
+        "actor_name": "Admin Renamed",
+        "created_at": "\u003ctime\u003e",
+        "id": 2,
+        "issue_id": 9,
+        "issue_key": "alpha-2",
+        "issue_title": "First issue",
+        "kind": "priority_changed",
+        "new_value": "critical",
+        "old_value": "high"
+      },
+      {
+        "actor_avatar_url": "",
+        "actor_id": 2,
+        "actor_name": "Demo User",
+        "created_at": "\u003ctime\u003e",
+        "id": 4,
+        "issue_id": 9,
+        "issue_key": "alpha-2",
+        "issue_title": "First issue",
+        "kind": "sprint_changed",
+        "new_value": "Sprint One",
+        "old_value": "backlog"
+      },
+      {
+        "actor_avatar_url": "",
+        "actor_id": 1,
+        "actor_name": "Admin Renamed",
+        "created_at": "\u003ctime\u003e",
+        "id": 5,
+        "issue_id": 9,
+        "issue_key": "alpha-2",
+        "issue_title": "First issue",
+        "kind": "comment_added"
+      },
+      {
+        "actor_avatar_url": "",
+        "actor_id": 1,
+        "actor_name": "Admin Renamed",
+        "created_at": "\u003ctime\u003e",
+        "id": 6,
+        "issue_id": 9,
+        "issue_key": "alpha-2",
+        "issue_title": "First issue",
+        "kind": "comment_added"
+      },
+      {
+        "actor_avatar_url": "",
+        "actor_id": 2,
+        "actor_name": "Demo User",
+        "created_at": "\u003ctime\u003e",
+        "id": 7,
+        "issue_id": 9,
+        "issue_key": "alpha-2",
+        "issue_title": "First issue",
+        "kind": "comment_added"
+      }
+    ]
+  },
+  {
+    "name": "notifications_demo",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "actor_id": 1,
+        "actor_name": "Admin Renamed",
+        "comment_id": 4,
+        "created_at": "\u003ctime\u003e",
+        "id": 7,
+        "issue_id": 9,
+        "issue_key": "alpha-2",
+        "kind": "mention",
+        "project_key": "alpha",
+        "project_name": "Alpha Renamed",
+        "read": false,
+        "recipient_id": 2
+      },
+      {
+        "actor_id": 1,
+        "actor_name": "Admin Renamed",
+        "comment_id": 0,
+        "created_at": "\u003ctime\u003e",
+        "id": 3,
+        "issue_id": 0,
+        "issue_key": "",
+        "kind": "project_member_added",
+        "project_key": "alpha",
+        "project_name": "Alpha Renamed",
+        "read": false,
+        "recipient_id": 2
+      },
+      {
+        "actor_id": 1,
+        "actor_name": "Admin Renamed",
+        "comment_id": 0,
+        "created_at": "\u003ctime\u003e",
+        "id": 1,
+        "issue_id": 0,
+        "issue_key": "",
+        "kind": "project_member_added",
+        "project_key": "setu",
+        "project_name": "Setup Project",
+        "read": false,
+        "recipient_id": 2
+      }
+    ]
+  },
+  {
+    "name": "notification_mark_read",
+    "status": 204,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "notification_mark_read_missing",
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Not Found",
+      "message": "not found"
+    }
+  },
+  {
+    "name": "issue_label_attach",
+    "status": 204,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "issue_labels_list",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "color": "#e11d48",
+        "created_at": "\u003ctime\u003e",
+        "id": 3,
+        "name": "bug",
+        "project_id": 4
+      }
+    ]
+  },
+  {
+    "name": "issue_label_detach",
+    "status": 204,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "relation_create_self",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "self_relation"
+    }
+  },
+  {
+    "name": "relation_create",
+    "status": 201,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "id": 1,
+      "related_issue": {
+        "id": 10,
+        "key": "alpha-3",
+        "status": "todo",
+        "title": "Second issue"
+      },
+      "relation_type": "blocks"
+    }
+  },
+  {
+    "name": "relation_create_duplicate",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "duplicate_relation"
+    }
+  },
+  {
+    "name": "relations_list",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": [
+      {
+        "id": 1,
+        "related_issue": {
+          "id": 10,
+          "key": "alpha-3",
+          "status": "todo",
+          "title": "Second issue"
+        },
+        "relation_type": "blocks"
+      }
+    ]
+  },
+  {
+    "name": "relation_delete",
+    "status": 204,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "label_delete",
+    "status": 204,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "attachments_list",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "attachments": []
+    }
+  },
+  {
+    "name": "attachment_upload_no_file",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "could not parse multipart form"
+    }
+  },
+  {
+    "name": "attachment_download_missing",
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Not Found",
+      "message": "not found"
+    }
+  },
+  {
+    "name": "settings_get",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "date_format": "YYYY-MM-DD",
+      "demo_banner_enabled": "false",
+      "demo_banner_message": "This is a demo instance. Data may be reset at any time.",
+      "locale": "en-US",
+      "organization_name": "Mansooba",
+      "system_log_retention_days": "90",
+      "time_format": "24h",
+      "week_start_day": "monday"
+    }
+  },
+  {
+    "name": "settings_patch_by_non_admin",
+    "status": 403,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Forbidden",
+      "message": "forbidden"
+    }
+  },
+  {
+    "name": "settings_patch",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "date_format": "DD/MM/YYYY",
+      "demo_banner_enabled": "false",
+      "demo_banner_message": "This is a demo instance. Data may be reset at any time.",
+      "locale": "en-US",
+      "organization_name": "Parity Org",
+      "system_log_retention_days": "90",
+      "time_format": "24h",
+      "week_start_day": "monday"
+    }
+  },
+  {
+    "name": "settings_patch_invalid",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "invalid setting value"
+    }
+  },
+  {
+    "name": "admin_users_list",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "page": 1,
+      "size": 20,
+      "total": 4,
+      "users": [
+        {
+          "created_at": "\u003ctime\u003e",
+          "email": "x",
+          "id": 4,
+          "is_active": true,
+          "is_admin": false,
+          "name": ""
+        },
+        {
+          "created_at": "\u003ctime\u003e",
+          "email": "third@example.com",
+          "id": 3,
+          "is_active": true,
+          "is_admin": false,
+          "name": "Third User"
+        },
+        {
+          "created_at": "\u003ctime\u003e",
+          "email": "demo@example.com",
+          "id": 2,
+          "is_active": true,
+          "is_admin": false,
+          "name": "Demo User"
+        },
+        {
+          "created_at": "\u003ctime\u003e",
+          "email": "admin@example.com",
+          "id": 1,
+          "is_active": true,
+          "is_admin": true,
+          "name": "Admin Renamed"
+        }
+      ]
+    }
+  },
+  {
+    "name": "admin_users_list_non_admin",
+    "status": 403,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Forbidden",
+      "message": "forbidden"
+    }
+  },
+  {
+    "name": "admin_user_patch_empty",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "at least one field (is_admin, is_active) is required"
+    }
+  },
+  {
+    "name": "admin_user_deactivate",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "created_at": "\u003ctime\u003e",
+      "email": "third@example.com",
+      "id": 3,
+      "is_active": false,
+      "is_admin": false,
+      "name": "Third User"
+    }
+  },
+  {
+    "name": "admin_user_demote_last_admin",
+    "status": 409,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Conflict",
+      "message": "internal server error"
+    }
+  },
+  {
+    "name": "admin_user_not_found",
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Not Found",
+      "message": "user not found"
+    }
+  },
+  {
+    "name": "system_logs",
+    "status": 500,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Internal Server Error",
+      "message": "internal server error"
+    }
+  },
+  {
+    "name": "system_logs_invalid_category",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "invalid category"
+    }
+  },
+  {
+    "name": "system_logs_non_admin",
+    "status": 403,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Forbidden",
+      "message": "forbidden"
+    }
+  },
+  {
+    "name": "password_change_wrong_current",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "current password is incorrect"
+    }
+  },
+  {
+    "name": "password_change_same",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "new password must differ from current password"
+    }
+  },
+  {
+    "name": "password_change",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Set-Cookie": "refresh_token=\u003cvalue\u003e; Path=/; expires=\u003cn\u003e; HttpOnly; Secure; SameSite=Strict",
+      "Vary": "Origin"
+    },
+    "body": {
+      "access_token": "\u003cjwt\u003e",
+      "message": "password changed"
+    }
+  },
+  {
+    "name": "forgot_password_unknown",
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Not Found",
+      "message": "No account found with that email address."
+    }
+  },
+  {
+    "name": "forgot_password",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "expires_at": "\u003ctime\u003e",
+      "message": "A password reset token has been generated.",
+      "token": "\u003ctoken64\u003e"
+    }
+  },
+  {
+    "name": "reset_password_bad_token",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "invalid or expired token"
+    }
+  },
+  {
+    "name": "reset_password",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "message": "password reset successful"
+    }
+  },
+  {
+    "name": "login_after_reset",
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json",
+      "Set-Cookie": "refresh_token=\u003cvalue\u003e; Path=/; expires=\u003cn\u003e; HttpOnly; Secure; SameSite=Strict",
+      "Vary": "Origin"
+    },
+    "body": {
+      "access_token": "\u003cjwt\u003e",
+      "refresh_token": "\u003cjwt\u003e",
+      "user": {
+        "email": "demo@example.com",
+        "id": 2,
+        "name": "Demo User"
+      }
+    }
+  },
+  {
+    "name": "login_deactivated",
+    "status": 401,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Unauthorized",
+      "message": "account disabled"
+    }
+  },
+  {
+    "name": "issue_delete",
+    "status": 204,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "issue_delete_missing",
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Not Found",
+      "message": "not found"
+    }
+  },
+  {
+    "name": "project_delete_by_non_owner",
+    "status": 403,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Forbidden",
+      "message": "forbidden"
+    }
+  },
+  {
+    "name": "project_delete",
+    "status": 204,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "project_get_deleted",
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Not Found",
+      "message": "not found"
+    }
+  }
+]

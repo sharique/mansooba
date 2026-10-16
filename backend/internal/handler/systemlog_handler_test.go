@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
@@ -41,7 +41,7 @@ func newSystemLogHandler(svc service.SystemLogService, isAdmin bool) (*echo.Echo
 	}
 	e := newEcho()
 	h := handler.NewSystemLogHandler(svc, userSvc)
-	e.GET("/admin/system-logs", func(c echo.Context) error {
+	e.GET("/admin/system-logs", func(c *echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.List(c)
 	})

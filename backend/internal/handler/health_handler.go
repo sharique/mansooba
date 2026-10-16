@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 // DBPinger is the subset of *sql.DB required by HealthHandler.
@@ -64,7 +64,7 @@ type healthResponse struct {
 // @Success      200 {object} handler.healthResponse
 // @Failure      503 {object} handler.healthResponse
 // @Router       /health [get]
-func (h *HealthHandler) Check(c echo.Context) error {
+func (h *HealthHandler) Check(c *echo.Context) error {
 	start := time.Now()
 	dbErr := h.db.PingContext(c.Request().Context())
 	latency := time.Since(start).Milliseconds()

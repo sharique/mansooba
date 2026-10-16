@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
@@ -46,7 +46,7 @@ func (h *IssueHandler) WithRelationRepo(repo domain.IssueRelationRepository) *Is
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Failure      404 {object} apierror.APIError "Not found"
 // @Router       /projects/{key}/issues [get]
-func (h *IssueHandler) List(c echo.Context) error {
+func (h *IssueHandler) List(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	var q dto.IssueListQuery
 	if err := c.Bind(&q); err != nil {
@@ -73,7 +73,7 @@ func (h *IssueHandler) List(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Failure      404 {object} apierror.APIError "Project not found"
 // @Router       /projects/{key}/issues [post]
-func (h *IssueHandler) Create(c echo.Context) error {
+func (h *IssueHandler) Create(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	var req dto.CreateIssueRequest
 	if err := c.Bind(&req); err != nil {
@@ -99,7 +99,7 @@ func (h *IssueHandler) Create(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Failure      404 {object} apierror.APIError "Not found"
 // @Router       /projects/{key}/issues/{id} [get]
-func (h *IssueHandler) Get(c echo.Context) error {
+func (h *IssueHandler) Get(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseUintParam(c, "id")
 	if err != nil {
@@ -127,7 +127,7 @@ func (h *IssueHandler) Get(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Failure      404 {object} apierror.APIError "Not found"
 // @Router       /projects/{key}/issues/{id} [put]
-func (h *IssueHandler) Update(c echo.Context) error {
+func (h *IssueHandler) Update(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseUintParam(c, "id")
 	if err != nil {
@@ -156,7 +156,7 @@ func (h *IssueHandler) Update(c echo.Context) error {
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Failure      404 {object} apierror.APIError "Not found"
 // @Router       /projects/{key}/issues/{id} [delete]
-func (h *IssueHandler) Delete(c echo.Context) error {
+func (h *IssueHandler) Delete(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 	id, err := parseUintParam(c, "id")
 	if err != nil {

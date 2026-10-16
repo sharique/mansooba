@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/service"
 )
@@ -28,7 +28,7 @@ func NewSettingHandler(svc service.SettingService, userSvc service.UserService) 
 // @Success      200 {object} dto.SettingsResponse
 // @Failure      401 {object} apierror.APIError
 // @Router       /settings [get]
-func (h *SettingHandler) GetAll(c echo.Context) error {
+func (h *SettingHandler) GetAll(c *echo.Context) error {
 	resp, err := h.svc.GetAll(c.Request().Context())
 	if err != nil {
 		return err
@@ -48,7 +48,7 @@ func (h *SettingHandler) GetAll(c echo.Context) error {
 // @Failure      401 {object} apierror.APIError
 // @Failure      403 {object} apierror.APIError
 // @Router       /settings [patch]
-func (h *SettingHandler) Patch(c echo.Context) error {
+func (h *SettingHandler) Patch(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 
 	profile, err := h.userSvc.GetProfile(c.Request().Context(), callerID)

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/handler"
@@ -327,7 +327,7 @@ func TestSetupHandler_CreateProject_Returns201(t *testing.T) {
 	}
 	e := newEcho()
 	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
-	e.POST("/setup/project", func(c echo.Context) error {
+	e.POST("/setup/project", func(c *echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.CreateProject(c)
 	})
@@ -359,7 +359,7 @@ func TestSetupHandler_CreateProject_Returns201_NoMembership(t *testing.T) {
 	}
 	e := newEcho()
 	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
-	e.POST("/setup/project", func(c echo.Context) error {
+	e.POST("/setup/project", func(c *echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.CreateProject(c)
 	})
@@ -383,7 +383,7 @@ func TestSetupHandler_CreateProject_Returns404_WhenUserNotFound(t *testing.T) {
 	}
 	e := newEcho()
 	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
-	e.POST("/setup/project", func(c echo.Context) error {
+	e.POST("/setup/project", func(c *echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.CreateProject(c)
 	})
@@ -409,7 +409,7 @@ func TestSetupHandler_SeedData_Returns200OnSuccess(t *testing.T) {
 	}
 	e := newEcho()
 	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
-	e.POST("/setup/seed", func(c echo.Context) error {
+	e.POST("/setup/seed", func(c *echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.SeedData(c)
 	})
@@ -441,7 +441,7 @@ func TestSetupHandler_SeedData_Returns200WhenSkipped(t *testing.T) {
 	}
 	e := newEcho()
 	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
-	e.POST("/setup/seed", func(c echo.Context) error {
+	e.POST("/setup/seed", func(c *echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.SeedData(c)
 	})
@@ -468,7 +468,7 @@ func TestSetupHandler_SeedData_Returns500OnError(t *testing.T) {
 	}
 	e := newEcho()
 	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
-	e.POST("/setup/seed", func(c echo.Context) error {
+	e.POST("/setup/seed", func(c *echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.SeedData(c)
 	})
@@ -490,7 +490,7 @@ func TestSetupHandler_CreateProject_Returns400_OnMissingName(t *testing.T) {
 	}
 	e := newEcho()
 	h := handler.NewSetupHandler(svc, defaultStubSettingSvc())
-	e.POST("/setup/project", func(c echo.Context) error {
+	e.POST("/setup/project", func(c *echo.Context) error {
 		c.Set("userID", uint(1))
 		return h.CreateProject(c)
 	})

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/handler"
@@ -132,7 +132,7 @@ func newUserHandler() (*handler.UserHandler, *stubUserService) {
 	return handler.NewUserHandler(userSvc, activitySvc, issueSvc), userSvc
 }
 
-func setupUserEcho(method, path string, body string, userID uint) (echo.Context, *httptest.ResponseRecorder) {
+func setupUserEcho(method, path string, body string, userID uint) (*echo.Context, *httptest.ResponseRecorder) {
 	e := echo.New()
 	var req *http.Request
 	if body != "" {
@@ -310,8 +310,7 @@ func TestUserHandler_UploadAvatar_Returns401WhenNoUserID(t *testing.T) {
 
 func serveAvatarRequest(h *handler.UserHandler, filename string) (*httptest.ResponseRecorder, error) {
 	c, rec := setupUserEcho(http.MethodGet, "/avatars/x", "", 0)
-	c.SetParamNames("filename")
-	c.SetParamValues(filename)
+	setParams(c, []string{"filename"}, filename)
 	return rec, h.ServeAvatar(c)
 }
 
