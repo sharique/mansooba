@@ -35,8 +35,8 @@ func newNotifHandlerEnv(t *testing.T) *notifHandlerEnv {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&domain.User{}, &domain.Project{}, &domain.Issue{}, &domain.Notification{}))
-	alice := &domain.User{Name: "Alice", Email: "alice@x.com", Password: "h", IsActive: true}
-	bob := &domain.User{Name: "Bob", Email: "bob@x.com", Password: "h", IsActive: true}
+	alice := &domain.User{Name: "Alice", Email: "alice@x.com", Username: "alice", Password: "h", IsActive: true}
+	bob := &domain.User{Name: "Bob", Email: "bob@x.com", Username: "bob", Password: "h", IsActive: true}
 	require.NoError(t, db.Create(alice).Error)
 	require.NoError(t, db.Create(bob).Error)
 	p := &domain.Project{Key: "apol", Name: "Apollo", OwnerID: alice.ID}

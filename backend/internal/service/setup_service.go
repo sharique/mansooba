@@ -79,12 +79,17 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.SetupAdminReques
 		return nil, ErrSetupComplete
 	}
 
+	username, err := resolveUsername(ctx, s.userRepo, req.Username, req.Email)
+	if err != nil {
+		return nil, err
+	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
 
-	user := &domain.User{Name: req.FullName, Email: req.Email, Password: string(hash), IsAdmin: true}
+	user := &domain.User{Name: req.FullName, Email: req.Email, Username: username, Password: string(hash), IsAdmin: true}
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		s.log.Error("admin creation failed", zap.Error(err))
 		return nil, err
@@ -98,7 +103,7 @@ func (s *setupService) CreateAdmin(ctx context.Context, req dto.SetupAdminReques
 	s.log.Info("admin account created", zap.Uint("user_id", user.ID))
 	return &dto.AuthResponse{
 		AccessToken: accessToken,
-		User:        dto.UserDTO{ID: user.ID, Name: user.Name, Email: user.Email},
+		User:        dto.UserDTO{ID: user.ID, Name: user.Name, Email: user.Email, Username: usernameValue(user)},
 	}, nil
 }
 
@@ -107,19 +112,24 @@ func (s *setupService) CreateUser(ctx context.Context, req dto.SetupUserRequest)
 		return nil, domain.ErrConflict
 	}
 
+	username, err := resolveUsername(ctx, s.userRepo, req.Username, req.Email)
+	if err != nil {
+		return nil, err
+	}
+
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
 
-	user := &domain.User{Name: req.FullName, Email: req.Email, Password: string(hash), IsAdmin: false}
+	user := &domain.User{Name: req.FullName, Email: req.Email, Username: username, Password: string(hash), IsAdmin: false}
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		s.log.Error("user creation failed", zap.Error(err))
 		return nil, err
 	}
 
 	s.log.Info("team member created", zap.Uint("user_id", user.ID))
-	return &dto.SetupUserResponse{UserID: user.ID, Name: user.Name, Email: user.Email}, nil
+	return &dto.SetupUserResponse{UserID: user.ID, Name: user.Name, Email: user.Email, Username: usernameValue(user)}, nil
 }
 
 func (s *setupService) CreateProject(ctx context.Context, adminID uint, req dto.SetupProjectRequest) (*dto.SetupProjectResponse, error) {

@@ -169,10 +169,12 @@ func (s *projectService) ListMembers(ctx context.Context, key string, callerID u
 			continue
 		}
 		result = append(result, &dto.MemberResponse{
-			UserID: m.UserID,
-			Name:   user.Name,
-			Email:  user.Email,
-			Role:   m.Role,
+			UserID:   m.UserID,
+			Name:     user.Name,
+			Email:    user.Email,
+			Username: usernameValue(user),
+			Role:     m.Role,
+			IsActive: user.IsActive,
 		})
 	}
 	return result, nil

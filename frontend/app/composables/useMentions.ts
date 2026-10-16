@@ -1,10 +1,11 @@
 import type { MemberResponse } from '~/types/domain.types'
 
-// Same pattern the server uses to find mentions (comment_service.go). No word
-// boundary, so `a@b.com` yields the handle `b.com`, which matches no member.
-// An optional `@domain` is captured too: people often type the full address
-// (`@sam@example.com`); the server reads the handle as `sam` and ignores the rest.
-const MENTION = /@([\w.]+)(@[\w.-]+)?/g
+// Same rule the server uses to find mentions (comment_service.go, ADR-038): "@"
+// plus a username (letters, digits, underscore). The "@" must not follow a
+// letter, digit, underscore, dot or another "@", so "(@sam)", "**@sam**" and
+// "> @sam" are mentions while "a@b.com" and "a.b@c" are not. The character
+// before the "@" is part of the match and is put back.
+const MENTION = /(^|[^A-Za-z0-9_.@])@([A-Za-z0-9_]+)/g
 
 // Code spans and fences are left alone so `@sam` in code stays literal.
 const CODE = /(```[\s\S]*?```|`[^`\n]*`)/
@@ -19,39 +20,29 @@ function escapeHtml(s: string): string {
 }
 
 /**
- * Display-only: replaces `@handle` with the project member's name when `handle`
- * is exactly (case-sensitive) their email local part. Stored text and who gets
- * notified are unchanged. Case-sensitive on purpose: the server matches with SQL
- * LIKE, case-insensitive on SQLite but not PostgreSQL, so exact matching can only
- * under-substitute, never name someone who was not notified.
+ * Display-only: replaces `@username` with the project member's display name
+ * (the username stays in the title). Matching ignores letter case, like the
+ * server. Only project members' names are available to the page, so a mention
+ * of anyone else, or of nobody, is left as typed. Stored text and who gets
+ * notified are unchanged.
  *
  * The result goes through `useMarkdown`, whose DOMPurify pass still sanitizes it
  * (ADR-022); names are escaped here as well.
  */
 export function renderMentions(body: string, members: MemberResponse[]): string {
   if (!members.length || !body.includes('@')) return body
-  const byHandle = new Map<string, MemberResponse>()
+  const byUsername = new Map<string, MemberResponse>()
   for (const m of members) {
-    const handle = m.email.split('@')[0]
-    if (handle && !byHandle.has(handle)) byHandle.set(handle, m)
+    if (m.username) byUsername.set(m.username.toLowerCase(), m)
   }
   return body
     .split(CODE)
     .map((part, i) => i % 2 === 1
       ? part
-      : part.replace(MENTION, (whole, handle: string, domainPart?: string) => {
-          const member = byHandle.get(handle)
+      : part.replace(MENTION, (whole, before: string, handle: string) => {
+          const member = byUsername.get(handle.toLowerCase())
           if (!member) return whole
-          const span = `<span class="mention" title="@${handle}">@${escapeHtml(member.name)}</span>`
-          if (!domainPart) return span
-          // Swallow the typed domain only when it is this member's own domain
-          // (plus trailing sentence dots); otherwise leave it as typed.
-          const own = `@${member.email.split('@')[1] ?? ''}`.toLowerCase()
-          const lower = domainPart.toLowerCase()
-          if (lower.startsWith(own) && /^\.*$/.test(domainPart.slice(own.length))) {
-            return span + domainPart.slice(own.length)
-          }
-          return span + domainPart
+          return `${before}<span class="mention" title="@${escapeHtml(member.username)}">@${escapeHtml(member.name)}</span>`
         }))
     .join('')
 }

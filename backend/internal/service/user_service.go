@@ -51,6 +51,12 @@ func (s *userServiceImpl) UpdateProfile(ctx context.Context, userID uint, req dt
 		return nil, err
 	}
 
+	// A username is permanent: sending the current one is a no-op, anything
+	// else is refused rather than silently ignored.
+	if req.Username != nil && domain.NormalizeUsername(*req.Username) != usernameValue(user) {
+		return nil, domain.ErrUsernameImmutable
+	}
+
 	if req.FullName != "" {
 		user.Name = req.FullName
 	}
@@ -124,6 +130,7 @@ func toProfileResponse(u *domain.User) *dto.UserProfileResponse {
 		ID:        u.ID,
 		Name:      u.Name,
 		Email:     u.Email,
+		Username:  usernameValue(u),
 		AvatarURL: u.AvatarURL,
 		Timezone:  u.Timezone,
 		IsAdmin:   u.IsAdmin,

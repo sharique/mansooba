@@ -9,6 +9,24 @@ import (
 // It creates or updates tables to match the current struct definitions.
 // Called once at server startup before the HTTP listener begins.
 func Migrate(db *gorm.DB) error {
+	// Existing databases predate usernames: add the column first (nullable, so the
+	// statement works on a populated table) and refuse to go on while accounts
+	// still lack one; cmd/backfill-usernames fills them in (ADR-038).
+	if err := PrepareUsernames(db); err != nil {
+		return err
+	}
+	if n, err := countMissingUsernames(db); err != nil {
+		return err
+	} else if n > 0 {
+		return &UsernamesMissingError{Count: n}
+	}
+	if err := autoMigrateAll(db); err != nil {
+		return err
+	}
+	return enforceUsernameNotNull(db)
+}
+
+func autoMigrateAll(db *gorm.DB) error {
 	return db.AutoMigrate(
 		&domain.User{},
 		&domain.RevokedToken{},

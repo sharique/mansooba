@@ -25,8 +25,11 @@ type ProjectResponse struct {
 }
 
 type MemberResponse struct {
-	UserID uint   `json:"user_id"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
-	Role   string `json:"role"`
+	UserID   uint   `json:"user_id"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Role     string `json:"role"`
+	// IsActive is false for a deactivated account; the mention suggestions leave those out.
+	IsActive bool `json:"is_active"`
 }

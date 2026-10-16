@@ -29,6 +29,8 @@
         </label>
       </div>
 
+      <UsernameField :field="usernameField" id="register-username" :disabled="loading" />
+
       <div class="form-control w-full">
         <label class="label"><span class="label-text">Password</span></label>
         <input
@@ -69,6 +71,9 @@
 
 <script setup lang="ts">
 import { authService } from '~/services/auth.service'
+import { adminService } from '~/services/admin.service'
+import { useUsernameField } from '~/composables/useUsernameField'
+import UsernameField from '~/components/common/UsernameField.vue'
 
 const emit = defineEmits<{ success: [name: string] }>()
 
@@ -80,6 +85,10 @@ const errorMessage = ref('')
 const fullNameError = ref('')
 const emailError = ref('')
 const passwordTouched = ref(false)
+
+// Pre-filled from the email, editable until the account is created, then permanent.
+const usernameField = useUsernameField(email, { check: (u) => adminService.checkUsername(u) })
+const usernameBlocked = computed(() => ['invalid', 'reserved', 'taken'].includes(usernameField.status.value.kind))
 
 // Mirrors the backend's password_complexity validator exactly (main.go):
 // 8+ chars, at least one uppercase, one lowercase, one digit.
@@ -96,7 +105,7 @@ function validate(): boolean {
   fullNameError.value = fullName.value.trim() ? '' : 'Full name is required'
   emailError.value = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value) ? '' : 'Enter a valid email address'
   passwordTouched.value = true
-  return !fullNameError.value && !emailError.value && allRulesPassed.value
+  return !fullNameError.value && !emailError.value && allRulesPassed.value && !usernameBlocked.value
 }
 
 async function submit() {
@@ -104,11 +113,13 @@ async function submit() {
   loading.value = true
   errorMessage.value = ''
   try {
-    await authService.register(email.value, password.value, fullName.value)
+    await authService.register(email.value, password.value, fullName.value, usernameField.username.value || undefined)
     emit('success', fullName.value)
   }
   catch (err: unknown) {
-    errorMessage.value = (err as { data?: { message?: string } })?.data?.message ?? 'Registration failed'
+    const message = (err as { data?: { message?: string } })?.data?.message
+    if (message && /username|reserved/i.test(message)) usernameField.setServerError(message)
+    else errorMessage.value = message ?? 'Registration failed'
   }
   finally {
     loading.value = false

@@ -10,6 +10,7 @@
       <thead>
         <tr>
           <th>Name</th>
+          <th>Username</th>
           <th>Email</th>
           <th>Role</th>
           <th />
@@ -18,6 +19,7 @@
       <tbody>
         <tr v-for="m in members" :key="m.user_id">
           <td>{{ m.name }}</td>
+          <td><span v-if="m.username" class="text-base-content/70">@{{ m.username }}</span></td>
           <td>{{ m.email }}</td>
           <td><span class="badge badge-ghost capitalize">{{ m.role }}</span></td>
           <td>

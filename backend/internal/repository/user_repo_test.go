@@ -26,7 +26,7 @@ func newTestDB(t *testing.T) *gorm.DB {
 // T023 helpers
 func createUser(t *testing.T, repo domain.UserRepository, email string, isAdmin, isActive bool) *domain.User {
 	t.Helper()
-	u := &domain.User{Name: email, Email: email, Password: "hash", IsAdmin: isAdmin, IsActive: isActive}
+	u := &domain.User{Name: email, Email: email, Username: email, Password: "hash", IsAdmin: isAdmin, IsActive: isActive}
 	if err := repo.Create(context.Background(), u); err != nil {
 		t.Fatalf("create user %s: %v", email, err)
 	}
@@ -154,7 +154,7 @@ func TestUserRepository_UpdateAdminFields_OnlyWritesAdminAndActive(t *testing.T)
 
 func TestUserRepository_Create_Succeeds(t *testing.T) {
 	repo := repository.NewUserRepository(newTestDB(t))
-	user := &domain.User{Name: "Alice", Email: "alice@example.com", Password: "hash"}
+	user := &domain.User{Name: "Alice", Email: "alice@example.com", Username: "alice", Password: "hash"}
 	if err := repo.Create(context.Background(), user); err != nil {
 		t.Fatalf("Create: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestUserRepository_Create_Succeeds(t *testing.T) {
 
 func TestUserRepository_FindByID(t *testing.T) {
 	repo := repository.NewUserRepository(newTestDB(t))
-	created := &domain.User{Name: "Bob", Email: "bob@example.com", Password: "hash"}
+	created := &domain.User{Name: "Bob", Email: "bob@example.com", Username: "bob", Password: "hash"}
 	_ = repo.Create(context.Background(), created)
 
 	tests := []struct {
@@ -197,7 +197,7 @@ func TestUserRepository_FindByID(t *testing.T) {
 
 func TestUserRepository_FindByEmail(t *testing.T) {
 	repo := repository.NewUserRepository(newTestDB(t))
-	_ = repo.Create(context.Background(), &domain.User{Name: "Carol", Email: "carol@example.com", Password: "hash"})
+	_ = repo.Create(context.Background(), &domain.User{Name: "Carol", Email: "carol@example.com", Username: "carol", Password: "hash"})
 
 	tests := []struct {
 		name    string
@@ -214,5 +214,103 @@ func TestUserRepository_FindByEmail(t *testing.T) {
 				t.Fatalf("want %v, got %v", tc.wantErr, err)
 			}
 		})
+	}
+}
+
+// ── usernames (feature 018, story 2) ─────────────────────────────────────────
+
+func TestUserRepository_FindByUsername(t *testing.T) {
+	repo := repository.NewUserRepository(newTestDB(t))
+	ctx := context.Background()
+	u := &domain.User{Name: "Sam", Email: "sam@x.com", Password: "h", IsActive: true, Username: "sam"}
+	if err := repo.Create(ctx, u); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := repo.FindByUsername(ctx, "sam")
+	if err != nil || got.ID != u.ID {
+		t.Fatalf("want user %d, got %v err %v", u.ID, got, err)
+	}
+	if _, err := repo.FindByUsername(ctx, "nobody"); err != domain.ErrNotFound {
+		t.Fatalf("want ErrNotFound, got %v", err)
+	}
+}
+
+// The column is NOT NULL and unique: an account without a username cannot be
+// created at all, and a duplicate comes back as the domain error.
+func TestUserRepository_UsernameIsRequiredAndUnique(t *testing.T) {
+	repo := repository.NewUserRepository(newTestDB(t))
+	ctx := context.Background()
+
+	if err := repo.Create(ctx, &domain.User{Name: "a", Email: "a@x.com", Password: "h"}); err != domain.ErrUsernameInvalid {
+		t.Fatalf("an account without a username must be refused, got %v", err)
+	}
+	if err := repo.Create(ctx, &domain.User{Name: "1", Email: "1@x.com", Password: "h", Username: "sam"}); err != nil {
+		t.Fatal(err)
+	}
+	err := repo.Create(ctx, &domain.User{Name: "2", Email: "2@x.com", Password: "h", Username: "sam"})
+	if err != domain.ErrUsernameTaken {
+		t.Fatalf("want ErrUsernameTaken, got %v", err)
+	}
+}
+
+func TestUserRepository_SetUsernameAndListMissing(t *testing.T) {
+	db := newTestDB(t)
+	repo := repository.NewUserRepository(db)
+	ctx := context.Background()
+	a := createUser(t, repo, "a@x.com", false, true)
+	c := &domain.User{Name: "c", Email: "c@x.com", Password: "h", IsActive: true, Username: "cee"}
+	if err := repo.Create(ctx, c); err != nil {
+		t.Fatal(err)
+	}
+	// A row as it looks mid-upgrade: no username yet (written directly, since
+	// Create refuses it).
+	if err := db.Exec(`UPDATE users SET username = '' WHERE id = ?`, a.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	missing, err := repo.ListMissingUsername(ctx)
+	if err != nil || len(missing) != 1 || missing[0].ID != a.ID {
+		t.Fatalf("want only a, got %v err %v", missing, err)
+	}
+	if err := repo.SetUsername(ctx, a.ID, "aaa"); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := repo.FindByID(ctx, a.ID)
+	if got.Username != "aaa" {
+		t.Fatalf("username not stored: %q", got.Username)
+	}
+	if err := repo.SetUsername(ctx, c.ID, "aaa"); err != domain.ErrUsernameTaken {
+		t.Fatalf("want ErrUsernameTaken, got %v", err)
+	}
+	if missing, _ = repo.ListMissingUsername(ctx); len(missing) != 0 {
+		t.Fatalf("want none missing, got %v", missing)
+	}
+}
+
+// Update persists the account's other fields (password change and reset rely on
+// it) but must never write the username, even from a stale or altered struct
+// (feature 018, SC-006).
+func TestUserRepository_UpdateNeverChangesUsername(t *testing.T) {
+	repo := repository.NewUserRepository(newTestDB(t))
+	ctx := context.Background()
+	u := &domain.User{Name: "Sam", Email: "sam@x.com", Password: "old", IsActive: true, Username: "sam"}
+	if err := repo.Create(ctx, u); err != nil {
+		t.Fatal(err)
+	}
+
+	u.Username = "hijacked"
+	u.Name = "Renamed"
+	u.Password = "new-hash"
+	if err := repo.Update(ctx, u); err != nil {
+		t.Fatal(err)
+	}
+
+	got, _ := repo.FindByID(ctx, u.ID)
+	if got.Username != "sam" {
+		t.Fatalf("username changed to %q", got.Username)
+	}
+	if got.Name != "Renamed" || got.Password != "new-hash" {
+		t.Fatalf("other fields were not persisted: %+v", got)
 	}
 }

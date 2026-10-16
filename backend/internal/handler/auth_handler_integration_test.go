@@ -52,7 +52,7 @@ func newIntegrationSetup(t *testing.T) (*echo.Echo, *handler.AuthHandler, *gorm.
 func seedUser(t *testing.T, db *gorm.DB, email, password string) *domain.User {
 	t.Helper()
 	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	user := &domain.User{Name: "Test User", Email: email, Password: string(hash), IsActive: true}
+	user := &domain.User{Name: "Test User", Email: email, Username: "user" + strings.ReplaceAll(strings.Split(email, "@")[0], ".", ""), Password: string(hash), IsActive: true}
 	if err := db.Create(user).Error; err != nil {
 		t.Fatalf("seed user: %v", err)
 	}

@@ -48,6 +48,20 @@
         </div>
 
         <div class="form-control">
+          <label class="label"><span class="label-text">Username</span></label>
+          <input
+            :value="authStore.profile?.username ?? authStore.user?.username ?? ''"
+            type="text"
+            class="input input-bordered input-disabled w-full"
+            disabled
+            data-testid="profile-username"
+          />
+          <label class="label">
+            <span class="label-text-alt text-base-content/60">Usernames cannot be changed.</span>
+          </label>
+        </div>
+
+        <div class="form-control">
           <label class="label"><span class="label-text">Timezone</span></label>
           <select v-model="form.timezone" class="select select-bordered w-full">
             <option value="">UTC (default)</option>

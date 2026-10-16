@@ -36,7 +36,7 @@ func newNotifEnv(t *testing.T, wrap func(domain.NotificationRepository) domain.N
 	require.NoError(t, db.AutoMigrate(&domain.User{}, &domain.Project{}, &domain.ProjectMember{}, &domain.Issue{}, &domain.Notification{}))
 
 	mk := func(name string) uint {
-		u := &domain.User{Name: name, Email: name + "@x.com", Password: "h", IsActive: true}
+		u := &domain.User{Name: name, Email: name + "@x.com", Username: name, Password: "h", IsActive: true}
 		require.NoError(t, db.Create(u).Error)
 		return u.ID
 	}

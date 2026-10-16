@@ -82,7 +82,12 @@ func (s *authService) Register(ctx context.Context, req dto.RegisterRequest, cal
 		return nil, err
 	}
 
-	user := &domain.User{Name: req.FullName, Email: req.Email, Password: string(hash), IsActive: true}
+	username, err := resolveUsername(ctx, s.userRepo, req.Username, req.Email)
+	if err != nil {
+		return nil, err
+	}
+
+	user := &domain.User{Name: req.FullName, Email: req.Email, Username: username, Password: string(hash), IsActive: true}
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, err
 	}
@@ -300,7 +305,7 @@ func (s *authService) buildResponse(ctx context.Context, user *domain.User) (*dt
 	return &dto.AuthResponse{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
-		User:         dto.UserDTO{ID: user.ID, Name: user.Name, Email: user.Email},
+		User:         dto.UserDTO{ID: user.ID, Name: user.Name, Email: user.Email, Username: usernameValue(user)},
 	}, nil
 }
 
