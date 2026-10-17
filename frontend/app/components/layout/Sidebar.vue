@@ -13,6 +13,11 @@ export function projectNavLinks(key: string): NavLink[] {
             icon: "mdi:view-dashboard-outline",
         },
         {
+            label: "Members",
+            to: `/projects/${key}/members`,
+            icon: "mdi:account-group-outline",
+        },
+        {
             label: "Board",
             to: `/projects/${key}/board`,
             icon: "mdi:view-column-outline",
