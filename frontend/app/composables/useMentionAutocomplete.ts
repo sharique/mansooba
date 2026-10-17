@@ -1,4 +1,4 @@
-import { computed, onScopeDispose, ref, type Ref } from 'vue'
+import { computed, onScopeDispose, ref, watch, type Ref } from 'vue'
 import type { MemberResponse } from '~/types/domain.types'
 import { applySuggestion, filterSuggestions, findMentionQuery, findUnknownMentions, type MentionQuery } from './useMentions'
 
@@ -84,6 +84,14 @@ export function useMentionAutocomplete({ text, members, currentUserId, warnDelay
         return false
     }
   }
+
+  // The parent can empty the box without typing (after posting): drop the list and the warning.
+  watch(text, (v) => {
+    if (v) return
+    clearTimeout(timer)
+    mq.value = null
+    unknown.value = []
+  })
 
   onScopeDispose(() => clearTimeout(timer))
 
