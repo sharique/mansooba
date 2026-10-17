@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"gorm.io/gorm"
@@ -36,6 +37,32 @@ func (r *activityRepo) FindByActorID(ctx context.Context, actorID uint, limit, o
 		Limit(limit).
 		Offset(offset).
 		Find(&events).Error; err != nil {
+		return nil, err
+	}
+	return events, nil
+}
+
+// FindRecentByProject returns the progress and comment events of a project since
+// the given time, newest first. The join to issues drops events of deleted issues
+// and gives the project and sprint filters; a status change qualifies only when it
+// lands in progress, review or done and actually changes the status.
+func (r *activityRepo) FindRecentByProject(ctx context.Context, projectID uint, since time.Time, sprintID *uint, limit int) ([]*domain.ActivityEvent, error) {
+	q := r.db.WithContext(ctx).
+		Table("activity_events").
+		Select("activity_events.*").
+		Joins("JOIN issues ON issues.id = activity_events.issue_id").
+		Where("issues.project_id = ?", projectID).
+		Where("activity_events.created_at >= ?", since).
+		Where(
+			"(activity_events.kind = ? OR (activity_events.kind = ? AND activity_events.new_value IN ? AND activity_events.old_value <> activity_events.new_value))",
+			domain.ActivityCommentAdded, domain.ActivityStatusChanged,
+			[]string{domain.IssueStatusInProgress, domain.IssueStatusInReview, domain.IssueStatusDone},
+		)
+	if sprintID != nil {
+		q = q.Where("issues.sprint_id = ?", *sprintID)
+	}
+	var events []*domain.ActivityEvent
+	if err := q.Order("activity_events.created_at DESC, activity_events.id DESC").Limit(limit).Scan(&events).Error; err != nil {
 		return nil, err
 	}
 	return events, nil

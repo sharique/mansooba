@@ -343,3 +343,56 @@ export interface IssueFilters {
   assignee_id?: number
   label_id?: number
 }
+
+// ── Project overview ──────────────────────────────────────────────────────────
+
+export interface StatusCount {
+  tasks: number
+  points: number
+}
+
+export interface SprintSummary {
+  id: number
+  name: string
+  start_date?: string
+  end_date?: string
+  is_overdue: boolean
+  todo: StatusCount
+  in_progress: StatusCount
+  in_review: StatusCount
+  done: StatusCount
+  total: StatusCount
+}
+
+export interface PersonRef {
+  id: number
+  name: string
+  avatar_url?: string
+}
+
+export interface OpenTask {
+  issue_id: number
+  key: string
+  title: string
+  status: string
+  priority: string
+  assignee: PersonRef | null
+}
+
+export interface RecentActivityItem {
+  id: number
+  kind: 'status_changed' | 'comment_added'
+  actor: PersonRef
+  issue_id: number
+  issue_key: string
+  issue_title: string
+  new_status?: string
+  created_at: string
+}
+
+export interface OverviewList<T> {
+  sprint_active: boolean
+  items: T[]
+}
+
+export type ActivityScope = 'all' | 'sprint'

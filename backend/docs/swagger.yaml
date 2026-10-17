@@ -432,6 +432,44 @@ definitions:
       recipient_id:
         type: integer
     type: object
+  dto.OpenTaskResponse:
+    properties:
+      assignee:
+        $ref: '#/definitions/dto.PersonRef'
+      issue_id:
+        type: integer
+      key:
+        type: string
+      priority:
+        type: string
+      status:
+        type: string
+      title:
+        type: string
+    type: object
+  dto.OverviewActivityResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.RecentActivityResponse'
+        type: array
+      sprint_active:
+        type: boolean
+    type: object
+  dto.OverviewSprintResponse:
+    properties:
+      sprint:
+        $ref: '#/definitions/dto.SprintSummaryResponse'
+    type: object
+  dto.OverviewTasksResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/dto.OpenTaskResponse'
+        type: array
+      sprint_active:
+        type: boolean
+    type: object
   dto.PatchSettingsRequest:
     properties:
       date_format:
@@ -451,6 +489,15 @@ definitions:
       week_start_day:
         type: string
     type: object
+  dto.PersonRef:
+    properties:
+      avatar_url:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
   dto.ProjectResponse:
     properties:
       description:
@@ -463,6 +510,27 @@ definitions:
         type: string
       owner_id:
         type: integer
+    type: object
+  dto.RecentActivityResponse:
+    properties:
+      actor:
+        $ref: '#/definitions/dto.PersonRef'
+      created_at:
+        type: string
+      id:
+        type: integer
+      issue_id:
+        type: integer
+      issue_key:
+        type: string
+      issue_title:
+        type: string
+      kind:
+        description: status_changed | comment_added
+        type: string
+      new_status:
+        description: status changes only
+        type: string
     type: object
   dto.RegisterRequest:
     properties:
@@ -649,6 +717,36 @@ definitions:
         type: integer
       updated_at:
         type: string
+    type: object
+  dto.SprintSummaryResponse:
+    properties:
+      done:
+        $ref: '#/definitions/dto.StatusCount'
+      end_date:
+        type: string
+      id:
+        type: integer
+      in_progress:
+        $ref: '#/definitions/dto.StatusCount'
+      in_review:
+        $ref: '#/definitions/dto.StatusCount'
+      is_overdue:
+        type: boolean
+      name:
+        type: string
+      start_date:
+        type: string
+      todo:
+        $ref: '#/definitions/dto.StatusCount'
+      total:
+        $ref: '#/definitions/dto.StatusCount'
+    type: object
+  dto.StatusCount:
+    properties:
+      points:
+        type: integer
+      tasks:
+        type: integer
     type: object
   dto.SystemLogEntryDTO:
     properties:
@@ -2631,6 +2729,120 @@ paths:
       summary: Remove a member from a project
       tags:
       - projects
+  /projects/{key}/overview/activity:
+    get:
+      description: 'Up to 10 events from the last 5 days, newest first: tasks moved
+        into In Progress, In Review or Done, and added comments (never the comment
+        text). scope=sprint limits it to tasks in the active sprint.'
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      - description: all (default) or sprint
+        enum:
+        - all
+        - sprint
+        in: query
+        name: scope
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OverviewActivityResponse'
+        "400":
+          description: Invalid scope
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Not a member of the project
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Recent progress and comments in the project
+      tags:
+      - overview
+  /projects/{key}/overview/sprint:
+    get:
+      description: Task and story-point counts in the four board columns, the sprint's
+        dates and whether it is overdue. "sprint" is null when no sprint is active.
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OverviewSprintResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Not a member of the project
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Progress of the project's active sprint
+      tags:
+      - overview
+  /projects/{key}/overview/tasks:
+    get:
+      description: Up to 10 tasks that are not done, ordered by priority, then status
+        (in review, in progress, to do), then most recently updated.
+      parameters:
+      - description: Project key
+        in: path
+        name: key
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OverviewTasksResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "403":
+          description: Not a member of the project
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+        "404":
+          description: Not found
+          schema:
+            $ref: '#/definitions/apierror.APIError'
+      security:
+      - BearerAuth: []
+      summary: Open tasks of the project's active sprint
+      tags:
+      - overview
   /projects/{key}/sprints:
     get:
       description: Returns all sprints for a project ordered by created_at ASC.

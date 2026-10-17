@@ -81,4 +81,19 @@ type IssueRepository interface {
 	FindIssueIDsByLabelID(ctx context.Context, labelID uint) ([]uint, error)
 	// FindByAssignee returns all issues assigned to the given user, across all projects.
 	FindByAssignee(ctx context.Context, userID uint) ([]*Issue, error)
+	// CountByStatusForSprint returns the task count and the story-point sum of the
+	// sprint's issues for each status that has at least one issue. Issues without
+	// story points contribute 0 points.
+	CountByStatusForSprint(ctx context.Context, sprintID uint) ([]StatusTotals, error)
+	// FindOpenBySprint returns up to limit issues of the sprint that are not done,
+	// most urgent first: priority (critical to low), then status (in review, in
+	// progress, to do, anything else), then most recently updated.
+	FindOpenBySprint(ctx context.Context, sprintID uint, limit int) ([]*Issue, error)
+}
+
+// StatusTotals is the number of issues and their story points for one status.
+type StatusTotals struct {
+	Status string
+	Tasks  int
+	Points int
 }

@@ -154,6 +154,18 @@ Relations are symmetric and stored once per pair (`task_a_id < task_b_id`). The 
 
 ---
 
+## Project overview
+
+Read-only summaries for the project's main page. Member-only (403 for anyone else, 404 for an unknown key).
+
+| Method | Path | Auth | Description |
+|--------|------|:----:|-------------|
+| GET | `/projects/:key/overview/sprint` | ✓ | Active sprint: dates, overdue flag, tasks and story points per status (`sprint` is `null` when none is active) |
+| GET | `/projects/:key/overview/tasks` | ✓ | Up to 10 open tasks of the active sprint, by priority then status |
+| GET | `/projects/:key/overview/activity?scope=all\|sprint` | ✓ | Up to 10 events from the last 5 days: tasks moved into In Progress, In Review or Done, and added comments (never comment text); `scope=sprint` limits it to the active sprint; any other scope is 400 |
+
+---
+
 ## Sprints
 
 | Method | Path | Auth | Description |

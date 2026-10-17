@@ -48,6 +48,7 @@ type Handlers struct {
 	Issue          *handler.IssueHandler
 	Board          *handler.BoardHandler
 	Sprint         *handler.SprintHandler
+	Overview       *handler.OverviewHandler
 	Comment        *handler.CommentHandler
 	Attachment     *handler.AttachmentHandler
 	Activity       *handler.ActivityHandler
@@ -92,6 +93,7 @@ func NewHandlers(in Inputs) Handlers {
 		WithNotifier(notifSvc)
 	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo)
 	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
+	overviewSvc := service.NewOverviewService(projectRepo, projectMemberRepo, sprintRepo, issueRepo, activityRepo, userRepo)
 	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc, notifRepo, userRepo)
 	attachmentSvc := service.NewAttachmentService(attachmentRepo, issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, in.AttachmentStorage)
 	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
@@ -132,6 +134,7 @@ func NewHandlers(in Inputs) Handlers {
 		Issue:          handler.NewIssueHandler(issueSvc).WithRelationRepo(issueRelationRepo),
 		Board:          handler.NewBoardHandler(boardSvc),
 		Sprint:         handler.NewSprintHandler(sprintSvc),
+		Overview:       handler.NewOverviewHandler(overviewSvc),
 		Comment:        handler.NewCommentHandler(commentSvc),
 		Attachment:     handler.NewAttachmentHandler(attachmentSvc),
 		Activity:       handler.NewActivityHandler(activitySvc),

@@ -9,12 +9,12 @@ import (
 // OldValue and NewValue are human-readable strings (e.g. "todo", "in_progress").
 type ActivityEvent struct {
 	ID        uint   `gorm:"primaryKey"`
-	IssueID   uint   `gorm:"not null;index"`
+	IssueID   uint   `gorm:"not null;index;index:idx_activity_issue_created,priority:1"`
 	ActorID   uint   `gorm:"not null"`
 	Kind      string `gorm:"not null"`
 	OldValue  string
 	NewValue  string
-	CreatedAt time.Time
+	CreatedAt time.Time `gorm:"index:idx_activity_issue_created,priority:2"`
 }
 
 // Activity kind constants.
@@ -38,4 +38,10 @@ type ActivityRepository interface {
 	// FindByActorID returns events where the actor is actorID, ordered by created_at DESC,
 	// with pagination. Used by the "my activity" endpoint.
 	FindByActorID(ctx context.Context, actorID uint, limit, offset int) ([]*ActivityEvent, error)
+	// FindRecentByProject returns, newest first and at most limit, the events since
+	// the given time on issues of the project that show progress or conversation: a
+	// status change whose new status is in progress, in review or done (old status
+	// different), and every added comment. When sprintID is set only issues that are
+	// currently in that sprint are considered.
+	FindRecentByProject(ctx context.Context, projectID uint, since time.Time, sprintID *uint, limit int) ([]*ActivityEvent, error)
 }
