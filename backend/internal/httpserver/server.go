@@ -209,6 +209,10 @@ func New(d Deps) *echo.Echo {
 
 	api.GET("/projects/:key/board", h.Board.GetBoard)
 
+	api.GET("/projects/:key/overview/sprint", h.Overview.Sprint)
+	api.GET("/projects/:key/overview/tasks", h.Overview.Tasks)
+	api.GET("/projects/:key/overview/activity", h.Overview.Activity)
+
 	sprints := api.Group("/projects/:key/sprints")
 	sprints.GET("", h.Sprint.List)
 	sprints.POST("", h.Sprint.Create)

@@ -2825,6 +2825,178 @@ const docTemplate = `{
                 }
             }
         },
+        "/projects/{key}/overview/activity": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Up to 10 events from the last 5 days, newest first: tasks moved into In Progress, In Review or Done, and added comments (never the comment text). scope=sprint limits it to tasks in the active sprint.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "overview"
+                ],
+                "summary": "Recent progress and comments in the project",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "all",
+                            "sprint"
+                        ],
+                        "type": "string",
+                        "description": "all (default) or sprint",
+                        "name": "scope",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OverviewActivityResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid scope",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "403": {
+                        "description": "Not a member of the project",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/{key}/overview/sprint": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Task and story-point counts in the four board columns, the sprint's dates and whether it is overdue. \"sprint\" is null when no sprint is active.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "overview"
+                ],
+                "summary": "Progress of the project's active sprint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OverviewSprintResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "403": {
+                        "description": "Not a member of the project",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/projects/{key}/overview/tasks": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Up to 10 tasks that are not done, ordered by priority, then status (in review, in progress, to do), then most recently updated.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "overview"
+                ],
+                "summary": "Open tasks of the project's active sprint",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OverviewTasksResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "403": {
+                        "description": "Not a member of the project",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            }
+        },
         "/projects/{key}/sprints": {
             "get": {
                 "security": [
@@ -4368,6 +4540,65 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.OpenTaskResponse": {
+            "type": "object",
+            "properties": {
+                "assignee": {
+                    "$ref": "#/definitions/dto.PersonRef"
+                },
+                "issue_id": {
+                    "type": "integer"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.OverviewActivityResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.RecentActivityResponse"
+                    }
+                },
+                "sprint_active": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dto.OverviewSprintResponse": {
+            "type": "object",
+            "properties": {
+                "sprint": {
+                    "$ref": "#/definitions/dto.SprintSummaryResponse"
+                }
+            }
+        },
+        "dto.OverviewTasksResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.OpenTaskResponse"
+                    }
+                },
+                "sprint_active": {
+                    "type": "boolean"
+                }
+            }
+        },
         "dto.PatchSettingsRequest": {
             "type": "object",
             "properties": {
@@ -4397,6 +4628,20 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.PersonRef": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "dto.ProjectResponse": {
             "type": "object",
             "properties": {
@@ -4414,6 +4659,37 @@ const docTemplate = `{
                 },
                 "owner_id": {
                     "type": "integer"
+                }
+            }
+        },
+        "dto.RecentActivityResponse": {
+            "type": "object",
+            "properties": {
+                "actor": {
+                    "$ref": "#/definitions/dto.PersonRef"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "issue_id": {
+                    "type": "integer"
+                },
+                "issue_key": {
+                    "type": "string"
+                },
+                "issue_title": {
+                    "type": "string"
+                },
+                "kind": {
+                    "description": "status_changed | comment_added",
+                    "type": "string"
+                },
+                "new_status": {
+                    "description": "status changes only",
+                    "type": "string"
                 }
             }
         },
@@ -4675,6 +4951,52 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
+                }
+            }
+        },
+        "dto.SprintSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "done": {
+                    "$ref": "#/definitions/dto.StatusCount"
+                },
+                "end_date": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "in_progress": {
+                    "$ref": "#/definitions/dto.StatusCount"
+                },
+                "in_review": {
+                    "$ref": "#/definitions/dto.StatusCount"
+                },
+                "is_overdue": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "todo": {
+                    "$ref": "#/definitions/dto.StatusCount"
+                },
+                "total": {
+                    "$ref": "#/definitions/dto.StatusCount"
+                }
+            }
+        },
+        "dto.StatusCount": {
+            "type": "object",
+            "properties": {
+                "points": {
+                    "type": "integer"
+                },
+                "tasks": {
+                    "type": "integer"
                 }
             }
         },

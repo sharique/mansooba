@@ -55,4 +55,11 @@ describe('toBurndownChartData', () => {
     expect(result.datasets[0]!.label).toBe('Remaining Points')
     expect(result.datasets[1]!.label).toBe('Ideal')
   })
+
+  it('treats null data as an empty sprint instead of throwing', () => {
+    const result = toBurndownChartData(makeBurndown({ data: null as unknown as BurndownData['data'] }))
+    expect(result.labels).toEqual([])
+    expect(result.datasets[0]!.data).toEqual([])
+    expect(result.datasets[1]!.data).toEqual([])
+  })
 })

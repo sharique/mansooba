@@ -110,6 +110,14 @@ func (r *stubIssueRepo) CountBySprint(_ context.Context, sprintID uint) (int, in
 	return 0, 0, nil
 }
 
+func (r *stubIssueRepo) CountByStatusForSprint(_ context.Context, _ uint) ([]domain.StatusTotals, error) {
+	return nil, nil
+}
+
+func (r *stubIssueRepo) FindOpenBySprint(_ context.Context, _ uint, _ int) ([]*domain.Issue, error) {
+	return nil, nil
+}
+
 func (r *stubIssueRepo) FindIssueIDsByLabelID(_ context.Context, labelID uint) ([]uint, error) {
 	if r.labelIDToIssueIDs != nil {
 		return r.labelIDToIssueIDs[labelID], nil

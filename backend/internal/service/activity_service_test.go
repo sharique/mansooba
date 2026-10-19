@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/service"
@@ -202,4 +203,8 @@ func TestActivityService_ListByIssue_RefusesNonMembers(t *testing.T) {
 
 	_, err = svc.ListByIssue(context.Background(), 12345, 2)
 	assert.ErrorIs(t, err, domain.ErrNotFound)
+}
+
+func (r *stubActivityRepo) FindRecentByProject(_ context.Context, _ uint, _ time.Time, _ *uint, _ int) ([]*domain.ActivityEvent, error) {
+	return nil, nil
 }

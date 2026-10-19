@@ -140,7 +140,7 @@ const statusBadge: Record<string, string> = {
                     </NuxtLink>
                     <span class="text-base-content/50 text-xs shrink-0">{{ issue.story_points ?? '?' }} pts</span>
                     <button
-                        v-if="canManage"
+                        v-if="canManage && issue.status!== 'done'"
                         class="btn btn-xs btn-ghost text-error shrink-0"
                         title="Remove from sprint"
                         @click="emit('removeIssue', { sprint, issueId: issue.id })"

@@ -123,13 +123,14 @@ describe('useMentionAutocomplete', () => {
     expect(ac.unknown.value).toEqual([])
   })
 
-  it('clears the warning when the text is emptied (after a post)', async () => {
+  it('clears the warning when the text is emptied from outside (after a post)', async () => {
     const { ac, type, text } = setup()
     type('@lee')
     vi.advanceTimersByTime(400)
+    await nextTick()
     expect(ac.unknown.value).toEqual(['lee'])
     text.value = ''
-    ac.onInput(0)
+    await nextTick()
     expect(ac.unknown.value).toEqual([])
   })
 })

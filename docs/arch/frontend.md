@@ -31,6 +31,7 @@ Thin wrappers around `$api` (a `$fetch` proxy defined in `plugins/api.ts`). Each
 | `board.service.ts` | `/projects/:key/board` |
 | `backlog.service.ts` | `/projects/:key/backlog` |
 | `reports.service.ts` | `/projects/:key/velocity`, `/projects/:key/sprints/:id/burndown` |
+| `overview.service.ts` | `/projects/:key/overview/*` |
 
 ### `stores/`
 
@@ -42,6 +43,7 @@ Pinia stores hold fetched state and expose actions that call services. They are 
 | `issues` | Issue list and active issue for a project |
 | `projects` | Project list, active project, member list |
 | `sprints` | Sprints, active sprint, burndown/velocity data |
+| `overview` | The project overview's three sections (sprint progress, open tasks, recent activity), each with its own loading and error state, plus the selected activity tab |
 | `comments` | Comments for the currently viewed issue |
 | `labels` | Labels for a project and for individual issues |
 | `notifications` | Unread notification list |
@@ -62,10 +64,12 @@ File-based Nuxt routes using Composition API. Pages trigger store actions and co
 | `/setup` | `pages/setup.vue` | First-run superadmin wizard |
 | `/settings` | `pages/settings.vue` | Profile, appearance, and organisation tabs |
 | `/reports` | `pages/reports.vue` | Cross-project reports |
-| `/projects/:key` | `pages/projects/[key]/index.vue` | Project overview |
-| `/projects/:key/board` | `pages/projects/[key]/board.vue` | Kanban board |
+| `/projects/:key` | `pages/projects/[key]/index.vue` | Project overview: sprint progress, open tasks, recent activity (all / current sprint tabs) |
+| `/projects/:key/members` | `pages/projects/[key]/members.vue` | Members and project details (edit name and description) |
+| `/projects/:key/board` | `pages/projects/[key]/board.vue` | Kanban board (the burndown moved to Reports) |
 | `/projects/:key/backlog` | `pages/projects/[key]/backlog.vue` | Sprint backlog |
-| `/projects/:key/reports` | `pages/projects/[key]/reports.vue` | Velocity + burndown charts |
+| `/projects/:key/sprints` | `pages/projects/[key]/sprints.vue` | Sprints page |
+| `/projects/:key/reports` | `pages/projects/[key]/reports.vue` | Burndown (sprint selector, defaults to the active sprint) + velocity charts |
 | `/projects/:key/settings` | `pages/projects/[key]/settings.vue` | Project settings |
 | `/projects/:key/issues/:id` | `pages/projects/[key]/[id].vue` | Issue detail (comments, attachments, relations, activity) |
 
@@ -78,13 +82,15 @@ Vue SFCs grouped by domain. Nuxt auto-imports them with a `<Directory><Component
 | `auth/` | Login/register forms |
 | `backlog/` | BacklogList, BacklogIssueCard, sprint assignment |
 | `board/` | KanbanBoard, KanbanColumn, KanbanCard |
-| `charts/` | BurndownChart, VelocityChart (Chart.js wrappers) |
+| `charts/` | BurndownChart (Chart.js wrapper) |
 | `common/` | EmptyState, UserAvatar (with OKLCH initials fallback) |
 | `dashboard/` | DashboardGrid, MyIssuesWidget, RecentActivityWidget |
 | `issues/` | IssueForm, IssueDetail, AttachmentSection, CommentSection/CommentItem, ActivityFeed, RelatedTasksSection, IssueLabelPicker |
 | `labels/` | LabelPicker, LabelBadge, LabelList |
+| `overview/` | SprintSummary, OpenTasks, RecentActivity (the project overview's sections) |
 | `layout/` | Sidebar, TopBar, ThemeToggle, NotificationBell |
 | `projects/` | ProjectForm, ProjectMemberList |
+| `reports/` | BurndownSection (sprint selector and burndown card), VelocityChart (bar chart) |
 | `relations/` | RelationItem, RelationsPanel (link/unlink tasks) |
 | `reports/` | report-specific charts and stat cards |
 | `sprints/` | SprintList, SprintCard, SprintForm |
@@ -96,6 +102,8 @@ Vue SFCs grouped by domain. Nuxt auto-imports them with a `<Directory><Component
 |-----------|---------|
 | `useAvatarColor` | Derives an OKLCH colour from a user name for initials avatars |
 | `useMarkdown` | Renders comment body markdown |
+| `useMentions` | Mention helpers: render `@username` as a name, find the `@` being typed, filter and apply suggestions, list mentions of non-members |
+| `useMentionAutocomplete` | State and keyboard handling of the mention list under a comment box, and the non-member warning |
 | `useTheme` | Reads/toggles the current theme |
 | `useTimeFormatter` | Relative time formatting (e.g. "2 hours ago") |
 | `useToast` | Push toast notifications from anywhere in the app |

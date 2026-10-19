@@ -483,7 +483,8 @@ func (s *sprintService) Burndown(ctx context.Context, projectKey string, id uint
 		endDate = sprint.EndDate.Truncate(24 * time.Hour)
 	}
 
-	var data []dto.BurndownPoint
+	// Non-nil so a sprint with no days yet (e.g. it starts in the future) serialises as [] rather than null.
+	data := []dto.BurndownPoint{}
 	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
 		dayEnd := d.AddDate(0, 0, 1)
 		remaining := 0

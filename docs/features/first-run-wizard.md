@@ -22,10 +22,12 @@ When the admin chooses **Import example data**, the backend endpoint `POST /api/
 | Entity | Count | Details |
 |--------|-------|---------|
 | Project | 1 | Key: `DEMO`, Name: `Mansooba Demo` |
-| Sprint | 1 | `Sprint 1` — active, 14-day window |
-| Issues | 7 | Mix of task/story/bug across all statuses |
+| Sprints | 3 | `Sprint 1` completed, `Sprint 2` active, `Sprint 3` planned; dates are relative to the day of the import |
+| Issues | 20 | Mix of task/story/bug with story points: 6 in the completed sprint (all done), 7 in the active sprint (spread over every board column), 5 in the planned sprint, 2 in the backlog |
 | Labels | 2 | `bug` (#e11d48), `feature` (#3b82f6) |
 | Comments | 2 | On the login-bug and Kanban-story issues |
+
+Done issues carry completion dates, so the Reports page has a burndown for the active sprint and the completed one, and a velocity bar for the completed sprint. Some issues are assigned to the admin, so My Desk and the overview show tasks.
 
 ### DEMO project key conflict
 
@@ -61,8 +63,8 @@ go run ./cmd/seed
 ```
 Seed data created:
   Project:  Mansooba Demo [DEMO]
-  Sprint:   Sprint 1 (active)
-  Issues: 7  Labels: 2  Comments: 2
+  Sprints:  3 (1 completed, 1 active, 1 planned)
+  Issues: 20  Labels: 2  Comments: 2
 ```
 
 **Already present (idempotent):**

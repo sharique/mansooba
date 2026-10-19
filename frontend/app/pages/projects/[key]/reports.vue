@@ -39,36 +39,40 @@ onMounted(async () => {
     <div class="mb-6">
       <h1 class="text-2xl font-bold">Reports</h1>
       <p class="text-base-content/60 text-sm mt-1">
-        Sprint velocity for <span class="font-mono font-semibold">{{ key }}</span>.
+        Burndown and velocity for <span class="font-mono font-semibold">{{ key }}</span>.
       </p>
     </div>
 
-    <!-- Loading state -->
-    <div v-if="loading" class="flex justify-center items-center h-48">
-      <span class="loading loading-spinner loading-lg" />
-    </div>
+    <ReportsBurndownSection :project-key="key" />
 
-    <!-- Error state -->
-    <div v-else-if="error" class="alert alert-error">
-      <span>{{ error }}</span>
-    </div>
+    <!-- Velocity, in the same card as the burndown -->
+    <section class="mb-8">
+      <div class="card card-bordered bg-base-100 shadow-sm">
+        <div class="card-body p-4">
+          <h2 class="text-lg font-semibold mb-2">Sprint velocity</h2>
 
-    <!-- No data -->
-    <div
-      v-else-if="velocity.length === 0"
-      class="flex flex-col items-center justify-center h-48 text-base-content/40 gap-2"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 16l4-4 4 4 4-6" />
-      </svg>
-      <p class="text-sm">No completed sprints yet</p>
-    </div>
+          <div v-if="loading" class="flex justify-center items-center h-48">
+            <span class="loading loading-spinner loading-lg" />
+          </div>
 
-    <!-- Velocity chart -->
-    <section v-else>
-      <h2 class="text-lg font-semibold mb-4">Sprint Velocity</h2>
-      <div class="bg-base-200 rounded-box p-6 pl-14">
-        <ReportsVelocityChart :data="velocity" />
+          <div v-else-if="error" class="alert alert-error">
+            <span>{{ error }}</span>
+          </div>
+
+          <div
+            v-else-if="velocity.length === 0"
+            class="flex flex-col items-center justify-center h-48 text-base-content/40 gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 16l4-4 4 4 4-6" />
+            </svg>
+            <p class="text-sm">No completed sprints yet</p>
+          </div>
+
+          <div v-else class="pl-10">
+            <ReportsVelocityChart :data="velocity" />
+          </div>
+        </div>
       </div>
     </section>
   </div>

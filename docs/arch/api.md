@@ -35,7 +35,7 @@ returns 409 on every subsequent call.
 | POST | `/api/v1/setup/admin` | — (rate-limited) | Create the first admin account; returns a JWT |
 | POST | `/api/v1/setup/user` | ✓ (setup JWT) | Create a second (non-admin) user |
 | POST | `/api/v1/setup/project` | ✓ (setup JWT) | Create a project, optionally adding the second user |
-| POST | `/api/v1/setup/seed` | ✓ (setup JWT) | Import demo project, sprint, issues, labels, comments |
+| POST | `/api/v1/setup/seed` | ✓ (setup JWT) | Import demo project, three sprints (completed, active, planned), issues, labels, comments |
 
 ---
 
@@ -151,6 +151,18 @@ Relations are symmetric and stored once per pair (`task_a_id < task_b_id`). The 
 | Method | Path | Auth | Description |
 |--------|------|:----:|-------------|
 | GET | `/projects/:key/board` | ✓ | Issues grouped by status (kanban columns) |
+
+---
+
+## Project overview
+
+Read-only summaries for the project's main page. Member-only (403 for anyone else, 404 for an unknown key).
+
+| Method | Path | Auth | Description |
+|--------|------|:----:|-------------|
+| GET | `/projects/:key/overview/sprint` | ✓ | Active sprint: dates, overdue flag, tasks and story points per status (`sprint` is `null` when none is active) |
+| GET | `/projects/:key/overview/tasks` | ✓ | Up to 10 open tasks of the active sprint, by priority then status |
+| GET | `/projects/:key/overview/activity?scope=all\|sprint` | ✓ | Up to 10 events from the last 5 days: tasks moved into In Progress, In Review or Done, and added comments (never comment text); `scope=sprint` limits it to the active sprint; any other scope is 400 |
 
 ---
 

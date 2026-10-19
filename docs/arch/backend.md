@@ -97,6 +97,7 @@ type Storage interface {
 | `ProjectService` | Project CRUD, member management |
 | `IssueService` | Issue CRUD; cascade delete (attachments + relations); `GetMyIssues` across projects |
 | `BoardService` | Kanban view — issues grouped by status for a project |
+| `OverviewService` | Read-only project overview: active sprint progress, open sprint tasks, recent activity (member-only) |
 | `SprintService` | Sprint lifecycle (planned → active → completed); burndown data; velocity; backlog |
 | `CommentService` | Comment CRUD; notification fan-out to assignee and reporter |
 | `ActivityService` | Record field-change events; list by issue or user |

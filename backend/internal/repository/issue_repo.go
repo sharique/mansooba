@@ -124,3 +124,31 @@ func (r *issueRepo) CountBySprint(ctx context.Context, sprintID uint) (int, int,
 		Scan(&res).Error
 	return res.Count, res.TotalPoints, err
 }
+
+// CountByStatusForSprint returns task and story-point totals per status for a
+// sprint in one grouped query. Statuses without issues are not returned.
+func (r *issueRepo) CountByStatusForSprint(ctx context.Context, sprintID uint) ([]domain.StatusTotals, error) {
+	var rows []domain.StatusTotals
+	err := r.db.WithContext(ctx).
+		Model(&domain.Issue{}).
+		Select("status AS status, COUNT(*) AS tasks, COALESCE(SUM(story_points), 0) AS points").
+		Where("sprint_id = ?", sprintID).
+		Group("status").
+		Scan(&rows).Error
+	return rows, err
+}
+
+// FindOpenBySprint returns the sprint's issues that are not done, most urgent
+// first. The two CASE expressions give priority and status an explicit rank
+// because neither has a natural sort order; anything unranked sorts last.
+func (r *issueRepo) FindOpenBySprint(ctx context.Context, sprintID uint, limit int) ([]*domain.Issue, error) {
+	var issues []*domain.Issue
+	err := r.db.WithContext(ctx).
+		Where("sprint_id = ? AND status <> ?", sprintID, domain.IssueStatusDone).
+		Order("CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END").
+		Order("CASE status WHEN 'in_review' THEN 0 WHEN 'in_progress' THEN 1 WHEN 'todo' THEN 2 ELSE 3 END").
+		Order("updated_at DESC, id ASC").
+		Limit(limit).
+		Find(&issues).Error
+	return issues, err
+}

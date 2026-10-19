@@ -28,6 +28,7 @@ spec-driven engineering process.
 | **Projects** | Create projects, invite teammates, and control who can manage them |
 | **Issues** | Track tasks, bugs, stories, and epics with labels, priorities, and related-issue links |
 | **Attachments** | Attach files to issues, stored in S3 and access-controlled per project |
+| **Project overview** | Open a project and see the active sprint's progress, the sprint's open tasks and recent activity at a glance; members live on their own page |
 | **Sprints** | Plan and run time-boxed sprints with a kanban board, burndown chart, and velocity chart |
 | **Backlog** | Triage unscheduled work and pull it into upcoming sprints |
 | **Collaboration** | Comment on issues, @mention teammates, and follow per-issue activity feeds |
@@ -83,6 +84,7 @@ Other ways to run:
 | [Authentication & security](docs/features/auth.md) | JWT strategy, token revocation, password reset flow |
 | [Issues](docs/features/issues.md) | Relations, labels, and how issues connect |
 | [Sprints & board](docs/features/sprints.md) | Lifecycle states, completion migration, burndown & velocity |
+| [Project overview](docs/features/overview.md) | What the overview shows, how each section is computed, who can see it |
 | [Reports](docs/features/reports.md) | Velocity chart data source and rendering approach |
 | [Collaboration](docs/features/collaboration.md) | @mention parsing, notification model, activity feeds |
 | [System admin](docs/features/admin.md) | User management, platform settings, and safety guardrails |

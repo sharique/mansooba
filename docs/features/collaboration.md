@@ -14,6 +14,13 @@ they belong to.
 - Each mentioned username is resolved to a user ID; a notification record is created for
   each resolved user
 - Unresolved @mentions (unknown usernames) are silently ignored
+- An `@` starts a mention only when the character before it is not a letter, digit, underscore, dot or another `@`, so `(@sam)` and `**@sam**` notify but `a@b.com` does not
+
+### Mention autocomplete and warning
+
+- Typing `@` in a comment box (new comment or editing one) lists the other active members of the issue's project: display name over `@username`, never an email address. It filters as you type (name or username, any case, prefix matches first); arrow keys move, Enter or Tab insert `@username `, Escape closes
+- About 400 ms after typing pauses, a non-blocking line warns about each `@handle` that is not a member of the project. It never stops the comment from being posted
+- The list uses the member list already loaded for the issue; it makes no extra request. A mention of a non-member still notifies that user on the server (only the writer is warned)
 
 ### Notification model
 

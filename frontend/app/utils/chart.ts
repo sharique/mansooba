@@ -8,12 +8,14 @@ import type { BurndownData } from '~/types/domain.types'
  *   - "Ideal": a linear guide from total_points to 0 over the sprint duration
  */
 export function toBurndownChartData(burndown: BurndownData): ChartData<'line'> {
-  const labels = burndown.data.map(p => p.date)
-  const actual = burndown.data.map(p => p.remaining_points)
+  // A sprint with no days yet can come back with null data; treat it as empty.
+  const points = burndown.data ?? []
+  const labels = points.map(p => p.date)
+  const actual = points.map(p => p.remaining_points)
 
   const total = burndown.total_points
-  const days = burndown.data.length
-  const ideal = burndown.data.map((_, i) =>
+  const days = points.length
+  const ideal = points.map((_, i) =>
     days <= 1 ? total : Math.round(total - (total / (days - 1)) * i),
   )
 

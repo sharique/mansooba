@@ -468,6 +468,32 @@ func TestSprintService_Burndown_IssueWithCompletedAtCountsAsDoneOnThatDay(t *tes
 	}
 }
 
+func TestSprintService_Burndown_NoDaysYet_ReturnsEmptyNonNilData(t *testing.T) {
+	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1)
+
+	// End date before the start date: the day loop never runs.
+	start := time.Now().UTC().AddDate(0, 0, 3)
+	end := time.Now().UTC().AddDate(0, 0, 1)
+	sprint := &domain.Sprint{
+		ProjectID: p.ID,
+		Status:    domain.SprintStatusActive,
+		Name:      "Sprint 1",
+		StartDate: &start,
+		EndDate:   &end,
+	}
+	_ = sprintRepo.Create(ctx, sprint)
+
+	resp, err := svc.Burndown(ctx, "TEST", sprint.ID, 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Data == nil || len(resp.Data) != 0 {
+		t.Errorf("expected an empty, non-nil slice (JSON []), got %#v", resp.Data)
+	}
+}
+
 func TestSprintService_Burndown_IssueWithNilCompletedAtStaysInRemaining(t *testing.T) {
 	svc, projectRepo, memberRepo, _, sprintRepo := newSprintService()
 	ctx := context.Background()

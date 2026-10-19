@@ -41,6 +41,11 @@ velocity chart below.
 
 ### Burndown chart
 
+- Shown on the project's Reports page, not the board. A sprint dropdown defaults to the sprint
+  in progress (marked "current"), or "None" when no sprint is active; completed sprints can
+  be picked too. Planned sprints are not listed because they have no burndown yet.
+- A sprint with no days to show (for example one starting in the future) returns an empty
+  `data` list, never `null`
 - Data: story points remaining per day, from sprint start to end
 - Computed by walking each day in the sprint's date range and checking each issue's
   `CompletedAt` timestamp (set once, when the issue's status transitions to `done`)

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="max-w-6xl mx-auto p-6">
     <!-- Breadcrumb -->
     <div class="breadcrumbs text-sm mb-4">
       <ul>
@@ -8,46 +8,75 @@
       </ul>
     </div>
 
-    <div v-if="loading" class="space-y-4">
+    <div v-if="projectLoading" class="space-y-2 mb-6">
       <div class="skeleton h-8 w-64" />
-      <div class="skeleton h-4 w-96" />
+      <div class="skeleton h-4 w-96 max-w-full" />
+    </div>
+    <div v-else-if="project" class="mb-6">
+      <h1 class="text-2xl font-bold">{{ project.name }}</h1>
+      <p class="text-base-content/60 mt-1">{{ project.description }}</p>
     </div>
 
-    <template v-else-if="projectsStore.current">
-      <div class="flex items-start justify-between mb-6">
-        <div>
-          <h1 class="text-2xl font-bold">{{ projectsStore.current.name }}</h1>
-          <p class="text-base-content/60 mt-1">{{ projectsStore.current.description }}</p>
-        </div>
-        <button class="btn btn-ghost btn-sm" @click="editModal?.showModal()">Edit</button>
+    <!-- Each section loads and fails on its own. -->
+    <div class="space-y-4">
+      <OverviewSprintSummary
+        :project-key="key"
+        :data="overview.sprint.data"
+        :loading="overview.sprint.loading"
+        :error="overview.sprint.error"
+        @retry="overview.fetchSprint(key)"
+      />
+      <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <OverviewOpenTasks
+          :project-key="key"
+          :data="overview.tasks.data"
+          :loading="overview.tasks.loading"
+          :error="overview.tasks.error"
+          @retry="overview.fetchTasks(key)"
+        />
+        <OverviewRecentActivity
+          :project-key="key"
+          :data="overview.activity.data"
+          :loading="overview.activity.loading"
+          :error="overview.activity.error"
+          :scope="overview.scope"
+          @update:scope="overview.fetchActivity(key, $event)"
+          @retry="overview.fetchActivity(key)"
+        />
       </div>
-
-      <ProjectsMemberList :project-key="key" :owner-id="projectsStore.current.ownerId" />
-    </template>
-
-    <!-- Edit modal -->
-    <dialog ref="editModal" class="modal">
-      <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Edit Project</h3>
-        <ProjectsProjectForm :project="projectsStore.current ?? undefined" @saved="onSaved" @cancel="editModal?.close()" />
-      </div>
-      <form method="dialog" class="modal-backdrop"><button>close</button></form>
-    </dialog>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useProjectsStore } from '~/stores/projects.store'
-import type { Project } from '~/types/domain.types'
-
 const route = useRoute()
 const key = route.params.key as string
 const projectsStore = useProjectsStore()
-const { showSuccess, showError } = useToast()
-const editModal = ref<HTMLDialogElement | null>(null)
-const loading = ref(true)
+const overview = useOverviewStore()
+const { showError } = useToast()
+const projectLoading = ref(true)
+
+// The store keeps the last project it loaded. If this project could not be loaded
+// (for example the person is not a member) that leftover must not be shown.
+const project = computed(() => {
+  const p = projectsStore.current
+  return p && p.key.toLowerCase() === key.toLowerCase() ? p : null
+})
 
 onMounted(async () => {
+  // Start clean so another project's numbers are never shown while this one loads.
+  overview.reset()
+  // Load everything at once; every request records its own failure, so one that
+  // fails never stops the others.
+  await Promise.allSettled([
+    loadProject(),
+    overview.fetchSprint(key),
+    overview.fetchTasks(key),
+    overview.fetchActivity(key),
+  ])
+})
+
+async function loadProject() {
   try {
     await projectsStore.fetchOne(key)
   }
@@ -55,12 +84,7 @@ onMounted(async () => {
     showError('Failed to load project')
   }
   finally {
-    loading.value = false
+    projectLoading.value = false
   }
-})
-
-function onSaved(project: Project) {
-  editModal.value?.close()
-  showSuccess(`Project "${project.name}" updated`)
 }
 </script>

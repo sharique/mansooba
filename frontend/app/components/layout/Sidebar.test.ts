@@ -2,22 +2,30 @@ import { describe, it, expect } from 'vitest'
 import { projectNavLinks, type NavLink } from './Sidebar.vue'
 
 describe('projectNavLinks', () => {
-  it('returns the six project sections for a key', () => {
+  it('returns the seven project sections for a key, Members after Sprints', () => {
     const links = projectNavLinks('apollo')
     expect(links.map(l => l.label)).toEqual(
-      ['Overview', 'Board', 'Backlog', 'Sprints', 'Reports', 'Settings'],
+      ['Overview', 'Board', 'Backlog', 'Sprints', 'Members', 'Reports', 'Settings'],
     )
+    expect(links[4]).toEqual({ label: 'Members', to: '/projects/apollo/members', icon: 'mdi:account-group-outline' })
     expect(links[1]).toEqual({ label: 'Board', to: '/projects/apollo/board', icon: 'mdi:view-column-outline' })
   })
 
-  it('generates correct routes for all six sections', () => {
+  it('generates correct routes for all sections', () => {
     const links = projectNavLinks('demo')
-    expect(links[0].to).toBe('/projects/demo')
-    expect(links[1].to).toBe('/projects/demo/board')
-    expect(links[2].to).toBe('/projects/demo/backlog')
-    expect(links[3].to).toBe('/projects/demo/sprints')
-    expect(links[4].to).toBe('/projects/demo/reports')
-    expect(links[5].to).toBe('/projects/demo/settings')
+    expect(links.map(l => l.to)).toEqual([
+      '/projects/demo',
+      '/projects/demo/board',
+      '/projects/demo/backlog',
+      '/projects/demo/sprints',
+      '/projects/demo/members',
+      '/projects/demo/reports',
+      '/projects/demo/settings',
+    ])
+  })
+
+  it('gives every entry an icon', () => {
+    expect(projectNavLinks('demo').every(l => l.icon.startsWith('mdi:'))).toBe(true)
   })
 
   it('has no two entries pointing at the same page', () => {
