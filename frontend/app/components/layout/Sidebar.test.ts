@@ -2,23 +2,23 @@ import { describe, it, expect } from 'vitest'
 import { projectNavLinks, type NavLink } from './Sidebar.vue'
 
 describe('projectNavLinks', () => {
-  it('returns the seven project sections for a key, Members right after Overview', () => {
+  it('returns the seven project sections for a key, Members after Sprints', () => {
     const links = projectNavLinks('apollo')
     expect(links.map(l => l.label)).toEqual(
-      ['Overview', 'Members', 'Board', 'Backlog', 'Sprints', 'Reports', 'Settings'],
+      ['Overview', 'Board', 'Backlog', 'Sprints', 'Members', 'Reports', 'Settings'],
     )
-    expect(links[1]).toEqual({ label: 'Members', to: '/projects/apollo/members', icon: 'mdi:account-group-outline' })
-    expect(links[2]).toEqual({ label: 'Board', to: '/projects/apollo/board', icon: 'mdi:view-column-outline' })
+    expect(links[4]).toEqual({ label: 'Members', to: '/projects/apollo/members', icon: 'mdi:account-group-outline' })
+    expect(links[1]).toEqual({ label: 'Board', to: '/projects/apollo/board', icon: 'mdi:view-column-outline' })
   })
 
   it('generates correct routes for all sections', () => {
     const links = projectNavLinks('demo')
     expect(links.map(l => l.to)).toEqual([
       '/projects/demo',
-      '/projects/demo/members',
       '/projects/demo/board',
       '/projects/demo/backlog',
       '/projects/demo/sprints',
+      '/projects/demo/members',
       '/projects/demo/reports',
       '/projects/demo/settings',
     ])

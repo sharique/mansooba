@@ -3,7 +3,7 @@
     <div class="card-body gap-3">
       <div class="flex items-center justify-between gap-2">
         <h2 id="overview-sprint-title" class="card-title text-base">Current sprint</h2>
-        <NuxtLink :to="`/projects/${projectKey}/sprints`" class="link link-hover text-sm">Sprints</NuxtLink>
+        <NuxtLink :to="`/projects/${projectKey}/sprints`" class="link link-hover text-sm btn-accent btn">Sprints</NuxtLink>
       </div>
 
       <div v-if="loading" class="space-y-2">

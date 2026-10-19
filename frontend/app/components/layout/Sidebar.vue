@@ -13,11 +13,6 @@ export function projectNavLinks(key: string): NavLink[] {
             icon: "mdi:view-dashboard-outline",
         },
         {
-            label: "Members",
-            to: `/projects/${key}/members`,
-            icon: "mdi:account-group-outline",
-        },
-        {
             label: "Board",
             to: `/projects/${key}/board`,
             icon: "mdi:view-column-outline",
@@ -31,6 +26,11 @@ export function projectNavLinks(key: string): NavLink[] {
             label: "Sprints",
             to: `/projects/${key}/sprints`,
             icon: "mdi:run-fast",
+        },
+        {
+            label: "Members",
+            to: `/projects/${key}/members`,
+            icon: "mdi:account-group-outline",
         },
         {
             label: "Reports",
@@ -117,7 +117,10 @@ onMounted(async () => {
             to="/"
             class="flex items-center gap-2 px-4 h-14 font-bold text-lg shrink-0"
         >
-            <span class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-primary text-primary-content text-xs font-black select-none">M</span>
+            <span
+                class="inline-flex items-center justify-center w-6 h-6 rounded-md bg-primary text-primary-content text-xs font-black select-none"
+                >M</span
+            >
             Mansooba
         </NuxtLink>
 

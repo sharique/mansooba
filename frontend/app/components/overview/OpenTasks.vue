@@ -1,12 +1,12 @@
 <template>
   <section class="card bg-base-100 border border-base-300" aria-labelledby="overview-tasks-title">
     <div class="card-body gap-3">
-      <div class="flex items-center justify-between gap-2">
-        <h2 id="overview-tasks-title" class="card-title text-base">Open tasks</h2>
+      <div class="flex items-center justify-between gap-2 ">
+        <h2 id="overview-tasks-title" class="card-title text-base border-b pb-1">Open tasks</h2>
         <NuxtLink
           v-if="data?.sprint_active"
           :to="`/projects/${projectKey}/board`"
-          class="link link-hover text-sm"
+          class="btn btn-accent"
         >Goto board</NuxtLink>
       </div>
 

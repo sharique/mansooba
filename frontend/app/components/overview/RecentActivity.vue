@@ -1,7 +1,7 @@
 <template>
   <section class="card bg-base-100 border border-base-300" aria-labelledby="overview-activity-title">
     <div class="card-body gap-3">
-      <h2 id="overview-activity-title" class="card-title text-base">Recent activity</h2>
+      <h2 id="overview-activity-title" class="card-title text-base border-b pb-1">Recent activity</h2>
 
       <div role="tablist" aria-label="Recent activity scope" class="tabs tabs-bordered">
         <button
