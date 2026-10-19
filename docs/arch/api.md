@@ -35,7 +35,7 @@ returns 409 on every subsequent call.
 | POST | `/api/v1/setup/admin` | — (rate-limited) | Create the first admin account; returns a JWT |
 | POST | `/api/v1/setup/user` | ✓ (setup JWT) | Create a second (non-admin) user |
 | POST | `/api/v1/setup/project` | ✓ (setup JWT) | Create a project, optionally adding the second user |
-| POST | `/api/v1/setup/seed` | ✓ (setup JWT) | Import demo project, sprint, issues, labels, comments |
+| POST | `/api/v1/setup/seed` | ✓ (setup JWT) | Import demo project, three sprints (completed, active, planned), issues, labels, comments |
 
 ---
 

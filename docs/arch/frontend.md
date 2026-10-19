@@ -66,10 +66,10 @@ File-based Nuxt routes using Composition API. Pages trigger store actions and co
 | `/reports` | `pages/reports.vue` | Cross-project reports |
 | `/projects/:key` | `pages/projects/[key]/index.vue` | Project overview: sprint progress, open tasks, recent activity (all / current sprint tabs) |
 | `/projects/:key/members` | `pages/projects/[key]/members.vue` | Members and project details (edit name and description) |
-| `/projects/:key/board` | `pages/projects/[key]/board.vue` | Kanban board |
+| `/projects/:key/board` | `pages/projects/[key]/board.vue` | Kanban board (the burndown moved to Reports) |
 | `/projects/:key/backlog` | `pages/projects/[key]/backlog.vue` | Sprint backlog |
 | `/projects/:key/sprints` | `pages/projects/[key]/sprints.vue` | Sprints page |
-| `/projects/:key/reports` | `pages/projects/[key]/reports.vue` | Velocity + burndown charts |
+| `/projects/:key/reports` | `pages/projects/[key]/reports.vue` | Burndown (sprint selector, defaults to the active sprint) + velocity charts |
 | `/projects/:key/settings` | `pages/projects/[key]/settings.vue` | Project settings |
 | `/projects/:key/issues/:id` | `pages/projects/[key]/[id].vue` | Issue detail (comments, attachments, relations, activity) |
 
@@ -82,7 +82,7 @@ Vue SFCs grouped by domain. Nuxt auto-imports them with a `<Directory><Component
 | `auth/` | Login/register forms |
 | `backlog/` | BacklogList, BacklogIssueCard, sprint assignment |
 | `board/` | KanbanBoard, KanbanColumn, KanbanCard |
-| `charts/` | BurndownChart, VelocityChart (Chart.js wrappers) |
+| `charts/` | BurndownChart (Chart.js wrapper) |
 | `common/` | EmptyState, UserAvatar (with OKLCH initials fallback) |
 | `dashboard/` | DashboardGrid, MyIssuesWidget, RecentActivityWidget |
 | `issues/` | IssueForm, IssueDetail, AttachmentSection, CommentSection/CommentItem, ActivityFeed, RelatedTasksSection, IssueLabelPicker |
@@ -90,6 +90,7 @@ Vue SFCs grouped by domain. Nuxt auto-imports them with a `<Directory><Component
 | `overview/` | SprintSummary, OpenTasks, RecentActivity (the project overview's sections) |
 | `layout/` | Sidebar, TopBar, ThemeToggle, NotificationBell |
 | `projects/` | ProjectForm, ProjectMemberList |
+| `reports/` | BurndownSection (sprint selector and burndown card), VelocityChart (bar chart) |
 | `relations/` | RelationItem, RelationsPanel (link/unlink tasks) |
 | `reports/` | report-specific charts and stat cards |
 | `sprints/` | SprintList, SprintCard, SprintForm |

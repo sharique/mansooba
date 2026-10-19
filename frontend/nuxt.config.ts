@@ -15,6 +15,12 @@ export default defineNuxtConfig({
   css: ["~/assets/css/main.css"],
   vite: {
     plugins: [tailwindcss()],
+    // Pre-bundle the chart libraries at start-up. Otherwise the dev server finds them
+    // only when the board first renders, re-optimises and reloads mid-session, which
+    // can leave two copies of Vue loaded.
+    optimizeDeps: {
+      include: ["chart.js", "vue-chartjs"],
+    },
   },
   runtimeConfig: {
     public: {
