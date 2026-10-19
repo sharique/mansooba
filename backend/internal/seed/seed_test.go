@@ -58,7 +58,7 @@ func TestSeed_Success(t *testing.T) {
 	assert.False(t, result.Skipped)
 	assert.Equal(t, "DEMO", result.ProjectKey)
 	assert.Equal(t, "Mansooba Demo", result.ProjectName)
-	assert.Equal(t, 7, result.IssuesCreated)
+	assert.Equal(t, 20, result.IssuesCreated)
 	assert.Equal(t, 2, result.LabelsCreated)
 	assert.Equal(t, 2, result.CommentsCreated)
 	assert.NotZero(t, result.ProjectID)
@@ -74,8 +74,8 @@ func TestSeed_Success(t *testing.T) {
 	db.Model(&domain.Sprint{}).Count(&sprintCount)
 	db.Model(&domain.Label{}).Count(&labelCount)
 	assert.EqualValues(t, 1, projectCount)
-	assert.EqualValues(t, 7, issueCount)
-	assert.EqualValues(t, 1, sprintCount)
+	assert.EqualValues(t, 20, issueCount)
+	assert.EqualValues(t, 3, sprintCount)
 	assert.EqualValues(t, 2, labelCount)
 }
 
@@ -94,7 +94,7 @@ func TestSeed_Idempotent(t *testing.T) {
 	// Row counts unchanged
 	var issueCount int64
 	db.Model(&domain.Issue{}).Count(&issueCount)
-	assert.EqualValues(t, 7, issueCount)
+	assert.EqualValues(t, 20, issueCount)
 }
 
 func TestSeed_ConflictFallback(t *testing.T) {
@@ -111,7 +111,7 @@ func TestSeed_ConflictFallback(t *testing.T) {
 	assert.False(t, result.Skipped)
 	assert.Equal(t, "SDEMO", result.ProjectKey)
 	assert.Equal(t, "Seed Demo Project", result.ProjectName)
-	assert.Equal(t, 7, result.IssuesCreated)
+	assert.Equal(t, 20, result.IssuesCreated)
 }
 
 func TestSeed_NoAdmin(t *testing.T) {
@@ -180,4 +180,37 @@ func TestSeed_CreatesNoUserAccounts(t *testing.T) {
 	db.Model(&domain.User{}).Count(&after)
 
 	assert.Equal(t, before, after)
+}
+
+// The demo project has one completed, one active and one planned sprint, each
+// with at least five tickets, so velocity, burndown and the backlog all have data.
+func TestSeed_ThreeSprintsWithTickets(t *testing.T) {
+	db := newTestDB(t)
+	admin := createAdmin(t, db)
+	result, err := seed.Seed(context.Background(), db, admin.ID)
+	require.NoError(t, err)
+
+	var sprints []domain.Sprint
+	require.NoError(t, db.Order("id").Find(&sprints).Error)
+	require.Len(t, sprints, 3)
+	assert.Equal(t, []string{domain.SprintStatusCompleted, domain.SprintStatusActive, domain.SprintStatusPlanning},
+		[]string{sprints[0].Status, sprints[1].Status, sprints[2].Status})
+	assert.Equal(t, sprints[1].ID, result.SprintID)
+
+	for _, sp := range sprints {
+		var n int64
+		db.Model(&domain.Issue{}).Where("sprint_id = ?", sp.ID).Count(&n)
+		assert.GreaterOrEqual(t, n, int64(5), "sprint %s needs at least 5 tickets", sp.Name)
+	}
+
+	// Every ticket of the completed sprint is done and has a completion time.
+	var notDone int64
+	db.Model(&domain.Issue{}).Where("sprint_id = ? AND (status <> ? OR completed_at IS NULL)", sprints[0].ID, domain.IssueStatusDone).Count(&notDone)
+	assert.Zero(t, notDone)
+
+	// Dates run completed → active → planned, and today sits inside the active sprint.
+	require.True(t, sprints[0].EndDate.Before(*sprints[1].StartDate))
+	require.True(t, sprints[1].EndDate.Before(*sprints[2].StartDate))
+	now := time.Now().UTC()
+	assert.True(t, sprints[1].StartDate.Before(now) && sprints[1].EndDate.After(now))
 }

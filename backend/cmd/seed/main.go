@@ -53,6 +53,6 @@ func main() {
 
 	fmt.Println("Seed data created:")
 	fmt.Printf("  Project:  %s [%s]\n", result.ProjectName, result.ProjectKey)
-	fmt.Println("  Sprint:   Sprint 1 (active)")
+	fmt.Printf("  Sprints:  %d (1 completed, 1 active, 1 planned)\n", result.SprintsCreated)
 	fmt.Printf("  Issues: %d  Labels: %d  Comments: %d\n", result.IssuesCreated, result.LabelsCreated, result.CommentsCreated)
 }
