@@ -13,7 +13,9 @@ Use this guide when you want a tight Go + Node dev loop without building Docker 
 - [2. Start Mailpit, LocalStack, and Loki](#2-start-mailpit-localstack-and-loki)
 - [3. Backend](#3-backend)
 - [4. Frontend](#4-frontend)
+- [5. First run](#5-first-run)
 - [Running tests](#running-tests)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -41,6 +43,9 @@ Key variables:
 
 | Variable | Default | Description |
 |---|---|---|
+| `SERVER_PORT` | `8080` | Port the API listens on |
+| `CORS_ORIGINS` | `http://localhost:3000` | Browser origins allowed to call the API; must include the frontend's address |
+| `LOG_LEVEL` | `debug` in `.env.example` | Log verbosity |
 | `JWT_SECRET` | *(required)* | HMAC secret used to sign all JWTs — use any long random string locally |
 | `JWT_ACCESS_TTL` | `15m` | Access token lifetime |
 | `JWT_REFRESH_TTL` | `168h` | Refresh token lifetime (7 days) |
@@ -139,6 +144,35 @@ npm run dev
 # App at http://localhost:3000
 ```
 
+The frontend calls the API at `http://localhost:8080/api/v1` by default. If the backend runs on
+another host or port, start the dev server with `NUXT_PUBLIC_API_BASE_URL` set to the full API
+URL (for example `NUXT_PUBLIC_API_BASE_URL=http://localhost:9090/api/v1 npm run dev`) and add the
+frontend's origin to the backend's `CORS_ORIGINS`.
+
+On the first start Vite may print "New dependencies found" and reload the page once; this is
+normal. The chart libraries are pre-bundled so it does not happen again mid-session.
+
+---
+
+## 5. First run
+
+With an empty database there are no users. Open **http://localhost:3000/setup** and follow the
+wizard: it creates the administrator account (with its permanent username), and can optionally
+create a second user, a first project and the example data. See
+[the first-run wizard guide](../features/first-run-wizard.md).
+
+The example data is a `DEMO` project with three sprints (one completed, one in progress, one
+planned), 20 tickets with story points, two labels and two comments. If you skipped it, import it
+later, once an administrator exists:
+
+```sh
+cd backend
+go run ./cmd/seed
+```
+
+The import is skipped when the demo project already exists, so to see new demo data you need a
+fresh database (delete `backend/dev.db` for SQLite).
+
 ---
 
 ## Running tests
@@ -154,4 +188,26 @@ cd frontend
 npx vitest run        # all tests once
 npx vitest            # watch mode
 npx nuxi typecheck    # TypeScript check
+npm run build         # production build; run it before opening a PR
 ```
+
+The storage tests (attachments, avatars) run against the LocalStack from step 2 and are skipped
+when it is not running. To make a missing LocalStack a failure instead, set `REQUIRE_LOCALSTACK=1`.
+LocalStack does not keep its bucket across restarts. If the tests fail with `NoSuchBucket`,
+recreate it:
+
+```sh
+AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
+  aws --endpoint-url http://localhost:4566 s3 mb s3://mansooba-attachments --region us-east-1
+```
+
+---
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `go.mod requires go >= 1.27 (running go 1.2x; GOTOOLCHAIN=local)` | See the Go toolchain note under [Prerequisites](#prerequisites). |
+| Browser console shows `Cannot read properties of null (reading 'emitsOptions')`, or pages break after a reload | The dev server's cache is stale, usually after switching branches or running `npm run build` while `npm run dev` was up. Stop the dev server, run `rm -rf frontend/.nuxt frontend/node_modules/.cache/vite`, restart it and hard-refresh the browser. |
+| The frontend loads but every request fails with a CORS error | Add the frontend's origin to `CORS_ORIGINS` and restart the backend. |
+| Password-reset email never arrives | Start Mailpit (step 2) and read the message at http://localhost:8025. |
