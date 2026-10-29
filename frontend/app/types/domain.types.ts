@@ -56,6 +56,8 @@ export interface Issue {
   created_at: string
   completed_at?: string | null
   attachment_count: number
+  /** Board cards only: true when the task belongs to a completed sprint (cannot be moved there). */
+  locked?: boolean
 }
 
 // ── Domain constant objects ───────────────────────────────────────────────────
