@@ -3,6 +3,9 @@ import type { Issue } from '~/types/domain.types'
 type Status = Issue['status']
 type Priority = Issue['priority']
 
+// The board's columns, in display order (the backlog is not a column).
+export const BOARD_STATUSES = ['todo', 'in_progress', 'in_review', 'done'] as const
+
 export function statusBadgeClass(status: Status): string {
   switch (status) {
     case 'in_progress': return 'badge-primary'
