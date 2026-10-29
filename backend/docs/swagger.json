@@ -2084,7 +2084,7 @@
                 "tags": [
                     "board"
                 ],
-                "summary": "Get the kanban board for a project",
+                "summary": "Get the sprint board for a project",
                 "parameters": [
                     {
                         "type": "string",
@@ -4128,10 +4128,70 @@
                 "issues": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/dto.IssueResponse"
+                        "$ref": "#/definitions/dto.BoardIssue"
                     }
                 },
                 "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.BoardIssue": {
+            "type": "object",
+            "properties": {
+                "assignee_avatar_url": {
+                    "type": "string"
+                },
+                "assignee_id": {
+                    "type": "integer"
+                },
+                "assignee_name": {
+                    "type": "string"
+                },
+                "attachment_count": {
+                    "type": "integer"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "locked": {
+                    "description": "Locked is true when the task belongs to a completed sprint. The board shows such a\ncard with a lock and does not let it be dragged (the task page is unchanged).",
+                    "type": "boolean"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "project_id": {
+                    "type": "integer"
+                },
+                "reporter_id": {
+                    "type": "integer"
+                },
+                "sprint_id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "story_points": {
+                    "type": "integer"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "type": {
                     "type": "string"
                 }
             }

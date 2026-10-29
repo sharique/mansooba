@@ -163,9 +163,51 @@ definitions:
     properties:
       issues:
         items:
-          $ref: '#/definitions/dto.IssueResponse'
+          $ref: '#/definitions/dto.BoardIssue'
         type: array
       status:
+        type: string
+    type: object
+  dto.BoardIssue:
+    properties:
+      assignee_avatar_url:
+        type: string
+      assignee_id:
+        type: integer
+      assignee_name:
+        type: string
+      attachment_count:
+        type: integer
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      key:
+        type: string
+      locked:
+        description: |-
+          Locked is true when the task belongs to a completed sprint. The board shows such a
+          card with a lock and does not let it be dragged (the task page is unchanged).
+        type: boolean
+      priority:
+        type: string
+      project_id:
+        type: integer
+      reporter_id:
+        type: integer
+      sprint_id:
+        type: integer
+      status:
+        type: string
+      story_points:
+        type: integer
+      title:
+        type: string
+      type:
         type: string
     type: object
   dto.BoardResponse:
@@ -2281,7 +2323,7 @@ paths:
             $ref: '#/definitions/apierror.APIError'
       security:
       - BearerAuth: []
-      summary: Get the kanban board for a project
+      summary: Get the sprint board for a project
       tags:
       - board
   /projects/{key}/issues:

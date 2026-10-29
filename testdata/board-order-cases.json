@@ -1,0 +1,54 @@
+{
+  "description": "Shared by the Go board service test and the Vitest boardOrder test. Cards are listed in arbitrary (insertion) order; 'expected' is the ids in board order: priority critical, high, medium, low, anything else last, then id ascending.",
+  "cases": [
+    {
+      "name": "all four priorities mixed",
+      "cards": [
+        { "id": 5, "priority": "low" },
+        { "id": 2, "priority": "critical" },
+        { "id": 9, "priority": "medium" },
+        { "id": 1, "priority": "high" },
+        { "id": 7, "priority": "critical" }
+      ],
+      "expected": [2, 7, 1, 9, 5]
+    },
+    {
+      "name": "same priority is ordered by id",
+      "cards": [
+        { "id": 3, "priority": "high" },
+        { "id": 1, "priority": "high" },
+        { "id": 2, "priority": "high" }
+      ],
+      "expected": [1, 2, 3]
+    },
+    {
+      "name": "unknown priority sorts last",
+      "cards": [
+        { "id": 1, "priority": "weird" },
+        { "id": 2, "priority": "low" },
+        { "id": 3, "priority": "critical" }
+      ],
+      "expected": [3, 2, 1]
+    },
+    {
+      "name": "empty list",
+      "cards": [],
+      "expected": []
+    },
+    {
+      "name": "single card",
+      "cards": [{ "id": 4, "priority": "medium" }],
+      "expected": [4]
+    },
+    {
+      "name": "ids not in insertion order",
+      "cards": [
+        { "id": 10, "priority": "medium" },
+        { "id": 4, "priority": "medium" },
+        { "id": 7, "priority": "high" },
+        { "id": 2, "priority": "low" }
+      ],
+      "expected": [7, 4, 10, 2]
+    }
+  ]
+}

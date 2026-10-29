@@ -38,10 +38,10 @@ func TestBoardHandler_GetBoard_Returns200(t *testing.T) {
 		getBoardFn: func(_ context.Context, _ string, _ uint) (*dto.BoardResponse, error) {
 			return &dto.BoardResponse{
 				Columns: []dto.BoardColumn{
-					{Status: domain.IssueStatusTodo, Issues: []dto.IssueResponse{{ID: 1, Key: "PROJ-1"}}},
-					{Status: domain.IssueStatusInProgress, Issues: []dto.IssueResponse{}},
-					{Status: domain.IssueStatusInReview, Issues: []dto.IssueResponse{}},
-					{Status: domain.IssueStatusDone, Issues: []dto.IssueResponse{}},
+					{Status: domain.IssueStatusTodo, Issues: []dto.BoardIssue{{IssueResponse: dto.IssueResponse{ID: 1, Key: "PROJ-1"}}}},
+					{Status: domain.IssueStatusInProgress, Issues: []dto.BoardIssue{}},
+					{Status: domain.IssueStatusInReview, Issues: []dto.BoardIssue{}},
+					{Status: domain.IssueStatusDone, Issues: []dto.BoardIssue{}},
 				},
 			}, nil
 		},
@@ -99,5 +99,49 @@ func TestBoardHandler_GetBoard_Returns404_ForMissingProject(t *testing.T) {
 
 	if rec.Code != http.StatusNotFound {
 		t.Errorf("expected 404, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestBoardHandler_GetBoard_ReportsLockedOnEveryCard(t *testing.T) {
+	svc := &stubBoardService{
+		getBoardFn: func(_ context.Context, _ string, _ uint) (*dto.BoardResponse, error) {
+			return &dto.BoardResponse{Columns: []dto.BoardColumn{{
+				Status: domain.IssueStatusDone,
+				Issues: []dto.BoardIssue{
+					{IssueResponse: dto.IssueResponse{ID: 1, Key: "PROJ-1"}, Locked: true},
+					{IssueResponse: dto.IssueResponse{ID: 2, Key: "PROJ-2"}},
+				},
+			}}}, nil
+		},
+	}
+	e := newBoardEcho(handler.NewBoardHandler(svc))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/PROJ/board", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var raw struct {
+		Columns []struct {
+			Issues []map[string]any `json:"issues"`
+		} `json:"columns"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &raw); err != nil {
+		t.Fatalf("could not decode response: %v", err)
+	}
+	cards := raw.Columns[0].Issues
+	if len(cards) != 2 {
+		t.Fatalf("expected 2 cards, got %d", len(cards))
+	}
+	if cards[0]["locked"] != true {
+		t.Errorf("first card: locked = %v, want true", cards[0]["locked"])
+	}
+	if v, present := cards[1]["locked"]; !present || v != false {
+		t.Errorf("second card: locked = %v (present %v), want an explicit false", v, present)
+	}
+	if cards[0]["key"] != "PROJ-1" {
+		t.Errorf("issue fields must stay at the top level of the card, got %v", cards[0])
 	}
 }
