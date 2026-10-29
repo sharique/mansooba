@@ -43,6 +43,7 @@ Pinia stores hold fetched state and expose actions that call services. They are 
 | `issues` | Issue list and active issue for a project |
 | `projects` | Project list, active project, member list |
 | `sprints` | Sprints, active sprint, burndown/velocity data |
+| `board` | The board's columns, the optimistic move of a card (with a per-card save queue and rollback), the last failed move, the text announced to screen readers, and the quiet refresh when the page is revisited |
 | `overview` | The project overview's three sections (sprint progress, open tasks, recent activity), each with its own loading and error state, plus the selected activity tab |
 | `comments` | Comments for the currently viewed issue |
 | `labels` | Labels for a project and for individual issues |
@@ -66,7 +67,7 @@ File-based Nuxt routes using Composition API. Pages trigger store actions and co
 | `/reports` | `pages/reports.vue` | Cross-project reports |
 | `/projects/:key` | `pages/projects/[key]/index.vue` | Project overview: sprint progress, open tasks, recent activity (all / current sprint tabs) |
 | `/projects/:key/members` | `pages/projects/[key]/members.vue` | Members and project details (edit name and description) |
-| `/projects/:key/board` | `pages/projects/[key]/board.vue` | Kanban board (the burndown moved to Reports) |
+| `/projects/:key/board` | `pages/projects/[key]/board.vue` | Sprint board (the burndown moved to Reports) |
 | `/projects/:key/backlog` | `pages/projects/[key]/backlog.vue` | Sprint backlog |
 | `/projects/:key/sprints` | `pages/projects/[key]/sprints.vue` | Sprints page |
 | `/projects/:key/reports` | `pages/projects/[key]/reports.vue` | Burndown (sprint selector, defaults to the active sprint) + velocity charts |
@@ -81,7 +82,7 @@ Vue SFCs grouped by domain. Nuxt auto-imports them with a `<Directory><Component
 |-----------|---------|
 | `auth/` | Login/register forms |
 | `backlog/` | BacklogList, BacklogIssueCard, sprint assignment |
-| `board/` | KanbanBoard, KanbanColumn, KanbanCard |
+| `board/` | BoardColumn (drop target, built on `vue-draggable-plus`), BoardCard (draggable card, keyboard "Move to…" control, locked state) |
 | `charts/` | BurndownChart (Chart.js wrapper) |
 | `common/` | EmptyState, UserAvatar (with OKLCH initials fallback) |
 | `dashboard/` | DashboardGrid, MyIssuesWidget, RecentActivityWidget |
@@ -107,6 +108,8 @@ Vue SFCs grouped by domain. Nuxt auto-imports them with a `<Directory><Component
 | `useTheme` | Reads/toggles the current theme |
 | `useTimeFormatter` | Relative time formatting (e.g. "2 hours ago") |
 | `useToast` | Push toast notifications from anywhere in the app |
+
+Board helpers live in `utils/`: `boardOrder.ts` (the column sort, mirrors the server) and `dragGuard.ts` (stops the click that can follow a drag from also opening the task).
 
 ### `middleware/`
 
