@@ -19,16 +19,24 @@ import type { Comment, ActivityEvent } from '~/types/domain.types'
 import { ActivityKind } from '~/types/domain.types'
 import ActivityItem from '~/components/issues/ActivityItem.vue'
 
-const props = defineProps<{ comments: Comment[]; activity: ActivityEvent[] }>()
+const props = defineProps<{
+  comments: Comment[]
+  activity: ActivityEvent[]
+  // On a task page the comments are listed themselves, so their "comment added" events
+  // are left out. A person's own activity has no comments list, so it shows the events.
+  showCommentEvents?: boolean
+  newestFirst?: boolean
+}>()
 
 interface TimelineItem { key: string; type: 'activity' | 'comment'; created_at: string }
 
 const timeline = computed<(TimelineItem & (ActivityEvent | Comment))[]>(() => {
   const acts = props.activity
-    .filter(a => a.kind !== ActivityKind.CommentAdded)
+    .filter(a => props.showCommentEvents || a.kind !== ActivityKind.CommentAdded)
     .map(a => ({ ...a, key: `a-${a.id}`, type: 'activity' as const }))
   const coms = props.comments.map(c => ({ ...c, key: `c-${c.id}`, type: 'comment' as const }))
-  return [...acts, ...coms].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  const oldestFirst = [...acts, ...coms].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  return props.newestFirst ? oldestFirst.reverse() : oldestFirst
 })
 
 const { formatDateTime } = useTimeFormatter()

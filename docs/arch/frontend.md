@@ -109,6 +109,8 @@ Vue SFCs grouped by domain. Nuxt auto-imports them with a `<Directory><Component
 | `useTimeFormatter` | Relative time formatting (e.g. "2 hours ago") |
 | `useToast` | Push toast notifications from anywhere in the app |
 
+`utils/activityText.ts` holds the one sentence for each kind of activity event, used by the task page, the Settings "My Activity" tab and the My Desk widget.
+
 Board helpers live in `utils/`: `boardOrder.ts` (the column sort, mirrors the server) and `dragGuard.ts` (stops the click that can follow a drag from also opening the task).
 
 ### `middleware/`

@@ -137,6 +137,8 @@
         v-else
         :comments="[]"
         :activity="authStore.myActivity"
+        show-comment-events
+        newest-first
       />
     </div>
   </div>

@@ -223,6 +223,8 @@ export const ActivityKind = {
   CommentAdded:       'comment_added',
   LabelAdded:         'label_added',
   LabelRemoved:       'label_removed',
+  AttachmentAdded:    'attachment_added',
+  AttachmentRemoved:  'attachment_removed',
   IssueDeleted:       'issue_deleted',
 } as const
 

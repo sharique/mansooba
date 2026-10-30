@@ -48,8 +48,8 @@ Events recorded:
 ### My Activity feed
 
 - Aggregates activity records across all projects the user belongs to
-- Paginated; most recent events first
-- Includes the tasks the user deleted ("deleted the task …"). Older events of a task that has since been deleted still show, without the task's key
+- Paginated; most recent events first, on the Settings "My Activity" tab and in the My Desk widget alike
+- Lists every kind of event the user caused, including comments they added, attachments, and tasks they deleted ("deleted the task …"). Both screens use one wording (`utils/activityText.ts`), so an event reads the same everywhere. Older events of a task that has since been deleted still show, without the task's key
 
 ## API endpoints
 
