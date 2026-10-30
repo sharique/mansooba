@@ -23,7 +23,7 @@
           <span class="text-base-content/40 w-32 shrink-0 text-xs mt-0.5">
             {{ formatDateTime(event.created_at) }}
           </span>
-          <span class="text-base-content/70">{{ describeEvent(event) }}</span>
+          <span class="text-base-content/70">{{ describeActivity(event) }}</span>
         </div>
       </div>
     </div>
@@ -33,7 +33,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '~/stores/auth.store'
 import type { ActivityEvent } from '~/types/domain.types'
-import { ActivityKind } from '~/types/domain.types'
+import { describeActivity } from '~/utils/activityText'
 
 const props = defineProps<{ loading: boolean }>()
 
@@ -42,20 +42,4 @@ const { formatDateTime } = useTimeFormatter()
 
 // Show last 10 events
 const events = computed<ActivityEvent[]>(() => authStore.myActivity.slice(0, 10))
-
-function describeEvent(e: ActivityEvent): string {
-  const actor = e.actor_name || `User ${e.actor_id}`
-  const issue = e.issue_key ? `[${e.issue_key}] ` : ''
-  switch (e.kind) {
-    case ActivityKind.StatusChanged:      return `${issue}${actor} changed status from "${e.old_value}" to "${e.new_value}"`
-    case ActivityKind.AssigneeChanged:    return `${issue}${actor} changed assignee`
-    case ActivityKind.PriorityChanged:    return `${issue}${actor} changed priority from "${e.old_value}" to "${e.new_value}"`
-    case ActivityKind.SprintChanged:      return `${issue}${actor} changed sprint`
-    case ActivityKind.StoryPointsChanged: return `${issue}${actor} changed story points from ${e.old_value} to ${e.new_value}`
-    case ActivityKind.LabelAdded:         return `${issue}${actor} added label "${e.new_value}"`
-    case ActivityKind.LabelRemoved:       return `${issue}${actor} removed label "${e.old_value}"`
-    case ActivityKind.CommentAdded:       return `${issue}${actor} added a comment`
-    default:                              return `${issue}${actor} updated issue`
-  }
-}
 </script>

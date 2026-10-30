@@ -52,11 +52,11 @@ type OverviewTasksResponse struct {
 	Items        []OpenTaskResponse `json:"items"`
 }
 
-// RecentActivityResponse is one progress or comment event. It never carries the
-// text of a comment.
+// RecentActivityResponse is one progress, comment or deletion event. It never carries
+// the text of a comment. For a deleted task, IssueID no longer points at anything.
 type RecentActivityResponse struct {
 	ID         uint      `json:"id"`
-	Kind       string    `json:"kind"` // status_changed | comment_added
+	Kind       string    `json:"kind"` // status_changed | comment_added | issue_deleted
 	Actor      PersonRef `json:"actor"`
 	IssueID    uint      `json:"issue_id"`
 	IssueKey   string    `json:"issue_key"`

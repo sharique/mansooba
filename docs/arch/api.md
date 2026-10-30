@@ -150,7 +150,7 @@ Relations are symmetric and stored once per pair (`task_a_id < task_b_id`). The 
 
 | Method | Path | Auth | Description |
 |--------|------|:----:|-------------|
-| GET | `/projects/:key/board` | ✓ | Issues grouped by status (kanban columns) |
+| GET | `/projects/:key/board` | ✓ | Issues grouped by status (sprint board columns). Each column is ordered by priority (critical first) then issue number; each card carries `locked` (true when its task belongs to a completed sprint) |
 
 ---
 

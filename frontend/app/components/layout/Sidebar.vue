@@ -13,7 +13,7 @@ export function projectNavLinks(key: string): NavLink[] {
             icon: "mdi:view-dashboard-outline",
         },
         {
-            label: "Board",
+            label: "Sprint board",
             to: `/projects/${key}/board`,
             icon: "mdi:view-column-outline",
         },

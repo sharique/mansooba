@@ -1,7 +1,7 @@
 <template>
   <div class="max-w-2xl mx-auto py-8 px-4">
     <div class="mb-6 flex items-center gap-4">
-      <NuxtLink :to="`/projects/${key}/board`" class="btn btn-sm btn-ghost">← Board</NuxtLink>
+      <NuxtLink :to="`/projects/${key}/board`" class="btn btn-sm btn-ghost">← Sprint board</NuxtLink>
       <h1 class="text-xl font-bold">Project Settings</h1>
     </div>
     <LabelsLabelManager :project-key="key" />

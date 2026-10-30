@@ -9,7 +9,7 @@ import (
 	"github.com/sharique/mansooba/internal/service"
 )
 
-// BoardHandler exposes the kanban board aggregation endpoint.
+// BoardHandler exposes the sprint board aggregation endpoint.
 type BoardHandler struct {
 	svc service.BoardService
 }
@@ -20,7 +20,7 @@ func NewBoardHandler(svc service.BoardService) *BoardHandler {
 }
 
 // GetBoard godoc
-// @Summary      Get the kanban board for a project
+// @Summary      Get the sprint board for a project
 // @Tags         board
 // @Produce      json
 // @Security     BearerAuth

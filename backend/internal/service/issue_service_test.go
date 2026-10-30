@@ -984,3 +984,116 @@ func TestIssueService_NilNotifierIsTolerated(t *testing.T) {
 	_, err = svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{AssigneeID: &other})
 	require.NoError(t, err)
 }
+
+// A board move sends only the status. This documents what the board relies on: nothing
+// else on the task changes, and exactly one status_changed event is recorded.
+func TestIssueService_Update_StatusOnlyChangesNothingElseAndRecordsOneEvent(t *testing.T) {
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	issueRepo := newStubIssueRepo()
+	activitySvc := &stubActivitySvc{}
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, newStubUserRepo(), newStubSprintRepo())
+	ctx := context.Background()
+	project := seedProject(ctx, projectRepo, memberRepo)
+
+	assignee, sprint, points := uint(2), uint(7), 5
+	original := &domain.Issue{
+		Key: "PROJ-1", ProjectID: project.ID, Title: "Keep me", Description: "Same text",
+		Type: domain.IssueTypeBug, Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityHigh,
+		AssigneeID: &assignee, ReporterID: 1, SprintID: &sprint, StoryPoints: &points,
+	}
+	_ = issueRepo.Create(ctx, original)
+
+	inReview := domain.IssueStatusInReview
+	updated, err := svc.Update(ctx, "PROJ", original.ID, 1, dto.UpdateIssueRequest{Status: &inReview})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	stored, _ := issueRepo.FindByID(ctx, original.ID)
+	if stored.Status != domain.IssueStatusInReview || updated.Status != domain.IssueStatusInReview {
+		t.Errorf("status = %q (response %q), want in_review", stored.Status, updated.Status)
+	}
+	if stored.Title != "Keep me" || stored.Description != "Same text" || stored.Type != domain.IssueTypeBug ||
+		stored.Priority != domain.IssuePriorityHigh {
+		t.Errorf("text, type or priority changed: %+v", stored)
+	}
+	if stored.AssigneeID == nil || *stored.AssigneeID != assignee {
+		t.Errorf("assignee changed: %v", stored.AssigneeID)
+	}
+	if stored.SprintID == nil || *stored.SprintID != sprint {
+		t.Errorf("sprint changed: %v", stored.SprintID)
+	}
+	if stored.StoryPoints == nil || *stored.StoryPoints != points {
+		t.Errorf("story points changed: %v", stored.StoryPoints)
+	}
+
+	if len(activitySvc.recorded) != 1 {
+		t.Fatalf("recorded %d events, want exactly 1: %+v", len(activitySvc.recorded), activitySvc.recorded)
+	}
+	ev := activitySvc.recorded[0]
+	if ev.Kind != domain.ActivityStatusChanged || ev.OldValue != domain.IssueStatusTodo || ev.NewValue != domain.IssueStatusInReview ||
+		ev.IssueID != original.ID || ev.ActorID != 1 {
+		t.Errorf("unexpected event: %+v", ev)
+	}
+}
+
+// Deleting a task leaves a record that survives it: the task's row is gone, so the event
+// carries its key, title, project and sprint.
+func TestIssueService_Delete_RecordsAnIssueDeletedEvent(t *testing.T) {
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	issueRepo := newStubIssueRepo()
+	activitySvc := &stubActivitySvc{}
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, newStubUserRepo(), newStubSprintRepo())
+	ctx := context.Background()
+	project := seedProject(ctx, projectRepo, memberRepo)
+	sprint := uint(4)
+	issue := &domain.Issue{
+		Key: "PROJ-7", ProjectID: project.ID, Title: "Remove me", Type: domain.IssueTypeTask,
+		Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityLow, ReporterID: 1, SprintID: &sprint,
+	}
+	_ = issueRepo.Create(ctx, issue)
+
+	if err := svc.Delete(ctx, "PROJ", issue.ID, 1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(activitySvc.recorded) != 1 {
+		t.Fatalf("recorded %d events, want exactly 1: %+v", len(activitySvc.recorded), activitySvc.recorded)
+	}
+	ev := activitySvc.recorded[0]
+	if ev.Kind != domain.ActivityIssueDeleted || ev.ActorID != 1 || ev.IssueID != issue.ID {
+		t.Errorf("unexpected event: %+v", ev)
+	}
+	if ev.IssueKey != "PROJ-7" || ev.IssueTitle != "Remove me" || ev.ProjectID != project.ID {
+		t.Errorf("snapshot not carried: %+v", ev)
+	}
+	if ev.SprintID == nil || *ev.SprintID != sprint {
+		t.Errorf("sprint not carried: %v", ev.SprintID)
+	}
+}
+
+func TestIssueService_Delete_RecordsNothingWhenItIsRefused(t *testing.T) {
+	projectRepo := newStubProjectRepo()
+	memberRepo := newStubProjectMemberRepo()
+	issueRepo := newStubIssueRepo()
+	activitySvc := &stubActivitySvc{}
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, newStubUserRepo(), newStubSprintRepo())
+	ctx := context.Background()
+	project := seedProject(ctx, projectRepo, memberRepo)
+	_ = memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: project.ID, UserID: 2, Role: "member"})
+	issue := &domain.Issue{Key: "PROJ-1", ProjectID: project.ID, Title: "Mine", Type: domain.IssueTypeTask,
+		Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityLow, ReporterID: 1}
+	_ = issueRepo.Create(ctx, issue)
+
+	if err := svc.Delete(ctx, "PROJ", issue.ID, 2); !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("expected ErrForbidden, got %v", err)
+	}
+	if len(activitySvc.recorded) != 0 {
+		t.Errorf("a refused delete must record nothing, got %+v", activitySvc.recorded)
+	}
+	if _, err := issueRepo.FindByID(ctx, issue.ID); err != nil {
+		t.Errorf("the task must still exist: %v", err)
+	}
+}

@@ -208,3 +208,25 @@ func TestActivityService_ListByIssue_RefusesNonMembers(t *testing.T) {
 func (r *stubActivityRepo) FindRecentByProject(_ context.Context, _ uint, _ time.Time, _ *uint, _ int) ([]*domain.ActivityEvent, error) {
 	return nil, nil
 }
+
+// The task of an issue_deleted event no longer exists, so its key and title come from
+// the snapshot the event carries.
+func TestActivityService_GetMyActivity_NamesADeletedTaskFromItsSnapshot(t *testing.T) {
+	repo := newStubActivityRepo()
+	userRepo := newStubUserRepo()
+	_ = userRepo.Create(context.Background(), &domain.User{ID: 5, Name: "Carol", Email: "carol@test.com", Password: "x"})
+	svc := service.NewActivityService(repo, userRepo, newStubIssueRepo(), membersOf(1))
+
+	_ = svc.Record(context.Background(), &domain.ActivityEvent{
+		IssueID: 77, ActorID: 5, Kind: domain.ActivityIssueDeleted,
+		ProjectID: 1, IssueKey: "P-77", IssueTitle: "Gone task",
+	})
+
+	my, err := svc.GetMyActivity(context.Background(), 5, 20, 0)
+	require.NoError(t, err)
+	require.Len(t, my, 1)
+	assert.Equal(t, domain.ActivityIssueDeleted, my[0].Kind)
+	assert.Equal(t, "P-77", my[0].IssueKey)
+	assert.Equal(t, "Gone task", my[0].IssueTitle)
+	assert.Equal(t, "Carol", my[0].ActorName)
+}

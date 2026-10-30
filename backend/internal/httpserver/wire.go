@@ -91,7 +91,7 @@ func NewHandlers(in Inputs) Handlers {
 	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, sprintRepo).
 		WithAttachments(attachmentRepo, in.AttachmentStorage).
 		WithNotifier(notifSvc)
-	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo)
+	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo, sprintRepo)
 	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
 	overviewSvc := service.NewOverviewService(projectRepo, projectMemberRepo, sprintRepo, issueRepo, activityRepo, userRepo)
 	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc, notifRepo, userRepo)

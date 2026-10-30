@@ -15,11 +15,11 @@ export default defineNuxtConfig({
   css: ["~/assets/css/main.css"],
   vite: {
     plugins: [tailwindcss()],
-    // Pre-bundle the chart libraries at start-up. Otherwise the dev server finds them
-    // only when the board first renders, re-optimises and reloads mid-session, which
-    // can leave two copies of Vue loaded.
+    // Pre-bundle the chart and drag-and-drop libraries at start-up. Otherwise the dev
+    // server finds them only when the Reports or Board page first renders, re-optimises
+    // and reloads mid-session, which can leave two copies of Vue loaded.
     optimizeDeps: {
-      include: ["chart.js", "vue-chartjs"],
+      include: ["chart.js", "vue-chartjs", "vue-draggable-plus", "sortablejs"],
     },
   },
   runtimeConfig: {

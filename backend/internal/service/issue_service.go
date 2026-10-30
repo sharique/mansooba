@@ -358,7 +358,17 @@ func (s *issueService) Delete(ctx context.Context, projectKey string, id uint, c
 		}
 	}
 
-	return s.issueRepo.Delete(ctx, id)
+	if err := s.issueRepo.Delete(ctx, id); err != nil {
+		return err
+	}
+
+	// The task's row is gone now, so the event carries what names and places it. Like the
+	// other activity records, a failure to write it never undoes the delete.
+	_ = s.activitySvc.Record(ctx, &domain.ActivityEvent{
+		IssueID: id, ActorID: callerID, Kind: domain.ActivityIssueDeleted,
+		ProjectID: project.ID, IssueKey: issue.Key, IssueTitle: issue.Title, SprintID: issue.SprintID,
+	})
+	return nil
 }
 
 // GetMyIssues returns all issues assigned to callerID across all projects.

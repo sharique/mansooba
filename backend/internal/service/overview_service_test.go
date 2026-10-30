@@ -307,3 +307,36 @@ func TestOverviewService_Activity_SprintScopeWithoutSprint(t *testing.T) {
 	assert.Empty(t, got.Items)
 	assert.NotNil(t, got.Items, "items must marshal as [] not null")
 }
+
+func TestOverviewService_Activity_ListsDeletedTasks(t *testing.T) {
+	e := newOverviewEnv(t)
+	sp := e.sprint(t, domain.SprintStatusActive, nil, nil)
+	id := sp.ID
+	other := uint(9999)
+	proj := e.issue(t, "OVR-1", domain.IssueStatusTodo, domain.IssuePriorityLow, nil, &id, nil).ProjectID
+
+	del := func(issueID uint, key string, sprint *uint, ago time.Duration) {
+		require.NoError(t, e.acts.Create(e.ctx, &domain.ActivityEvent{
+			IssueID: issueID, ActorID: e.member, Kind: domain.ActivityIssueDeleted, CreatedAt: overviewNow.Add(-ago),
+			ProjectID: proj, IssueKey: key, IssueTitle: "Title " + key, SprintID: sprint,
+		}))
+	}
+	del(800, "OVR-8", &id, time.Hour)      // was in the current sprint
+	del(801, "OVR-9", &other, 2*time.Hour) // was in another sprint
+	del(802, "OVR-7", nil, 3*time.Hour)    // had no sprint
+
+	all, err := e.svc.Activity(e.ctx, "OVR", e.member, "all")
+	require.NoError(t, err)
+	require.Len(t, all.Items, 3)
+	first := all.Items[0]
+	assert.Equal(t, domain.ActivityIssueDeleted, first.Kind)
+	assert.Equal(t, "OVR-8", first.IssueKey)
+	assert.Equal(t, "Title OVR-8", first.IssueTitle)
+	assert.Equal(t, "Mia Member", first.Actor.Name)
+	assert.Equal(t, "", first.NewStatus)
+
+	bySprint, err := e.svc.Activity(e.ctx, "OVR", e.member, "sprint")
+	require.NoError(t, err)
+	require.Len(t, bySprint.Items, 1)
+	assert.Equal(t, "OVR-8", bySprint.Items[0].IssueKey)
+}

@@ -15,6 +15,15 @@ type ActivityEvent struct {
 	OldValue  string
 	NewValue  string
 	CreatedAt time.Time `gorm:"index:idx_activity_issue_created,priority:2"`
+
+	// ProjectID, IssueKey, IssueTitle and SprintID are a snapshot of the task, set only
+	// on issue_deleted events. The task row is gone afterwards, so the event has to carry
+	// what is needed to find it in a project's recent activity (ProjectID, SprintID) and
+	// to name it (IssueKey, IssueTitle). They are empty on every other event.
+	ProjectID  uint `gorm:"index"`
+	IssueKey   string
+	IssueTitle string
+	SprintID   *uint
 }
 
 // Activity kind constants.
@@ -29,6 +38,7 @@ const (
 	ActivityLabelRemoved       = "label_removed"
 	ActivityAttachmentAdded    = "attachment_added"
 	ActivityAttachmentRemoved  = "attachment_removed"
+	ActivityIssueDeleted       = "issue_deleted"
 )
 
 // ActivityRepository defines persistence for ActivityEvent.

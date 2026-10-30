@@ -100,14 +100,19 @@ func (s *activityServiceImpl) enrich(ctx context.Context, events []*domain.Activ
 	result := make([]*dto.ActivityEventResponse, 0, len(events))
 	for _, e := range events {
 		actor := actors[e.ActorID]
+		key, title := issueKeys[e.IssueID], issueTitles[e.IssueID]
+		if e.Kind == domain.ActivityIssueDeleted {
+			// The task is gone; the event carries its key and title.
+			key, title = e.IssueKey, e.IssueTitle
+		}
 		result = append(result, &dto.ActivityEventResponse{
 			ID:             e.ID,
 			IssueID:        e.IssueID,
 			ActorID:        e.ActorID,
 			ActorName:      actor.Name,
 			ActorAvatarURL: actor.AvatarURL,
-			IssueKey:       issueKeys[e.IssueID],
-			IssueTitle:     issueTitles[e.IssueID],
+			IssueKey:       key,
+			IssueTitle:     title,
 			Kind:           e.Kind,
 			OldValue:       e.OldValue,
 			NewValue:       e.NewValue,

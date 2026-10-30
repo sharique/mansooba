@@ -29,7 +29,7 @@ spec-driven engineering process.
 | **Issues** | Track tasks, bugs, stories, and epics with labels, priorities, and related-issue links |
 | **Attachments** | Attach files to issues, stored in S3 and access-controlled per project |
 | **Project overview** | Open a project and see the active sprint's progress, the sprint's open tasks and recent activity at a glance; members live on their own page |
-| **Sprints** | Plan and run time-boxed sprints with a kanban board, burndown chart, and velocity chart |
+| **Sprints** | Plan and run time-boxed sprints with a drag-and-drop sprint board, burndown chart, and velocity chart |
 | **Backlog** | Triage unscheduled work and pull it into upcoming sprints |
 | **Collaboration** | Comment on issues, @mention teammates, and follow per-issue activity feeds |
 | **My Desk** | See your assigned issues, notifications, and pinned projects at a glance |

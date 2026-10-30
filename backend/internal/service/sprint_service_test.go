@@ -14,10 +14,11 @@ import (
 // ── stubSprintRepo ────────────────────────────────────────────────────────────
 
 type stubSprintRepo struct {
-	sprints          []*domain.Sprint
-	nextID           uint
-	lastMigratedIDs  []uint
-	lastNextSprintID *uint
+	findByProjectCalls int
+	sprints            []*domain.Sprint
+	nextID             uint
+	lastMigratedIDs    []uint
+	lastNextSprintID   *uint
 }
 
 func newStubSprintRepo() *stubSprintRepo {
@@ -42,6 +43,7 @@ func (r *stubSprintRepo) FindByID(_ context.Context, id uint) (*domain.Sprint, e
 }
 
 func (r *stubSprintRepo) FindByProject(_ context.Context, projectID uint) ([]*domain.Sprint, error) {
+	r.findByProjectCalls++
 	var result []*domain.Sprint
 	for _, s := range r.sprints {
 		if s.ProjectID == projectID {

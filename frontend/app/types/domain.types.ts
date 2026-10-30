@@ -56,6 +56,8 @@ export interface Issue {
   created_at: string
   completed_at?: string | null
   attachment_count: number
+  /** Board cards only: true when the task belongs to a completed sprint (cannot be moved there). */
+  locked?: boolean
 }
 
 // ── Domain constant objects ───────────────────────────────────────────────────
@@ -221,6 +223,9 @@ export const ActivityKind = {
   CommentAdded:       'comment_added',
   LabelAdded:         'label_added',
   LabelRemoved:       'label_removed',
+  AttachmentAdded:    'attachment_added',
+  AttachmentRemoved:  'attachment_removed',
+  IssueDeleted:       'issue_deleted',
 } as const
 
 // ── Labels ────────────────────────────────────────────────────────────────────
@@ -381,7 +386,7 @@ export interface OpenTask {
 
 export interface RecentActivityItem {
   id: number
-  kind: 'status_changed' | 'comment_added'
+  kind: 'status_changed' | 'comment_added' | 'issue_deleted'
   actor: PersonRef
   issue_id: number
   issue_key: string

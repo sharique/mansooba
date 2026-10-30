@@ -8,7 +8,7 @@
       <p class="text-sm text-base-content/70 line-clamp-2">{{ project.description || '—' }}</p>
       <div class="card-actions justify-end mt-2">
         <NuxtLink :to="`/projects/${project.key}`" class="btn btn-sm btn-ghost">Details</NuxtLink>
-        <NuxtLink :to="`/projects/${project.key}/board`" class="btn btn-sm btn-primary">Open Board</NuxtLink>
+        <NuxtLink :to="`/projects/${project.key}/board`" class="btn btn-sm btn-primary">Open sprint board</NuxtLink>
       </div>
     </div>
   </div>

@@ -5,10 +5,10 @@ describe('projectNavLinks', () => {
   it('returns the seven project sections for a key, Members after Sprints', () => {
     const links = projectNavLinks('apollo')
     expect(links.map(l => l.label)).toEqual(
-      ['Overview', 'Board', 'Backlog', 'Sprints', 'Members', 'Reports', 'Settings'],
+      ['Overview', 'Sprint board', 'Backlog', 'Sprints', 'Members', 'Reports', 'Settings'],
     )
     expect(links[4]).toEqual({ label: 'Members', to: '/projects/apollo/members', icon: 'mdi:account-group-outline' })
-    expect(links[1]).toEqual({ label: 'Board', to: '/projects/apollo/board', icon: 'mdi:view-column-outline' })
+    expect(links[1]).toEqual({ label: 'Sprint board', to: '/projects/apollo/board', icon: 'mdi:view-column-outline' })
   })
 
   it('generates correct routes for all sections', () => {
