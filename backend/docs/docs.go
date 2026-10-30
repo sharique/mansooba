@@ -4744,7 +4744,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "kind": {
-                    "description": "status_changed | comment_added",
+                    "description": "status_changed | comment_added | issue_deleted",
                     "type": "string"
                 },
                 "new_status": {

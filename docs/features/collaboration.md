@@ -41,11 +41,15 @@ Events recorded:
   remains "Sprint Alpha" in older feed entries)
 - Attachment upload (`attachment_added`) and deletion (`attachment_removed`) — see
   [issues.md](issues.md#attachments)
+- Task deletion (`issue_deleted`): the task and its feed are gone, so this event is not on any
+  task's page. It appears in the project overview's Recent activity and in the deleter's My
+  Activity, named from a snapshot (key, title, project, sprint) stored on the event
 
 ### My Activity feed
 
 - Aggregates activity records across all projects the user belongs to
 - Paginated; most recent events first
+- Includes the tasks the user deleted ("deleted the task …"). Older events of a task that has since been deleted still show, without the task's key
 
 ## API endpoints
 

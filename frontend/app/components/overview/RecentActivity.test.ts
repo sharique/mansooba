@@ -18,6 +18,10 @@ const comment = (id: number): RecentActivityItem => ({
   id, kind: 'comment_added', actor: { id: 8, name: 'Sam Smith' }, issue_id: 13, issue_key: 'SCR-13',
   issue_title: 'Add tests', created_at: '2026-10-17T09:00:00Z',
 })
+const deleted = (id: number): RecentActivityItem => ({
+  id, kind: 'issue_deleted', actor: { id: 7, name: 'Priya Nair' }, issue_id: 40, issue_key: 'SCR-40',
+  issue_title: 'Old idea', created_at: '2026-10-17T11:00:00Z',
+})
 const list = (items: RecentActivityItem[], sprint_active = true): OverviewList<RecentActivityItem> => ({ sprint_active, items })
 
 const mountIt = (props: Record<string, unknown>) =>
@@ -112,5 +116,17 @@ describe('RecentActivity', () => {
     expect(w.text()).toContain('bad')
     await w.find('[data-retry]').trigger('click')
     expect(w.emitted('retry')).toHaveLength(1)
+  })
+
+  it('reads "Priya deleted SCR-40" with the task title, and does not link to the task that is gone', () => {
+    const w = mountIt({ data: list([deleted(3), move(1)]) })
+    const rows = w.findAll('[data-activity]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]!.text()).toContain('Priya Nair')
+    expect(rows[0]!.text()).toContain('deleted')
+    expect(rows[0]!.text()).toContain('SCR-40')
+    expect(rows[0]!.text()).toContain('Old idea')
+    expect(rows[0]!.find('a').exists()).toBe(false)
+    expect(rows[1]!.find('a').attributes('href')).toBe('/projects/scr/issues/12')
   })
 })

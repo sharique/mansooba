@@ -41,7 +41,18 @@
 
         <ul v-else class="divide-y divide-base-200">
           <li v-for="a in data.items" :key="a.id" data-activity class="py-2">
+            <!-- A deleted task has no page to open, so its entry is not a link -->
+            <div v-if="a.kind === 'issue_deleted'" class="flex flex-wrap items-center gap-x-2 gap-y-1 px-1">
+              <UserAvatar :avatar-url="a.actor.avatar_url" :name="a.actor.name" :user-id="a.actor.id" size="sm" />
+              <span class="min-w-0 break-words">
+                <span class="font-medium">{{ a.actor.name || 'Someone' }}</span>
+                deleted <span class="font-mono">{{ a.issue_key }}</span>
+                <span class="ml-1 text-base-content/60">{{ a.issue_title }}</span>
+              </span>
+              <span class="ml-auto text-xs text-base-content/60">{{ formatDateTime(a.created_at) }}</span>
+            </div>
             <NuxtLink
+              v-else
               :to="`/projects/${projectKey}/issues/${a.issue_id}`"
               class="flex flex-wrap items-center gap-x-2 gap-y-1 hover:bg-base-200 rounded-box px-1"
             >

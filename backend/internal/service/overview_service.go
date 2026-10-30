@@ -203,6 +203,14 @@ func (s *overviewService) Activity(ctx context.Context, projectKey string, calle
 	people := s.personLookup(ctx)
 	issues := map[uint]*domain.Issue{}
 	for _, e := range events {
+		if e.Kind == domain.ActivityIssueDeleted {
+			// The task is gone; the event carries its key and title.
+			resp.Items = append(resp.Items, dto.RecentActivityResponse{
+				ID: e.ID, Kind: e.Kind, Actor: people(e.ActorID), IssueID: e.IssueID,
+				IssueKey: e.IssueKey, IssueTitle: e.IssueTitle, CreatedAt: e.CreatedAt,
+			})
+			continue
+		}
 		issue, ok := issues[e.IssueID]
 		if !ok {
 			// The repository joined on issues, so the issue exists; a failure here

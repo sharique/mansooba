@@ -169,3 +169,51 @@ func TestActivityRepository_FindRecentByProject_LargeProjectStaysFast(t *testing
 	assert.Len(t, got, 10)
 	assert.Less(t, elapsed, 250*time.Millisecond)
 }
+
+// A deleted task has no row left, so its event carries the project and sprint it had.
+func (e *recentEnv) deleted(t *testing.T, issueID, projectID uint, sprint *uint, key string, at time.Time) *domain.ActivityEvent {
+	t.Helper()
+	ev := &domain.ActivityEvent{
+		IssueID: issueID, ActorID: 1, Kind: domain.ActivityIssueDeleted, CreatedAt: at,
+		ProjectID: projectID, IssueKey: key, IssueTitle: "Title " + key, SprintID: sprint,
+	}
+	require.NoError(t, e.acts.Create(context.Background(), ev))
+	return ev
+}
+
+func TestActivityRepository_FindRecentByProject_ListsDeletedTasks(t *testing.T) {
+	e := newRecentEnv(t)
+	ctx := context.Background()
+	now := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	since := now.Add(-120 * time.Hour)
+	live := e.issue(t, "P-1", 1, nil)
+
+	comment := e.event(t, live.ID, domain.ActivityCommentAdded, "", "", now.Add(-3*time.Hour))
+	gone := e.deleted(t, 900, 1, nil, "P-9", now.Add(-1*time.Hour))
+	// Not listed: another project, outside the window, and the ordinary events of the deleted task.
+	e.deleted(t, 901, 2, nil, "Q-1", now.Add(-1*time.Hour))
+	e.deleted(t, 902, 1, nil, "P-8", since.Add(-time.Minute))
+	e.event(t, 900, domain.ActivityStatusChanged, "todo", "done", now.Add(-2*time.Hour))
+
+	got, err := e.acts.FindRecentByProject(ctx, 1, since, nil, 10)
+	require.NoError(t, err)
+	assert.Equal(t, []uint{gone.ID, comment.ID}, ids(got), "newest first, the deleted task listed without its row")
+	assert.Equal(t, "P-9", got[0].IssueKey)
+	assert.Equal(t, "Title P-9", got[0].IssueTitle)
+}
+
+func TestActivityRepository_FindRecentByProject_DeletedTaskInSprintScope(t *testing.T) {
+	e := newRecentEnv(t)
+	ctx := context.Background()
+	now := time.Date(2026, 10, 17, 12, 0, 0, 0, time.UTC)
+	since := now.Add(-120 * time.Hour)
+	active, other := uint(7), uint(8)
+
+	inSprint := e.deleted(t, 900, 1, &active, "P-1", now.Add(-1*time.Hour))
+	e.deleted(t, 901, 1, &other, "P-2", now.Add(-2*time.Hour))
+	e.deleted(t, 902, 1, nil, "P-3", now.Add(-3*time.Hour))
+
+	got, err := e.acts.FindRecentByProject(ctx, 1, since, &active, 10)
+	require.NoError(t, err)
+	assert.Equal(t, []uint{inSprint.ID}, ids(got), "only tasks deleted from the current sprint")
+}

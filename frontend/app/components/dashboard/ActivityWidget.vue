@@ -55,6 +55,7 @@ function describeEvent(e: ActivityEvent): string {
     case ActivityKind.LabelAdded:         return `${issue}${actor} added label "${e.new_value}"`
     case ActivityKind.LabelRemoved:       return `${issue}${actor} removed label "${e.old_value}"`
     case ActivityKind.CommentAdded:       return `${issue}${actor} added a comment`
+    case ActivityKind.IssueDeleted:       return `${issue}${actor} deleted the task "${e.issue_title}"`
     default:                              return `${issue}${actor} updated issue`
   }
 }

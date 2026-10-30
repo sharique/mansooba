@@ -223,6 +223,7 @@ export const ActivityKind = {
   CommentAdded:       'comment_added',
   LabelAdded:         'label_added',
   LabelRemoved:       'label_removed',
+  IssueDeleted:       'issue_deleted',
 } as const
 
 // ── Labels ────────────────────────────────────────────────────────────────────
@@ -383,7 +384,7 @@ export interface OpenTask {
 
 export interface RecentActivityItem {
   id: number
-  kind: 'status_changed' | 'comment_added'
+  kind: 'status_changed' | 'comment_added' | 'issue_deleted'
   actor: PersonRef
   issue_id: number
   issue_key: string
