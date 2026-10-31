@@ -6,6 +6,7 @@ import (
 
 	"github.com/sharique/mansooba/internal/domain"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type projectRepo struct {
@@ -39,7 +40,8 @@ func (r *projectRepo) FindByID(ctx context.Context, id uint) (*domain.Project, e
 // Returns domain.ErrNotFound when no row matches.
 func (r *projectRepo) FindByKey(ctx context.Context, key string) (*domain.Project, error) {
 	var project domain.Project
-	if err := r.db.WithContext(ctx).Where("LOWER(key) = LOWER(?)", key).First(&project).Error; err != nil {
+	// key is a reserved word in MySQL, so the column is quoted by the dialect, not written by hand.
+	if err := r.db.WithContext(ctx).Where("LOWER(?) = LOWER(?)", clause.Column{Name: "key"}, key).First(&project).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrNotFound
 		}
