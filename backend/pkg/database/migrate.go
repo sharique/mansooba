@@ -9,6 +9,11 @@ import (
 // It creates or updates tables to match the current struct definitions.
 // Called once at server startup before the HTTP listener begins.
 func Migrate(db *gorm.DB) error {
+	// MySQL cannot index the longtext columns GORM picks for `uniqueIndex` strings;
+	// size them before anything is migrated (see sizeIndexedStrings).
+	if err := sizeIndexedStrings(db, migrationModels()...); err != nil {
+		return err
+	}
 	// Existing databases predate usernames: add the column first (nullable, so the
 	// statement works on a populated table) and refuse to go on while accounts
 	// still lack one; cmd/backfill-usernames fills them in (ADR-038).
@@ -26,8 +31,9 @@ func Migrate(db *gorm.DB) error {
 	return enforceUsernameNotNull(db)
 }
 
-func autoMigrateAll(db *gorm.DB) error {
-	return db.AutoMigrate(
+// migrationModels lists every model the app stores, in the order they are migrated.
+func migrationModels() []any {
+	return []any{
 		&domain.User{},
 		&domain.RevokedToken{},
 		&domain.Project{},
@@ -43,5 +49,9 @@ func autoMigrateAll(db *gorm.DB) error {
 		&domain.IssueRelation{},
 		&domain.PasswordResetToken{},
 		&domain.Attachment{},
-	)
+	}
+}
+
+func autoMigrateAll(db *gorm.DB) error {
+	return db.AutoMigrate(migrationModels()...)
 }
