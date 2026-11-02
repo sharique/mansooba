@@ -40,6 +40,7 @@ type overviewService struct {
 	activityRepo domain.ActivityRepository
 	userRepo     domain.UserRepository
 	now          func() time.Time
+	access       Access
 }
 
 // NewOverviewService returns an OverviewService that reads the current time from
@@ -69,18 +70,16 @@ func NewOverviewServiceWithClock(
 	return &overviewService{
 		projectRepo: projectRepo, memberRepo: memberRepo, sprintRepo: sprintRepo,
 		issueRepo: issueRepo, activityRepo: activityRepo, userRepo: userRepo, now: now,
+		access: NewAccess(projectRepo, memberRepo, nil),
 	}
 }
 
 // project resolves the key and checks membership, in that order, so an unknown
-// key is 404 and a known project is 403 to a non-member.
+// key and a project the caller cannot see are both 404.
 func (s *overviewService) project(ctx context.Context, key string, callerID uint) (*domain.Project, error) {
-	p, err := s.projectRepo.FindByKey(ctx, key)
+	p, _, err := s.access.RequireProjectByKey(ctx, key, callerID, domain.CapProjectView)
 	if err != nil {
-		return nil, domain.ErrNotFound
-	}
-	if _, err := s.memberRepo.FindByProjectAndUser(ctx, p.ID, callerID); err != nil {
-		return nil, domain.ErrForbidden
+		return nil, err
 	}
 	return p, nil
 }

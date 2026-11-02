@@ -14,7 +14,7 @@ import SprintCard from '~/components/sprints/SprintCard.vue'
 import { useProjectsStore } from '~/stores/projects.store'
 import { useSprintsStore } from '~/stores/sprints.store'
 import { useIssuesStore } from '~/stores/issues.store'
-import { useCanManageProject } from '~/composables/useCanManageProject'
+import { useProjectPermissions } from '~/composables/useProjectPermissions'
 
 const fake = vi.hoisted(() => ({
   issues: [] as { id: number; key: string; title: string; sprint_id: number | null; priority: string; type: string }[],
@@ -25,7 +25,7 @@ vi.mock('~/services/backlog.service', () => ({
 }))
 vi.mock('~/services/projects.service', () => ({
   projectsService: {
-    get: async () => ({ id: 1, key: 'TEST', name: 'T', description: '', ownerId: 1 }),
+    get: async () => ({ id: 1, key: 'TEST', name: 'T', description: '', ownerId: 1, myRole: 'admin', permissions: ['project.view', 'task.write', 'sprint.manage'] }),
     listMembers: async () => [{ user_id: 1, name: 'Owner', email: 'o@x.com', role: 'admin' }],
   },
 }))
@@ -50,7 +50,7 @@ vi.stubGlobal('useAuthStore', () => ({ user: { id: 1 } }))
 vi.stubGlobal('useProjectsStore', useProjectsStore)
 vi.stubGlobal('useSprintsStore', useSprintsStore)
 vi.stubGlobal('useIssuesStore', useIssuesStore)
-vi.stubGlobal('useCanManageProject', useCanManageProject)
+vi.stubGlobal('useProjectPermissions', useProjectPermissions)
 vi.stubGlobal('useToast', () => ({ showSuccess: vi.fn(), showError: vi.fn() }))
 vi.stubGlobal('useTimeFormatter', () => ({ formatDate: (d: string) => d }))
 vi.stubGlobal('navigateTo', vi.fn())

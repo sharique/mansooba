@@ -22,11 +22,18 @@ type NotificationService interface {
 	NotifyAssignmentChange(ctx context.Context, projectID, issueID, actorID uint, oldAssignee, newAssignee *uint)
 	// NotifyMembershipChange tells targetID they were added to or removed from a project.
 	NotifyMembershipChange(ctx context.Context, projectID, actorID, targetID uint, added bool)
+	// NotifyRoleChange tells targetID an admin changed their role in a project.
+	// Nothing is sent when the actor changed their own role.
+	NotifyRoleChange(ctx context.Context, projectID, actorID, targetID uint)
+	// NotifyAdminClaimed tells every other member of a project that a system
+	// administrator took over its administration (the rescue of an abandoned project).
+	NotifyAdminClaimed(ctx context.Context, projectID, actorID uint)
 }
 
 type notificationService struct {
 	notifRepo  domain.NotificationRepository
 	memberRepo domain.ProjectMemberRepository
+	access     Access
 	log        *zap.Logger
 }
 
@@ -35,7 +42,7 @@ func NewNotificationService(
 	memberRepo domain.ProjectMemberRepository,
 	log *zap.Logger,
 ) NotificationService {
-	return &notificationService{notifRepo: notifRepo, memberRepo: memberRepo, log: log}
+	return &notificationService{notifRepo: notifRepo, memberRepo: memberRepo, access: NewAccess(nil, memberRepo, nil), log: log}
 }
 
 func (s *notificationService) NotifyAssignmentChange(ctx context.Context, projectID, issueID, actorID uint, oldAssignee, newAssignee *uint) {
@@ -63,11 +70,36 @@ func (s *notificationService) NotifyMembershipChange(ctx context.Context, projec
 	})
 }
 
+func (s *notificationService) NotifyRoleChange(ctx context.Context, projectID, actorID, targetID uint) {
+	if targetID == actorID {
+		return
+	}
+	s.create(ctx, &domain.Notification{
+		RecipientID: targetID, ActorID: actorID, Kind: domain.NotificationKindProjectRoleChanged, ProjectID: projectID,
+	})
+}
+
+func (s *notificationService) NotifyAdminClaimed(ctx context.Context, projectID, actorID uint) {
+	members, err := s.memberRepo.FindByProjectID(ctx, projectID)
+	if err != nil {
+		s.log.Warn("failed to list members for admin-claimed notification", zap.Uint("project_id", projectID), zap.Error(err))
+		return
+	}
+	for _, m := range members {
+		if m.UserID == actorID {
+			continue
+		}
+		s.create(ctx, &domain.Notification{
+			RecipientID: m.UserID, ActorID: actorID, Kind: domain.NotificationKindProjectAdminClaimed, ProjectID: projectID,
+		})
+	}
+}
+
 func (s *notificationService) notifyTask(ctx context.Context, projectID, issueID, actorID, recipientID uint, kind string) {
 	if recipientID == actorID {
 		return
 	}
-	if _, err := s.memberRepo.FindByProjectAndUser(ctx, projectID, recipientID); err != nil {
+	if _, err := s.access.RequireProject(ctx, projectID, recipientID, domain.CapProjectView); err != nil {
 		// Not a member (or the lookup failed): skip rather than disclose the issue key.
 		return
 	}

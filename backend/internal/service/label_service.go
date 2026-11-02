@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
@@ -24,6 +23,7 @@ type labelService struct {
 	projectRepo domain.ProjectRepository
 	memberRepo  domain.ProjectMemberRepository
 	activitySvc ActivityService
+	access      Access
 }
 
 func NewLabelService(
@@ -38,6 +38,7 @@ func NewLabelService(
 		issueRepo:   issueRepo,
 		projectRepo: projectRepo,
 		memberRepo:  memberRepo,
+		access:      NewAccess(projectRepo, memberRepo, nil),
 		activitySvc: activitySvc,
 	}
 }
@@ -46,11 +47,8 @@ func (s *labelService) Create(ctx context.Context, projectKey string, callerID u
 	if !domain.LabelPalette[req.Color] {
 		return nil, domain.NewInputError("color %q is not in the allowed palette", req.Color)
 	}
-	project, err := s.projectRepo.FindByKey(ctx, projectKey)
+	project, _, err := s.access.RequireProjectByKey(ctx, projectKey, callerID, domain.CapLabelWrite)
 	if err != nil {
-		return nil, err
-	}
-	if err := s.requireMember(ctx, project.ID, callerID); err != nil {
 		return nil, err
 	}
 	label := &domain.Label{ProjectID: project.ID, Name: req.Name, Color: req.Color}
@@ -61,11 +59,8 @@ func (s *labelService) Create(ctx context.Context, projectKey string, callerID u
 }
 
 func (s *labelService) ListByProject(ctx context.Context, projectKey string, callerID uint) ([]*dto.LabelResponse, error) {
-	project, err := s.projectRepo.FindByKey(ctx, projectKey)
+	project, _, err := s.access.RequireProjectByKey(ctx, projectKey, callerID, domain.CapProjectView)
 	if err != nil {
-		return nil, err
-	}
-	if err := s.requireMember(ctx, project.ID, callerID); err != nil {
 		return nil, err
 	}
 	labels, err := s.labelRepo.FindByProjectID(ctx, project.ID)
@@ -84,7 +79,7 @@ func (s *labelService) ListByIssue(ctx context.Context, issueID, callerID uint) 
 	if err != nil {
 		return nil, err
 	}
-	if err := s.requireMember(ctx, issue.ProjectID, callerID); err != nil {
+	if _, err := s.access.RequireProject(ctx, issue.ProjectID, callerID, domain.CapProjectView); err != nil {
 		return nil, err
 	}
 	labels, err := s.labelRepo.FindByIssueID(ctx, issueID)
@@ -99,11 +94,8 @@ func (s *labelService) ListByIssue(ctx context.Context, issueID, callerID uint) 
 }
 
 func (s *labelService) Delete(ctx context.Context, projectKey string, labelID, callerID uint) error {
-	project, err := s.projectRepo.FindByKey(ctx, projectKey)
+	project, _, err := s.access.RequireProjectByKey(ctx, projectKey, callerID, domain.CapLabelDelete)
 	if err != nil {
-		return err
-	}
-	if err := s.requireMember(ctx, project.ID, callerID); err != nil {
 		return err
 	}
 	label, err := s.labelRepo.FindByID(ctx, labelID)
@@ -121,7 +113,7 @@ func (s *labelService) AttachToIssue(ctx context.Context, issueID, labelID, call
 	if err != nil {
 		return err
 	}
-	if err := s.requireMember(ctx, issue.ProjectID, callerID); err != nil {
+	if _, err := s.access.RequireProject(ctx, issue.ProjectID, callerID, domain.CapLabelWrite); err != nil {
 		return err
 	}
 	label, err := s.labelRepo.FindByID(ctx, labelID)
@@ -146,7 +138,7 @@ func (s *labelService) DetachFromIssue(ctx context.Context, issueID, labelID, ca
 	if err != nil {
 		return err
 	}
-	if err := s.requireMember(ctx, issue.ProjectID, callerID); err != nil {
+	if _, err := s.access.RequireProject(ctx, issue.ProjectID, callerID, domain.CapLabelWrite); err != nil {
 		return err
 	}
 	label, err := s.labelRepo.FindByID(ctx, labelID)
@@ -163,16 +155,6 @@ func (s *labelService) DetachFromIssue(ctx context.Context, issueID, labelID, ca
 		IssueID: issueID, ActorID: callerID,
 		Kind: domain.ActivityLabelRemoved, OldValue: label.Name,
 	})
-	return nil
-}
-
-func (s *labelService) requireMember(ctx context.Context, projectID, userID uint) error {
-	if _, err := s.memberRepo.FindByProjectAndUser(ctx, projectID, userID); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return domain.ErrForbidden
-		}
-		return err
-	}
 	return nil
 }
 

@@ -12,7 +12,7 @@ vi.mock('#app', () => ({
 vi.mock('~/stores/auth.store', () => ({ useAuthStore: vi.fn() }))
 vi.mock('~/composables/useDbWaking', () => ({ useDbWaking: vi.fn(() => ({ setDbWaking: vi.fn() })) }))
 
-import { fetchWithWakeRetry, isWakingUpResponse } from './api'
+import { fetchWithWakeRetry, handleWriteDenied, isWakingUpResponse } from './api'
 
 function wakingUpError(retryAfterMs = 5000) {
   return { data: { status: 'waking_up', retry_after_ms: retryAfterMs } }
@@ -99,5 +99,43 @@ describe('fetchWithWakeRetry', () => {
     expect(doFetch).toHaveBeenCalledTimes(1)
     expect(sleep).not.toHaveBeenCalled()
     expect(onWaking).toHaveBeenLastCalledWith(false)
+  })
+})
+
+describe('handleWriteDenied', () => {
+  const deps = () => ({ currentKey: 'apol', refreshPermissions: vi.fn().mockResolvedValue(undefined), showError: vi.fn() })
+
+  test('a refused change shows the server reason and refreshes the open project', async () => {
+    const d = deps()
+    await handleWriteDenied(403, 'PUT', "Viewers can't edit tasks", d)
+    expect(d.showError).toHaveBeenCalledWith("Viewers can't edit tasks")
+    expect(d.refreshPermissions).toHaveBeenCalledWith('apol')
+  })
+
+  test('a 404 on a change also refreshes (access may be gone)', async () => {
+    const d = deps()
+    await handleWriteDenied(404, 'DELETE', 'not found', d)
+    expect(d.refreshPermissions).toHaveBeenCalledWith('apol')
+  })
+
+  test('a refused read does nothing', async () => {
+    const d = deps()
+    await handleWriteDenied(403, 'GET', 'nope', d)
+    await handleWriteDenied(404, undefined, 'nope', d)
+    expect(d.showError).not.toHaveBeenCalled()
+    expect(d.refreshPermissions).not.toHaveBeenCalled()
+  })
+
+  test('other statuses do nothing', async () => {
+    const d = deps()
+    await handleWriteDenied(409, 'POST', 'conflict', d)
+    expect(d.showError).not.toHaveBeenCalled()
+  })
+
+  test('without an open project it still explains but refreshes nothing', async () => {
+    const d = { ...deps(), currentKey: undefined }
+    await handleWriteDenied(403, 'POST', 'no', d)
+    expect(d.showError).toHaveBeenCalledWith('no')
+    expect(d.refreshPermissions).not.toHaveBeenCalled()
   })
 })

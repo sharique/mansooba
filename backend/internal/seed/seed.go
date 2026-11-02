@@ -80,7 +80,7 @@ func Seed(ctx context.Context, db *gorm.DB, adminID uint) (*SeedResult, error) {
 		if err := txMember.Create(ctx, &domain.ProjectMember{
 			ProjectID: proj.ID,
 			UserID:    adminID,
-			Role:      "admin",
+			Role:      domain.RoleAdmin,
 		}); err != nil {
 			return err
 		}

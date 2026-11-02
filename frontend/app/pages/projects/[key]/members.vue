@@ -20,10 +20,17 @@
           <h1 class="text-2xl font-bold">{{ projectsStore.current.name }}</h1>
           <p class="text-base-content/60 mt-1">{{ projectsStore.current.description }}</p>
         </div>
-        <button class="btn btn-ghost btn-sm" @click="editModal?.showModal()">Edit</button>
+        <button
+          v-if="can('project.edit')"
+          class="btn btn-ghost btn-sm"
+          @click="editModal?.showModal()"
+        >
+          Edit
+        </button>
       </div>
 
-      <ProjectsMemberList :project-key="key" :owner-id="projectsStore.current.ownerId" />
+      <ProjectsRoleSummary />
+      <ProjectsMemberList :project-key="key" />
     </template>
 
     <!-- Edit modal -->
@@ -44,6 +51,7 @@ const route = useRoute()
 const key = route.params.key as string
 const projectsStore = useProjectsStore()
 const { showSuccess, showError } = useToast()
+const { can } = useProjectPermissions()
 const editModal = ref<HTMLDialogElement | null>(null)
 const loading = ref(true)
 

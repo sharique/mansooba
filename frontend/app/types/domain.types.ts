@@ -11,6 +11,29 @@ export interface Project {
   name: string
   description: string
   ownerId: number
+  /** Caller's role in this project; only on a single-project fetch, create or update. */
+  myRole?: 'admin' | 'member' | 'viewer'
+  /** Capabilities the server grants the caller here (e.g. `task.write`); absent means none. */
+  permissions?: string[]
+}
+
+/** Wire shape of a project (snake_case). */
+export interface ProjectResponse {
+  id: number
+  key: string
+  name: string
+  description: string
+  owner_id?: number
+  ownerId?: number
+  my_role?: 'admin' | 'member' | 'viewer'
+  permissions?: string[]
+}
+
+/** Body of an API error: `{ code, message }`. */
+export interface ApiErrorBody {
+  code?: string
+  message?: string
+  task_count?: number
 }
 
 export interface ProjectMember {
@@ -29,6 +52,14 @@ export interface MemberResponse {
   username: string
   role: string
   is_active: boolean
+}
+
+// GET /admin/projects/without-admin
+export interface ProjectWithoutAdmin {
+  id: number
+  key: string
+  name: string
+  member_count: number
 }
 
 // GET /admin/usernames/check
@@ -143,6 +174,8 @@ export type KnownNotificationKind =
   | 'task_unassigned'
   | 'project_member_added'
   | 'project_member_removed'
+  | 'project_role_changed'
+  | 'project_admin_claimed'
 
 /** Unknown kinds (added by a newer server) are tolerated and shown generically. */
 export type NotificationKind = KnownNotificationKind | (string & {})

@@ -16,6 +16,13 @@ import (
 // did not finish within the graceful timeout.
 var ErrShutdown = errors.New("graceful shutdown did not complete")
 
+// ReadHeaderTimeout is how long a client may take to send its request headers
+// before the connection is cut. Without it a client can hold a connection open
+// forever by never finishing them (a slow-header attack). The body keeps its own
+// rules (ReadTimeout is off, see Serve), so slow large uploads still work. A
+// variable only so a test can shorten it.
+var ReadHeaderTimeout = 10 * time.Second
+
 // Serve runs e on addr until ctx is cancelled, then stops accepting
 // connections and lets in-flight requests finish for up to gracefulTimeout
 // (SHUTDOWN_TIMEOUT). It returns once shutdown has finished: nil for a clean
@@ -39,6 +46,7 @@ func Serve(ctx context.Context, e *echo.Echo, addr string, gracefulTimeout time.
 		// behaviour (ADR-037).
 		BeforeServeFunc: func(s *http.Server) error {
 			s.ReadTimeout = 0
+			s.ReadHeaderTimeout = ReadHeaderTimeout
 			return nil
 		},
 	}

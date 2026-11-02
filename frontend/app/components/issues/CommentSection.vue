@@ -12,7 +12,10 @@
         @delete="handleDelete"
       />
     </div>
-    <div class="mt-4">
+    <p v-if="!can('comment.write')" class="mt-4 text-sm text-base-content/70" data-testid="comment-denied">
+      {{ reason('comment.write') }}
+    </p>
+    <div v-else class="mt-4">
       <IssuesMentionTextarea
         v-model="newBody"
         :members="projectsStore.members"
@@ -34,6 +37,7 @@ const props = defineProps<{ issueId: number; currentUserId: number }>()
 const store = useCommentsStore()
 const projectsStore = useProjectsStore()
 const newBody = ref('')
+const { can, reason } = useProjectPermissions()
 
 onMounted(() => store.fetchComments(props.issueId))
 

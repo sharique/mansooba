@@ -19,9 +19,9 @@
         </div>
       </div>
       <div v-else class="prose prose-sm max-w-none" v-html="rendered" />
-      <div v-if="isOwn && !editing" class="flex gap-2 mt-1">
-        <button class="btn btn-xs btn-ghost" @click="startEdit">Edit</button>
-        <button class="btn btn-xs btn-ghost text-error" @click="$emit('delete', comment.id)">Delete</button>
+      <div v-if="(canEdit || canDelete) && !editing" class="flex gap-2 mt-1">
+        <button v-if="canEdit" class="btn btn-xs btn-ghost" @click="startEdit">Edit</button>
+        <button v-if="canDelete" class="btn btn-xs btn-ghost text-error" @click="$emit('delete', comment.id)">Delete</button>
       </div>
     </div>
   </div>
@@ -40,6 +40,10 @@ const editing = ref(false)
 const editBody = ref(props.comment.body)
 
 const isOwn = computed(() => props.comment.author_id === props.currentUserId)
+const { can } = useProjectPermissions()
+// Own comment needs comment.write; someone else's can only be deleted, with comment.delete_any.
+const canEdit = computed(() => isOwn.value && can('comment.write'))
+const canDelete = computed(() => (isOwn.value && can('comment.write')) || can('comment.delete_any'))
 const projectsStore = useProjectsStore()
 const rendered = computed(() => useMarkdown(renderMentions(props.comment.body, projectsStore.members)))
 const { formatDateTime } = useTimeFormatter()

@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest'
-import { projectNavLinks, type NavLink } from './Sidebar.vue'
+// @vitest-environment happy-dom
+import { mount } from '@vue/test-utils'
+import { describe, it, expect, vi } from 'vitest'
+import { projectNavLinks, systemNavLinks } from './Sidebar.vue'
 
 describe('projectNavLinks', () => {
   it('returns the seven project sections for a key, Members after Sprints', () => {
@@ -40,34 +42,43 @@ describe('projectNavLinks', () => {
 })
 
 describe('system nav links (admin only)', () => {
-  const systemLinks: NavLink[] = [
-    { label: 'System Settings', to: '/system/settings', icon: 'mdi:cog-outline' },
-    { label: 'User Management', to: '/system/users',    icon: 'mdi:account-group-outline' },
-    { label: 'Create User',     to: '/system/createuser', icon: 'mdi:account-plus-outline' },
-    { label: 'System Logs',     to: '/system/logs',      icon: 'mdi:text-box-search-outline' },
-  ]
-
-  it('contains four links', () => {
-    expect(systemLinks).toHaveLength(4)
+  it('contains the five links, the abandoned-projects page last', () => {
+    expect(systemNavLinks().map(l => l.to)).toEqual([
+      '/system/settings', '/system/users', '/system/createuser', '/system/logs', '/system/projects',
+    ])
   })
 
-  it('system settings link points to /system/settings', () => {
-    expect(systemLinks[0].to).toBe('/system/settings')
-    expect(systemLinks[0].label).toBe('System Settings')
+  it('labels the abandoned-projects entry "Projects without an admin"', () => {
+    const link = systemNavLinks().find(l => l.to === '/system/projects')
+    expect(link?.label).toBe('Projects without an admin')
+    expect(link?.icon.startsWith('mdi:')).toBe(true)
   })
 
-  it('user management link points to /system/users', () => {
-    expect(systemLinks[1].to).toBe('/system/users')
-    expect(systemLinks[1].label).toBe('User Management')
+  it('keeps the existing links and labels', () => {
+    expect(systemNavLinks().slice(0, 4).map(l => l.label)).toEqual(
+      ['System Settings', 'User Management', 'Create User', 'System Logs'],
+    )
+  })
+})
+
+describe('Sidebar system section', () => {
+  const mountIt = async (isAdmin: boolean) => {
+    vi.resetModules()
+    vi.stubGlobal('useRoute', () => ({ path: '/', params: {} }))
+    vi.stubGlobal('onMounted', () => {})
+    vi.doMock('~/stores/projects.store', () => ({ useProjectsStore: () => ({ projects: [], fetchAll: vi.fn() }) }))
+    vi.doMock('~/stores/auth.store', () => ({ useAuthStore: () => ({ isAdmin }) }))
+    const { default: Sidebar } = await import('./Sidebar.vue')
+    return mount(Sidebar, { global: { stubs: { NuxtLink: { props: ['to'], template: '<a :href="to"><slot /></a>' }, Icon: true } } })
+  }
+
+  it('shows "Projects without an admin" to a system administrator', async () => {
+    const w = await mountIt(true)
+    expect(w.find('a[href="/system/projects"]').text()).toContain('Projects without an admin')
   })
 
-  it('create user link points to /system/createuser', () => {
-    expect(systemLinks[2].to).toBe('/system/createuser')
-    expect(systemLinks[2].label).toBe('Create User')
-  })
-
-  it('system logs link points to /system/logs', () => {
-    expect(systemLinks[3].to).toBe('/system/logs')
-    expect(systemLinks[3].label).toBe('System Logs')
+  it('hides it from everyone else', async () => {
+    const w = await mountIt(false)
+    expect(w.find('a[href="/system/projects"]').exists()).toBe(false)
   })
 })

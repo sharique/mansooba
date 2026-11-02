@@ -10,8 +10,8 @@ Swagger UI is available at `/swagger/index.html` when the server is running.
 
 | Method | Path | Auth | Description |
 |--------|------|:----:|-------------|
-| POST | `/auth/register` | — | Register a new user |
-| POST | `/auth/login` | — | Login; returns `access_token` + `refresh_token` |
+| POST | `/auth/register` | — | Register a new user (system administrators only; optional `is_admin` makes the new account a system administrator) |
+| POST | `/auth/login` | — | Login; returns `access_token` + `refresh_token`. A malformed email is `400`; a well-formed but wrong login is `401` |
 | POST | `/auth/refresh` | — | Exchange refresh token for a new access token |
 | GET | `/auth/me` | ✓ | Get current user profile (includes `is_admin`) |
 | PUT | `/auth/me` | ✓ | Update profile (name, timezone) |
@@ -45,12 +45,13 @@ returns 409 on every subsequent call.
 |--------|------|:----:|-------------|
 | GET | `/projects` | ✓ | List all projects the caller is a member of |
 | POST | `/projects` | ✓ | Create a project |
-| GET | `/projects/:key` | ✓ | Get a project by key |
+| GET | `/projects/:key` | ✓ | Get a project by key; includes `my_role` and `permissions` for the caller (`404` for non-members) |
 | PUT | `/projects/:key` | ✓ | Update a project (admin only) |
-| DELETE | `/projects/:key` | ✓ | Delete a project (admin only) |
+| DELETE | `/projects/:key` | ✓ | Delete an empty project (admin only; body `{"confirm_name": "<project name>"}`; `409` with `task_count` while tasks remain) |
 | GET | `/projects/:key/members` | ✓ | List project members |
 | POST | `/projects/:key/members` | ✓ | Add a member (admin only) |
-| DELETE | `/projects/:key/members/:userId` | ✓ | Remove a member (admin only) |
+| PATCH | `/projects/:key/members/:userId` | ✓ | Change a member's role (admin only; `409` if it would leave no active admin) |
+| DELETE | `/projects/:key/members/:userId` | ✓ | Remove a member (admin only; not yourself; `409` for the last admin) |
 
 ---
 
@@ -69,10 +70,10 @@ returns 409 on every subsequent call.
 | Method | Path | Auth | Description |
 |--------|------|:----:|-------------|
 | GET | `/projects/:key/issues` | ✓ | List issues with optional filters (see below) |
-| POST | `/projects/:key/issues` | ✓ | Create an issue |
+| POST | `/projects/:key/issues` | ✓ | Create an issue (optional `sprint_id` puts it straight into a planning or active sprint; omitted means the backlog) |
 | GET | `/projects/:key/issues/:id` | ✓ | Get an issue |
 | PUT | `/projects/:key/issues/:id` | ✓ | Update an issue |
-| DELETE | `/projects/:key/issues/:id` | ✓ | Delete an issue (reporter or admin) |
+| DELETE | `/projects/:key/issues/:id` | ✓ | Delete an issue (the reporter while they can edit tasks, or an admin) |
 
 **Issue list query parameters:**
 
@@ -99,8 +100,8 @@ All routes below are scoped to a specific issue (`/issues/:id/`).
 |--------|------|-------------|
 | GET | `/issues/:id/comments` | List comments for an issue |
 | POST | `/issues/:id/comments` | Add a comment |
-| PUT | `/issues/:id/comments/:cid` | Update a comment (author only) |
-| DELETE | `/issues/:id/comments/:cid` | Delete a comment (author or admin) |
+| PUT | `/issues/:id/comments/:cid` | Update a comment (author only; `404` if the comment is not on issue `:id`) |
+| DELETE | `/issues/:id/comments/:cid` | Delete a comment (the author while they can comment, or an admin; `404` if the comment is not on issue `:id`) |
 
 ### Activity
 
@@ -198,6 +199,8 @@ Read-only summaries for the project's main page. Member-only (403 for anyone els
 | Method | Path | Auth | Description |
 |--------|------|:----:|-------------|
 | GET | `/admin/users` | ✓ (admin) | List all users |
+| GET | `/admin/projects/without-admin` | ✓ (admin) | Projects with no active admin: key, name, member count only |
+| POST | `/admin/projects/:key/claim-admin` | ✓ (admin) | Make the caller admin of a project that has none (logged; members notified) |
 | PATCH | `/admin/users/:id` | ✓ (admin) | Update `is_admin` and/or `is_active`; rejects demoting/disabling the last active admin |
 | GET | `/admin/system-logs` | ✓ (admin) | Query the System Logs audit trail (011-system-logs) — see below |
 

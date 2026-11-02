@@ -18,6 +18,7 @@
         :sort="false"
         filter=".no-drag"
         :prevent-on-filter="false"
+        :disabled="!canMove"
         :animation="150"
         ghost-class="opacity-40"
         :delay="150"
@@ -36,7 +37,9 @@
         />
       </VueDraggable>
       <button
-        class="btn btn-ghost btn-sm w-full mt-1 opacity-60 hover:opacity-100 transition-opacity"
+        class="btn btn-ghost btn-sm w-full mt-1 opacity-70 hover:opacity-100 transition-opacity"
+        :disabled="!canMove"
+        :title="canMove ? undefined : reason('task.write')"
         @click="$emit('createIssue', column.status)"
       >
         <Icon name="mdi:plus" class="w-4 h-4" />
@@ -54,6 +57,8 @@ import { statusBadgeClass, statusColumnBorderClass } from '~/utils/issueStyles'
 import type { Issue } from '~/types/domain.types'
 
 const props = defineProps<{ column: BoardColumn; projectKey: string }>()
+const { can, reason } = useProjectPermissions()
+const canMove = computed(() => can('task.write'))
 const emit = defineEmits<{
   createIssue: [status: string]
   moved: [move: { issueId: number; toStatus: Issue['status'] }]

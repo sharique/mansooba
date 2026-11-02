@@ -49,15 +49,15 @@ func TestIssueRelationService_OnlyProjectMembersMayUseRelations(t *testing.T) {
 	})
 	t.Run("outsider cannot list, create or delete", func(t *testing.T) {
 		_, err := svc.List(ctx, a.ID, outsider)
-		assert.ErrorIs(t, err, domain.ErrForbidden)
+		assert.ErrorIs(t, err, domain.ErrNotFound)
 		_, err = svc.Create(ctx, a.ID, outsider, dto.CreateRelationRequest{TargetIssueID: b.ID, RelationType: domain.RelationTypeBlocks})
-		assert.ErrorIs(t, err, domain.ErrForbidden)
-		assert.ErrorIs(t, svc.Delete(ctx, a.ID, rel.ID, outsider), domain.ErrForbidden)
+		assert.ErrorIs(t, err, domain.ErrNotFound)
+		assert.ErrorIs(t, svc.Delete(ctx, a.ID, rel.ID, outsider), domain.ErrNotFound)
 	})
 	t.Run("a member of another project cannot reach this project's relations", func(t *testing.T) {
 		_, err := svc.List(ctx, a.ID, otherProjectMember)
-		assert.ErrorIs(t, err, domain.ErrForbidden)
-		assert.ErrorIs(t, svc.Delete(ctx, a.ID, rel.ID, otherProjectMember), domain.ErrForbidden)
+		assert.ErrorIs(t, err, domain.ErrNotFound)
+		assert.ErrorIs(t, svc.Delete(ctx, a.ID, rel.ID, otherProjectMember), domain.ErrNotFound)
 	})
 	t.Run("a relation can only be deleted through an issue it involves", func(t *testing.T) {
 		// Caller is a member of project 2 and names an issue of their own project,
@@ -78,4 +78,32 @@ func TestIssueRelationService_OnlyProjectMembersMayUseRelations(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, list)
 	})
+}
+
+// To someone who cannot see the other project, a task there simply does not
+// exist; only a person who can see both is told it is a cross-project link.
+func TestIssueRelationService_CrossProjectTargetIsNotFoundToOutsiders(t *testing.T) {
+	ctx := context.Background()
+	db, err := database.Open(&config.Config{DBDriver: "sqlite", DBDSN: ":memory:"})
+	require.NoError(t, err)
+	require.NoError(t, database.Migrate(db))
+	issueRepo := repository.NewIssueRepository(db)
+	memberRepo := repository.NewProjectMemberRepository(db)
+	svc := service.NewIssueRelationService(repository.NewIssueRelationRepository(db), issueRepo, memberRepo)
+
+	require.NoError(t, memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: 1, UserID: 10, Role: "member"}))
+	require.NoError(t, memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: 1, UserID: 20, Role: "member"}))
+	require.NoError(t, memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: 2, UserID: 20, Role: "member"}))
+	mk := func(project uint, key string) *domain.Issue {
+		i := &domain.Issue{ProjectID: project, Key: key, Title: key, Type: "task", Status: "todo", Priority: "low", ReporterID: 10}
+		require.NoError(t, issueRepo.Create(ctx, i))
+		return i
+	}
+	a, b := mk(1, "A-1"), mk(2, "B-1")
+
+	req := dto.CreateRelationRequest{TargetIssueID: b.ID, RelationType: domain.RelationTypeRelatesTo}
+	_, err = svc.Create(ctx, a.ID, 10, req)
+	assert.ErrorIs(t, err, domain.ErrNotFound, "10 cannot see project 2")
+	_, err = svc.Create(ctx, a.ID, 20, req)
+	assert.ErrorIs(t, err, service.ErrCrossProjectRelation, "20 is in both projects")
 }

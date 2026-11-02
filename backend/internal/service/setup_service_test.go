@@ -35,7 +35,16 @@ func (s *stubProjectService) FindByKey(_ context.Context, _ string, _ uint) (*dt
 func (s *stubProjectService) Update(_ context.Context, _ string, _ uint, _ dto.UpdateProjectRequest) (*dto.ProjectResponse, error) {
 	return nil, nil
 }
-func (s *stubProjectService) Delete(_ context.Context, _ string, _ uint) error { return nil }
+func (s *stubProjectService) Delete(_ context.Context, _ string, _ uint, _ string) error { return nil }
+func (s *stubProjectService) ChangeMemberRole(_ context.Context, _ string, _, _ uint, _ string) (*dto.MemberResponse, error) {
+	return nil, nil
+}
+func (s *stubProjectService) ListWithoutAdmin(_ context.Context, _ uint) ([]*dto.AbandonedProjectResponse, error) {
+	return nil, nil
+}
+func (s *stubProjectService) ClaimAdmin(_ context.Context, _ string, _ uint) (*dto.MemberResponse, error) {
+	return nil, nil
+}
 func (s *stubProjectService) ListMembers(_ context.Context, _ string, _ uint) ([]*dto.MemberResponse, error) {
 	return nil, nil
 }

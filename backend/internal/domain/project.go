@@ -18,11 +18,12 @@ type Project struct {
 }
 
 // ProjectMember records a user's membership and role within a project.
-// Role is one of: "admin", "member", "viewer".
+// Role is one of RoleAdmin, RoleMember, RoleViewer (see access.go); a person
+// has at most one membership per project, enforced by the unique index.
 type ProjectMember struct {
 	ID        uint      `gorm:"primaryKey"`
-	ProjectID uint      `gorm:"not null;index"`
-	UserID    uint      `gorm:"not null;index"`
+	ProjectID uint      `gorm:"not null;uniqueIndex:idx_project_user"`
+	UserID    uint      `gorm:"not null;index;uniqueIndex:idx_project_user"`
 	Role      string    `gorm:"not null"`
 	CreatedAt time.Time
 }
@@ -41,6 +42,17 @@ type ProjectRepository interface {
 	Update(ctx context.Context, project *Project) error
 	// Delete removes a project by primary key.
 	Delete(ctx context.Context, id uint) error
+	// DeleteIfEmpty removes a project with its members, sprints and labels in one
+	// transaction, taking the project lock first and counting tasks under it. If
+	// any task remains nothing is deleted and *ProjectNotEmptyError carries the
+	// count; ErrNotFound when the project does not exist.
+	DeleteIfEmpty(ctx context.Context, projectID uint) error
+	// CreateWithAdmin persists a new project together with its first admin
+	// membership in one transaction: either both exist afterwards or neither.
+	CreateWithAdmin(ctx context.Context, project *Project, adminUserID uint) error
+	// FindWithoutActiveAdmin returns the projects that have no admin member whose
+	// account is active (an abandoned project), ordered by id.
+	FindWithoutActiveAdmin(ctx context.Context) ([]*Project, error)
 }
 
 // ProjectMemberRepository defines the persistence contract for ProjectMember.
@@ -58,4 +70,19 @@ type ProjectMemberRepository interface {
 	Delete(ctx context.Context, id uint) error
 	// DeleteByProjectID removes all membership records for a project (used during project deletion).
 	DeleteByProjectID(ctx context.Context, projectID uint) error
+	// ChangeRole sets a member's role. It runs under a lock on the project and
+	// returns ErrLastProjectAdmin, changing nothing, when the change would leave
+	// a project that had an active admin without one, and ErrNotFound when the
+	// user is not a member.
+	ChangeRole(ctx context.Context, projectID, userID uint, role string) error
+	// Remove deletes a member under the same lock and with the same
+	// ErrLastProjectAdmin guard as ChangeRole.
+	Remove(ctx context.Context, projectID, userID uint) error
+	// CountActiveAdmins counts the project's admins whose account is active.
+	CountActiveAdmins(ctx context.Context, projectID uint) (int64, error)
+	// AddAdminIfNone makes userID an admin of the project, but only when the
+	// project has no active admin (the rescue of an abandoned project). It
+	// returns ErrConflict, changing nothing, when one exists, and ErrNotFound
+	// when the project does not.
+	AddAdminIfNone(ctx context.Context, projectID, userID uint) (*ProjectMember, error)
 }

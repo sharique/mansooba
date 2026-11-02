@@ -101,6 +101,7 @@ Vue SFCs grouped by domain. Nuxt auto-imports them with a `<Directory><Component
 
 | Composable | Purpose |
 |-----------|---------|
+| `useProjectPermissions` | What the signed-in user may do in the open project (`can('task.write')`, `myRole`, `isReadOnly`, `reason(cap)`), read from the `permissions` the server sends with the project; the interface never keeps its own copy of the role table |
 | `useAvatarColor` | Derives an OKLCH colour from a user name for initials avatars |
 | `useMarkdown` | Renders comment body markdown |
 | `useMentions` | Mention helpers: render `@username` as a name, find the `@` being typed, filter and apply suggestions, list mentions of non-members |
@@ -124,7 +125,7 @@ Two global middleware files run on every navigation:
 
 | Plugin | Purpose |
 |--------|---------|
-| `api.ts` | Creates the `$api` composable — a `$fetch` instance pre-configured with the API base URL and auth header injection |
+| `api.ts` | Creates the `$api` composable — a `$fetch` instance pre-configured with the API base URL and auth header injection. A refused change (403 or 404 on a non-GET) shows the server's reason and refreshes the open project's permissions, so controls follow a role changed while the page was open |
 | `auth.init.client.ts` | Restores auth state from localStorage on app boot |
 | `theme.client.ts` | Applies the saved theme class to `<html>` before first render |
 

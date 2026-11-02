@@ -1,9 +1,12 @@
 // @vitest-environment happy-dom
 import { mount } from '@vue/test-utils'
-import { describe, expect, test, vi } from 'vitest'
+import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { VueDraggable } from 'vue-draggable-plus'
 import BoardColumn from './BoardColumn.vue'
 import { wasJustDragged } from '~/utils/dragGuard'
+import { stubPermissions, MEMBER, VIEWER } from '../../../test-helpers/permissions'
+
+const perms = stubPermissions(MEMBER, 'member')
 
 const makeIssue = (id: number) => ({
   id, key: `PROJ-${id}`, project_id: 1,
@@ -13,6 +16,8 @@ const makeIssue = (id: number) => ({
 })
 
 describe('BoardColumn', () => {
+  beforeEach(() => { perms.permissions = MEMBER; perms.myRole = 'member' })
+
   test('renders correct number of BoardCard stubs', () => {
     const column = { status: 'todo', issues: [makeIssue(1), makeIssue(2)] }
     const wrapper = mount(BoardColumn, {
@@ -104,5 +109,31 @@ describe('BoardColumn drag and drop', () => {
     const wrapper = mountColumn()
     wrapper.findComponent({ name: 'BoardCard' }).vm.$emit('move', { issueId: 1, toStatus: 'done' })
     expect(wrapper.emitted('moved')).toEqual([[{ issueId: 1, toStatus: 'done' }]])
+  })
+})
+
+describe('BoardColumn roles', () => {
+  const mountIt = () =>
+    mount(BoardColumn, {
+      props: { column: { status: 'todo', issues: [makeIssue(1)] }, projectKey: 'PROJ' },
+      global: { stubs: { BoardCard: true } },
+    })
+
+  test('a viewer cannot drag cards and cannot create issues, and is told why', () => {
+    perms.permissions = VIEWER
+    perms.myRole = 'viewer'
+    const wrapper = mountIt()
+    expect(wrapper.findComponent(VueDraggable).props('disabled')).toBe(true)
+    const create = wrapper.find('button')
+    expect(create.attributes('disabled')).toBeDefined()
+    expect(create.attributes('title')).toBe('denied:task.write')
+    perms.permissions = MEMBER
+    perms.myRole = 'member'
+  })
+
+  test('a member can drag cards and create issues', () => {
+    const wrapper = mountIt()
+    expect(wrapper.findComponent(VueDraggable).props('disabled')).toBe(false)
+    expect(wrapper.find('button').attributes('disabled')).toBeUndefined()
   })
 })

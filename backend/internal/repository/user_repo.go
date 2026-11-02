@@ -7,6 +7,7 @@ import (
 
 	"github.com/sharique/mansooba/internal/domain"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type userRepo struct {
@@ -162,4 +163,59 @@ func (r *userRepo) UpdateAdminFields(ctx context.Context, user *domain.User) err
 			"is_admin":  user.IsAdmin,
 			"is_active": user.IsActive,
 		}).Error
+}
+
+// UpdateAdminFieldsGuarded changes only the named fields of one account inside a
+// transaction that first locks every active system administrator (in id order, so
+// concurrent requests queue instead of deadlocking) and the target row, applies
+// the change, and recounts. If the installation had an active administrator and
+// has none afterwards, nothing is saved and ErrLastAdmin is returned. Two
+// requests that each remove the other therefore cannot both succeed, and two
+// requests that change different fields of one account cannot undo each other.
+func (r *userRepo) UpdateAdminFieldsGuarded(ctx context.Context, id uint, change domain.AdminChange) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var locked []domain.User
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Select("id").
+			Where("(is_admin = ? AND is_active = ?) OR id = ?", true, true, id).
+			Order("id ASC").
+			Find(&locked).Error; err != nil {
+			return err
+		}
+		found := false
+		for _, u := range locked {
+			if u.ID == id {
+				found = true
+			}
+		}
+		if !found {
+			return domain.ErrNotFound
+		}
+		var before int64
+		if err := tx.Model(&domain.User{}).Where("is_admin = ? AND is_active = ?", true, true).Count(&before).Error; err != nil {
+			return err
+		}
+
+		updates := map[string]any{}
+		if change.IsAdmin != nil {
+			updates["is_admin"] = *change.IsAdmin
+		}
+		if change.IsActive != nil {
+			updates["is_active"] = *change.IsActive
+		}
+		if len(updates) > 0 {
+			if err := tx.Model(&domain.User{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+				return err
+			}
+		}
+		var after int64
+		if err := tx.Model(&domain.User{}).
+			Where("is_admin = ? AND is_active = ?", true, true).Count(&after).Error; err != nil {
+			return err
+		}
+		if before > 0 && after == 0 {
+			return domain.ErrLastAdmin
+		}
+		return nil
+	})
 }

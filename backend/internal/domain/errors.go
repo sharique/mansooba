@@ -35,6 +35,20 @@ var (
 	// Admin user management errors (feature 007).
 	ErrLastAdmin = errors.New("last admin")
 
+	// Project role errors (feature 021). ErrSelfRemoval: an admin may not remove
+	// themselves from a project (they can change their own role instead).
+	// ErrProjectNotEmpty marks a project that still has tasks; see
+	// ProjectNotEmptyError for the count.
+	ErrSelfRemoval = errors.New("cannot remove yourself from a project")
+	// ErrLastProjectAdmin: the change would leave a project with no active admin.
+	ErrLastProjectAdmin = errors.New("a project needs at least one active admin")
+	ErrProjectNotEmpty  = errors.New("project still has tasks")
+	// ErrAlreadyMember: the person is already in the project. ErrProjectHasAdmin:
+	// a project cannot be taken over while it still has an active admin. Both are
+	// conflicts (409) with their own wording; errors.Is(err, ErrConflict) holds.
+	ErrAlreadyMember   = fmt.Errorf("%w: already a member of this project", ErrConflict)
+	ErrProjectHasAdmin = fmt.Errorf("%w: this project still has an active admin", ErrConflict)
+
 	// Attachment errors (feature 009). ErrAttachmentStorageUnavailable wraps
 	// S3/LocalStack failures on download-presign or delete — handlers map
 	// it to HTTP 502, distinct from a per-file rejection reason on upload.
@@ -68,3 +82,64 @@ func (e *InputError) Is(target error) bool { return target == ErrInvalidInput }
 func NewInputError(format string, a ...any) error {
 	return &InputError{Msg: fmt.Sprintf(format, a...)}
 }
+
+// ForbiddenError is a refusal with its own plain-language reason that is not
+// about a role (for example "Only the author can edit a comment"). It satisfies
+// errors.Is(err, ErrForbidden).
+type ForbiddenError struct{ Reason string }
+
+func (e *ForbiddenError) Error() string { return "forbidden: " + e.Reason }
+
+// Is lets errors.Is(err, ErrForbidden) match.
+func (e *ForbiddenError) Is(target error) bool { return target == ErrForbidden }
+
+// AccessDeniedError says a project member lacks a capability. It satisfies
+// errors.Is(err, ErrForbidden); handlers answer 403 with Reason().
+type AccessDeniedError struct {
+	Capability Capability
+	Role       string
+}
+
+func (e *AccessDeniedError) Error() string { return "forbidden: " + e.Reason() }
+
+// Is lets errors.Is(err, ErrForbidden) match.
+func (e *AccessDeniedError) Is(target error) bool { return target == ErrForbidden }
+
+// Reason is a plain-language sentence safe to show to the person, for example
+// "Viewers can't edit tasks".
+func (e *AccessDeniedError) Reason() string {
+	who := map[string]string{RoleViewer: "Viewers", RoleMember: "Members", RoleAdmin: "Admins"}[e.Role]
+	if who == "" {
+		who = "Your role"
+	}
+	action, ok := denialAction[e.Capability]
+	if !ok {
+		action = "do that"
+	}
+	return who + " can't " + action
+}
+
+var denialAction = map[Capability]string{
+	CapProjectView:         "view this project",
+	CapTaskWrite:           "edit tasks",
+	CapTaskDeleteAny:       "delete other people's tasks",
+	CapCommentWrite:        "comment",
+	CapCommentDeleteAny:    "delete other people's comments",
+	CapLabelWrite:          "change labels",
+	CapLabelDelete:         "delete labels",
+	CapAttachmentWrite:     "attach files",
+	CapAttachmentDeleteAny: "delete other people's attachments",
+	CapSprintManage:        "manage sprints",
+	CapProjectEdit:         "edit the project",
+	CapMemberManage:        "add, remove or change people",
+	CapProjectDelete:       "delete the project",
+}
+
+// ProjectNotEmptyError is returned when a project with tasks is deleted. It
+// satisfies errors.Is(err, ErrProjectNotEmpty).
+type ProjectNotEmptyError struct{ TaskCount int }
+
+func (e *ProjectNotEmptyError) Error() string { return ErrProjectNotEmpty.Error() }
+
+// Is lets errors.Is(err, ErrProjectNotEmpty) match.
+func (e *ProjectNotEmptyError) Is(target error) bool { return target == ErrProjectNotEmpty }

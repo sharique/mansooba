@@ -4,7 +4,12 @@
       <h3 class="font-semibold text-sm text-base-content/70 uppercase tracking-wide">
         Attachments<span v-if="store.attachments.length" class="text-base-content/40"> ({{ store.attachments.length }})</span>
       </h3>
-      <button class="btn btn-ghost btn-xs gap-1" :disabled="store.uploading" @click="triggerFilePicker">
+      <button
+        v-if="can('attachment.write')"
+        class="btn btn-ghost btn-xs gap-1"
+        :disabled="store.uploading"
+        @click="triggerFilePicker"
+      >
         <span v-if="store.uploading" class="loading loading-spinner loading-xs" />
         <Icon v-else name="mdi:paperclip" class="w-4 h-4" />
         Attach files
@@ -18,7 +23,7 @@
       >
     </div>
 
-    <p class="text-xs text-base-content/40 -mt-2 mb-3">
+    <p v-if="can('attachment.write')" class="text-xs text-base-content/60 -mt-2 mb-3">
       Images, PDF, text, CSV, ZIP, Word, Excel, PowerPoint · Max 10 MB per file · Up to 20 files per issue
     </p>
 
@@ -41,7 +46,7 @@
         <div class="flex items-center gap-2 shrink-0">
           <span class="text-xs text-base-content/40">{{ a.uploader_name }} · {{ formatDateTime(a.created_at) }}</span>
           <button
-            v-if="a.uploader_id === currentUserId"
+            v-if="canDelete(a)"
             class="btn btn-ghost btn-xs text-error"
             :aria-label="`Delete ${a.filename}`"
             @click="remove(a.id)"
@@ -64,6 +69,11 @@ const props = defineProps<{ issueId: number; currentUserId: number }>()
 const store = useAttachmentsStore()
 const { showSuccess, showError } = useToast()
 const { formatDateTime } = useTimeFormatter()
+const { can } = useProjectPermissions()
+
+// Own file needs attachment.write; someone else's needs attachment.delete_any.
+const canDelete = (a: { uploader_id: number }) =>
+  (can('attachment.write') && a.uploader_id === props.currentUserId) || can('attachment.delete_any')
 
 const fileInput = ref<HTMLInputElement | null>(null)
 

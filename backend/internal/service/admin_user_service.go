@@ -76,19 +76,10 @@ func (s *adminUserService) SetRole(ctx context.Context, callerID, targetID uint,
 		return err
 	}
 
-	// Guard: cannot demote the last active admin.
-	if target.IsAdmin && !isAdmin && target.IsActive {
-		count, err := s.userRepo.CountActiveAdmins(ctx)
-		if err != nil {
-			return err
-		}
-		if count <= 1 {
-			return domain.ErrLastAdmin
-		}
-	}
-
-	target.IsAdmin = isAdmin
-	if err := s.userRepo.UpdateAdminFields(ctx, target); err != nil {
+	// The repository saves the change under a lock on the active administrators
+	// and refuses it (ErrLastAdmin) if it would leave none, even when two
+	// requests arrive together.
+	if err := s.userRepo.UpdateAdminFieldsGuarded(ctx, target.ID, domain.AdminChange{IsAdmin: &isAdmin}); err != nil {
 		return err
 	}
 
@@ -111,19 +102,7 @@ func (s *adminUserService) SetActive(ctx context.Context, callerID, targetID uin
 		return err
 	}
 
-	// Guard: cannot disable the last active admin.
-	if target.IsAdmin && target.IsActive && !isActive {
-		count, err := s.userRepo.CountActiveAdmins(ctx)
-		if err != nil {
-			return err
-		}
-		if count <= 1 {
-			return domain.ErrLastAdmin
-		}
-	}
-
-	target.IsActive = isActive
-	if err := s.userRepo.UpdateAdminFields(ctx, target); err != nil {
+	if err := s.userRepo.UpdateAdminFieldsGuarded(ctx, target.ID, domain.AdminChange{IsActive: &isActive}); err != nil {
 		return err
 	}
 

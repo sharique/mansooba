@@ -1,5 +1,6 @@
 <template>
   <form @submit.prevent="submit">
+    <p v-if="!canWrite" class="text-sm text-base-content/70 mb-3" data-testid="read-only-note">{{ reason('task.write') }}</p>
     <!-- Title -->
     <div class="form-control mb-4">
       <label class="label"><span class="label-text">Title <span class="text-error">*</span></span></label>
@@ -71,9 +72,26 @@
       </select>
     </div>
 
+    <!-- Sprint (new issues only): backlog by default, or a current / upcoming sprint -->
+    <div v-if="!issue && openSprints.length > 0" class="form-control mb-4">
+      <label class="label"><span class="label-text">Sprint</span></label>
+      <select v-model="chosenSprint" data-testid="sprint" class="select select-bordered w-full">
+        <option value="">Backlog (no sprint)</option>
+        <option v-for="sp in openSprints" :key="sp.id" :value="String(sp.id)">
+          {{ sp.name }} ({{ sp.status === 'active' ? 'active' : 'planned' }})
+        </option>
+      </select>
+    </div>
+
     <div class="flex gap-2 justify-end">
       <button type="button" class="btn btn-ghost" @click="$emit('cancelled')">Cancel</button>
-      <button data-testid="submit" type="submit" class="btn btn-primary" :disabled="saving">
+      <button
+        data-testid="submit"
+        type="submit"
+        class="btn btn-primary"
+        :disabled="saving || !canWrite"
+        :title="canWrite ? undefined : reason('task.write')"
+      >
         <span v-if="saving" class="loading loading-spinner loading-sm" />
         {{ issue ? 'Save' : 'Create' }}
       </button>
@@ -83,14 +101,15 @@
 
 <script setup lang="ts">
 import { projectsService } from '~/services/projects.service'
-import type { Issue } from '~/types/domain.types'
-import type { MemberResponse } from '~/types/domain.types'
+import type { Issue, MemberResponse, Sprint } from '~/types/domain.types'
 import type { CreateIssueRequest } from '~/services/issues.service'
 
 const props = defineProps<{
   projectKey: string
   issue?: Issue
   defaultStatus?: string
+  /** Sprints the new issue can be put into; finished ones are ignored here. */
+  sprints?: Sprint[]
 }>()
 
 const emit = defineEmits<{
@@ -99,6 +118,12 @@ const emit = defineEmits<{
 }>()
 
 const issuesStore = useIssuesStore()
+const { can, reason } = useProjectPermissions()
+const canWrite = computed(() => can('task.write'))
+
+// Only the current and upcoming sprints can take new work.
+const openSprints = computed(() => (props.sprints ?? []).filter(sp => sp.status !== 'completed'))
+const chosenSprint = ref('')
 
 const form = reactive<CreateIssueRequest>({
   title: props.issue?.title ?? '',
@@ -122,6 +147,7 @@ onMounted(async () => {
 })
 
 async function submit() {
+  if (!canWrite.value) return
   titleError.value = !form.title.trim()
   if (titleError.value) return
 
@@ -136,7 +162,10 @@ async function submit() {
       result = await issuesStore.update(props.projectKey, props.issue.id, payload)
     }
     else {
-      result = await issuesStore.create(props.projectKey, form)
+      result = await issuesStore.create(
+        props.projectKey,
+        chosenSprint.value ? { ...form, sprint_id: Number(chosenSprint.value) } : form,
+      )
     }
     emit('saved', result)
   }

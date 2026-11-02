@@ -195,6 +195,7 @@ func New(d Deps) *echo.Echo {
 	projects.DELETE("/:key", h.Project.Delete)
 	projects.GET("/:key/members", h.Project.ListMembers)
 	projects.POST("/:key/members", h.Project.AddMember)
+	projects.PATCH("/:key/members/:userId", h.Project.ChangeMemberRole)
 	projects.DELETE("/:key/members/:userId", h.Project.RemoveMember)
 	projects.GET("/:key/labels", h.Label.List)
 	projects.POST("/:key/labels", h.Label.Create)
@@ -253,6 +254,8 @@ func New(d Deps) *echo.Echo {
 	admin.PATCH("/users/:id", h.AdminUser.PatchUser)
 	admin.GET("/usernames/check", h.Username.Check)
 	admin.GET("/system-logs", h.SystemLog.List)
+	admin.GET("/projects/without-admin", h.AdminProject.ListWithoutAdmin)
+	admin.POST("/projects/:key/claim-admin", h.AdminProject.ClaimAdmin)
 
 	settings := api.Group("/settings")
 	settings.GET("", h.Setting.GetAll)

@@ -40,31 +40,28 @@ type issueRelationSvcImpl struct {
 	relRepo    domain.IssueRelationRepository
 	issueRepo  domain.IssueRepository
 	memberRepo domain.ProjectMemberRepository
+	access     Access
 }
 
 // NewIssueRelationService returns an IssueRelationService.
 func NewIssueRelationService(relRepo domain.IssueRelationRepository, issueRepo domain.IssueRepository, memberRepo domain.ProjectMemberRepository) IssueRelationService {
-	return &issueRelationSvcImpl{relRepo: relRepo, issueRepo: issueRepo, memberRepo: memberRepo}
+	return &issueRelationSvcImpl{relRepo: relRepo, issueRepo: issueRepo, memberRepo: memberRepo, access: NewAccess(nil, memberRepo, nil)}
 }
 
-// requireMemberOfIssue loads the issue and refuses callers who are not members
-// of its project.
-func (s *issueRelationSvcImpl) requireMemberOfIssue(ctx context.Context, issueID, callerID uint) (*domain.Issue, error) {
+// requireOnIssue loads the issue and checks the caller holds cap in its project.
+func (s *issueRelationSvcImpl) requireOnIssue(ctx context.Context, issueID, callerID uint, cap domain.Capability) (*domain.Issue, error) {
 	issue, err := s.issueRepo.FindByID(ctx, issueID)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := s.memberRepo.FindByProjectAndUser(ctx, issue.ProjectID, callerID); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return nil, domain.ErrForbidden
-		}
+	if _, err := s.access.RequireProject(ctx, issue.ProjectID, callerID, cap); err != nil {
 		return nil, err
 	}
 	return issue, nil
 }
 
 func (s *issueRelationSvcImpl) List(ctx context.Context, issueID, callerID uint) ([]*dto.RelationResponse, error) {
-	if _, err := s.requireMemberOfIssue(ctx, issueID, callerID); err != nil {
+	if _, err := s.requireOnIssue(ctx, issueID, callerID, domain.CapProjectView); err != nil {
 		return nil, err
 	}
 	rows, err := s.relRepo.FindByIssueID(ctx, issueID)
@@ -90,7 +87,7 @@ func (s *issueRelationSvcImpl) Create(ctx context.Context, issueID, userID uint,
 		return nil, ErrSelfRelation
 	}
 
-	source, err := s.requireMemberOfIssue(ctx, issueID, userID)
+	source, err := s.requireOnIssue(ctx, issueID, userID, domain.CapTaskWrite)
 	if err != nil {
 		return nil, err
 	}
@@ -99,6 +96,12 @@ func (s *issueRelationSvcImpl) Create(ctx context.Context, issueID, userID uint,
 		return nil, domain.ErrNotFound
 	}
 	if source.ProjectID != target.ProjectID {
+		// Say "cross-project" only to someone who can see the other task; to anyone
+		// else a task in a project they are not in simply does not exist, so ids
+		// cannot be probed.
+		if _, err := s.access.RequireProject(ctx, target.ProjectID, userID, domain.CapProjectView); err != nil {
+			return nil, domain.ErrNotFound
+		}
 		return nil, ErrCrossProjectRelation
 	}
 
@@ -140,7 +143,7 @@ func (s *issueRelationSvcImpl) Create(ctx context.Context, issueID, userID uint,
 }
 
 func (s *issueRelationSvcImpl) Delete(ctx context.Context, issueID, relationID, userID uint) error {
-	if _, err := s.requireMemberOfIssue(ctx, issueID, userID); err != nil {
+	if _, err := s.requireOnIssue(ctx, issueID, userID, domain.CapTaskWrite); err != nil {
 		return err
 	}
 	rel, err := s.relRepo.FindByID(ctx, relationID)

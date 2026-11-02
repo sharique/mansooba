@@ -1,4 +1,4 @@
-import type { Project, MemberResponse } from '~/types/domain.types'
+import type { Project, ProjectResponse, MemberResponse } from '~/types/domain.types'
 
 export interface CreateProjectRequest {
   name: string
@@ -11,25 +11,37 @@ export interface AddMemberRequest {
   role: string
 }
 
+/** Maps the wire shape to the camelCase Project the app uses. */
+export function toProject(raw: ProjectResponse): Project {
+  const { owner_id, my_role, ...rest } = raw
+  return {
+    ...rest,
+    ownerId: owner_id ?? raw.ownerId ?? 0,
+    myRole: my_role ?? undefined,
+    permissions: raw.permissions,
+  }
+}
+
 export const projectsService = {
-  list(): Promise<Project[]> {
+  async list(): Promise<Project[]> {
     const { $api } = useNuxtApp()
-    return $api<Project[]>('/projects')
+    const raw = await $api<ProjectResponse[]>('/projects')
+    return (raw ?? []).map(toProject)
   },
 
-  get(key: string): Promise<Project> {
+  async get(key: string): Promise<Project> {
     const { $api } = useNuxtApp()
-    return $api<Project>(`/projects/${key}`)
+    return toProject(await $api<ProjectResponse>(`/projects/${key}`))
   },
 
-  create(data: CreateProjectRequest): Promise<Project> {
+  async create(data: CreateProjectRequest): Promise<Project> {
     const { $api } = useNuxtApp()
-    return $api<Project>('/projects', { method: 'POST', body: data })
+    return toProject(await $api<ProjectResponse>('/projects', { method: 'POST', body: data }))
   },
 
-  update(key: string, data: Partial<CreateProjectRequest>): Promise<Project> {
+  async update(key: string, data: Partial<CreateProjectRequest>): Promise<Project> {
     const { $api } = useNuxtApp()
-    return $api<Project>(`/projects/${key}`, { method: 'PUT', body: data })
+    return toProject(await $api<ProjectResponse>(`/projects/${key}`, { method: 'PUT', body: data }))
   },
 
   listMembers(key: string): Promise<MemberResponse[]> {
@@ -45,5 +57,16 @@ export const projectsService = {
   removeMember(key: string, userId: number): Promise<void> {
     const { $api } = useNuxtApp()
     return $api(`/projects/${key}/members/${userId}`, { method: 'DELETE' })
+  },
+
+  changeMemberRole(key: string, userId: number, role: string): Promise<MemberResponse> {
+    const { $api } = useNuxtApp()
+    return $api<MemberResponse>(`/projects/${key}/members/${userId}`, { method: 'PATCH', body: { role } })
+  },
+
+  /** The project must be empty; the exact project name confirms the delete. */
+  deleteProject(key: string, confirmName: string): Promise<void> {
+    const { $api } = useNuxtApp()
+    return $api(`/projects/${key}`, { method: 'DELETE', body: { confirm_name: confirmName } })
   },
 }

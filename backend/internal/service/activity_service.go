@@ -23,11 +23,12 @@ type activityServiceImpl struct {
 	userRepo   domain.UserRepository
 	issueRepo  domain.IssueRepository
 	memberRepo domain.ProjectMemberRepository
+	access     Access
 }
 
 // NewActivityService returns an ActivityService backed by the given repositories.
 func NewActivityService(repo domain.ActivityRepository, userRepo domain.UserRepository, issueRepo domain.IssueRepository, memberRepo domain.ProjectMemberRepository) ActivityService {
-	return &activityServiceImpl{repo: repo, userRepo: userRepo, issueRepo: issueRepo, memberRepo: memberRepo}
+	return &activityServiceImpl{repo: repo, userRepo: userRepo, issueRepo: issueRepo, memberRepo: memberRepo, access: NewAccess(nil, memberRepo, userRepo)}
 }
 
 func (s *activityServiceImpl) Record(ctx context.Context, e *domain.ActivityEvent) error {
@@ -41,10 +42,7 @@ func (s *activityServiceImpl) ListByIssue(ctx context.Context, issueID, callerID
 	}
 	// Activity names the people involved and quotes the issue's key and title,
 	// so it is as private as the issue itself: members only.
-	if _, err := s.memberRepo.FindByProjectAndUser(ctx, issue.ProjectID, callerID); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return nil, domain.ErrForbidden
-		}
+	if _, err := s.access.RequireProject(ctx, issue.ProjectID, callerID, domain.CapProjectView); err != nil {
 		return nil, err
 	}
 	events, err := s.repo.FindByIssueID(ctx, issueID)
@@ -65,7 +63,53 @@ func (s *activityServiceImpl) GetMyActivity(ctx context.Context, actorID uint, l
 	if err != nil {
 		return nil, err
 	}
-	return s.enrich(ctx, events), nil
+	// Only events in projects the person still belongs to: an event quotes a
+	// task's key and title, which someone who has been removed must not keep reading.
+	visible, err := s.visibleToMember(ctx, actorID, events)
+	if err != nil {
+		return nil, err
+	}
+	return s.enrich(ctx, visible), nil
+}
+
+// visibleToMember keeps the events whose project the person is currently a
+// member of. An event whose task is gone (other than a deletion event, which
+// carries its project) has nothing to show and is dropped.
+func (s *activityServiceImpl) visibleToMember(ctx context.Context, userID uint, events []*domain.ActivityEvent) ([]*domain.ActivityEvent, error) {
+	member := map[uint]bool{}
+	allowed := func(projectID uint) (bool, error) {
+		if ok, seen := member[projectID]; seen {
+			return ok, nil
+		}
+		_, err := s.access.RequireProject(ctx, projectID, userID, domain.CapProjectView)
+		if err != nil && !errors.Is(err, domain.ErrNotFound) {
+			return false, err
+		}
+		member[projectID] = err == nil
+		return err == nil, nil
+	}
+	out := make([]*domain.ActivityEvent, 0, len(events))
+	for _, e := range events {
+		projectID := e.ProjectID
+		if e.Kind != domain.ActivityIssueDeleted {
+			issue, err := s.issueRepo.FindByID(ctx, e.IssueID)
+			if errors.Is(err, domain.ErrNotFound) {
+				continue
+			}
+			if err != nil {
+				return nil, err
+			}
+			projectID = issue.ProjectID
+		}
+		ok, err := allowed(projectID)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			out = append(out, e)
+		}
+	}
+	return out, nil
 }
 
 type actorInfo struct {

@@ -10,6 +10,8 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo/v5"
+	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/service"
 )
 
 func parseUintParam(c *echo.Context, name string) (uint, error) {
@@ -63,4 +65,28 @@ func snakeCase(s string) string {
 		b.WriteRune(unicode.ToLower(r))
 	}
 	return b.String()
+}
+
+// forbiddenError turns a refusal into a 403. When the refusal carries a reason
+// ("Viewers can't edit tasks") the person gets it; any other refusal keeps the
+// plain word, never internal detail.
+func forbiddenError(err error) error {
+	var denied *domain.AccessDeniedError
+	if errors.As(err, &denied) {
+		return echo.NewHTTPError(http.StatusForbidden, denied.Reason())
+	}
+	return echo.NewHTTPError(http.StatusForbidden, "forbidden")
+}
+
+// requireSystem asks the user service whether the caller holds a system
+// capability and turns a refusal into a 403. Handlers never read the
+// administrator flag themselves.
+func requireSystem(c *echo.Context, users service.UserService, callerID uint, cap domain.SystemCapability) error {
+	if err := users.RequireSystem(c.Request().Context(), callerID, cap); err != nil {
+		if errors.Is(err, domain.ErrForbidden) {
+			return forbiddenError(err)
+		}
+		return err
+	}
+	return nil
 }

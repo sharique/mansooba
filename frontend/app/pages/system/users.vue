@@ -20,7 +20,7 @@
           <tr>
             <th>Name</th>
             <th>Email</th>
-            <th>Role</th>
+            <th>Account role</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -32,9 +32,9 @@
             <td>
               <span
                 :class="user.is_admin ? 'badge badge-primary' : 'badge badge-ghost'"
-                :aria-label="user.is_admin ? 'Role: Admin' : 'Role: Member'"
+                :aria-label="user.is_admin ? 'Account role: System administrator' : 'Account role: User'"
               >
-                {{ user.is_admin ? 'Admin' : 'Member' }}
+                {{ user.is_admin ? 'System administrator' : 'User' }}
               </span>
             </td>
             <td>
@@ -48,11 +48,11 @@
             <td class="flex gap-2">
               <button
                 class="btn btn-xs btn-outline"
-                :aria-label="user.is_admin ? `Remove admin from ${user.name}` : `Make ${user.name} admin`"
+                :aria-label="user.is_admin ? `Remove system administrator access from ${user.name}` : `Make ${user.name} a system administrator`"
                 :disabled="actionLoading === user.id"
                 @click="handleRoleToggle(user)"
               >
-                {{ user.is_admin ? 'Demote' : 'Promote' }}
+                {{ user.is_admin ? 'Remove system administrator' : 'Make system administrator' }}
               </button>
               <button
                 class="btn btn-xs"
@@ -139,14 +139,14 @@ async function handleRoleToggle(user: AdminUser) {
     // Destructive — show confirmation
     openDialog(
       user,
-      'Remove admin access?',
+      'Remove system administrator access?',
       'Remove',
       async () => {
         await applyPatch(user, { is_admin: false })
       }
     )
   } else {
-    // Promote — no confirmation needed
+    // Making someone a system administrator needs no confirmation
     await applyPatch(user, { is_admin: true })
   }
 }

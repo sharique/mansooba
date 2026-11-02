@@ -34,7 +34,8 @@ const key = route.params.key as string
 
 const projectsStore = useProjectsStore()
 const sprintsStore = useSprintsStore()
-const { canManage } = useCanManageProject()
+const { can } = useProjectPermissions()
+const canManage = computed(() => can('sprint.manage'))
 
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -44,7 +45,6 @@ onMounted(async () => {
     // fetchOne doubles as the access check: it fails for non-members.
     await Promise.all([
       projectsStore.fetchOne(key),
-      projectsStore.fetchMembers(key),
       sprintsStore.fetchSprints(key),
     ])
   }

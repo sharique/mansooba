@@ -40,6 +40,15 @@ func (s *stubUserService) GetProfile(_ context.Context, _ uint) (*dto.UserProfil
 	return s.profile, nil
 }
 
+// RequireSystem answers from the stub's profile, the way the real service answers from the account.
+func (s *stubUserService) RequireSystem(ctx context.Context, userID uint, _ domain.SystemCapability) error {
+	p, err := s.GetProfile(ctx, userID)
+	if err != nil || !p.IsAdmin {
+		return domain.ErrForbidden
+	}
+	return nil
+}
+
 func (s *stubUserService) UpdateProfile(_ context.Context, userID uint, req dto.UpdateProfileRequest) (*dto.UserProfileResponse, error) {
 	if s.updateFn != nil {
 		return s.updateFn(userID, req)

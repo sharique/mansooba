@@ -158,7 +158,7 @@ func (s *setupService) CreateProject(ctx context.Context, adminID uint, req dto.
 	if targetEmail != "" {
 		if err := s.projectSvc.AddMember(ctx, proj.Key, adminID, dto.AddMemberRequest{
 			Email: targetEmail,
-			Role:  "member",
+			Role:  domain.RoleMember,
 		}); err != nil {
 			s.log.Error("project membership failed", zap.Error(err))
 			return nil, err

@@ -10,7 +10,7 @@
       <button class="btn btn-sm btn-ghost ml-auto" @click="createdName = ''">Create another</button>
     </div>
 
-    <AuthRegisterForm v-if="!createdName" @success="onSuccess" />
+    <AuthRegisterForm v-if="!createdName" offer-system-admin @success="onSuccess" />
   </div>
 </template>
 

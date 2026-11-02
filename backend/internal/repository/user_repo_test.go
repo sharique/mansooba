@@ -7,6 +7,8 @@ import (
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/repository"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -29,6 +31,14 @@ func createUser(t *testing.T, repo domain.UserRepository, email string, isAdmin,
 	u := &domain.User{Name: email, Email: email, Username: email, Password: "hash", IsAdmin: isAdmin, IsActive: isActive}
 	if err := repo.Create(context.Background(), u); err != nil {
 		t.Fatalf("create user %s: %v", email, err)
+	}
+	// GORM stores the column default (true) for a false zero value on insert, so a
+	// disabled account has to be written explicitly afterwards.
+	if !isActive {
+		u.IsActive = false
+		if err := repo.UpdateAdminFields(context.Background(), u); err != nil {
+			t.Fatalf("disable user %s: %v", email, err)
+		}
 	}
 	return u
 }
@@ -313,4 +323,103 @@ func TestUserRepository_UpdateNeverChangesUsername(t *testing.T) {
 	if got.Name != "Renamed" || got.Password != "new-hash" {
 		t.Fatalf("other fields were not persisted: %+v", got)
 	}
+}
+
+// ── last system administrator (guarded update) ──────────────────────────────
+
+func TestUserRepo_UpdateAdminFieldsGuarded(t *testing.T) {
+	ctx := context.Background()
+	db := newTestDB(t)
+	repo := repository.NewUserRepository(db)
+	a := createUser(t, repo, "a@example.com", true, true)
+	b := createUser(t, repo, "b@example.com", true, true)
+	plain := createUser(t, repo, "p@example.com", false, true)
+
+	// with two active administrators either may step down
+	a.IsAdmin = false
+	require.NoError(t, guarded(repo, ctx, a))
+	got, _ := repo.FindByID(ctx, a.ID)
+	assert.False(t, got.IsAdmin)
+
+	// b is now the last: neither demoting nor disabling is allowed, and nothing changes
+	b.IsAdmin = false
+	assert.ErrorIs(t, guarded(repo, ctx, b), domain.ErrLastAdmin)
+	b.IsAdmin, b.IsActive = true, false
+	assert.ErrorIs(t, guarded(repo, ctx, b), domain.ErrLastAdmin)
+	got, _ = repo.FindByID(ctx, b.ID)
+	assert.True(t, got.IsAdmin && got.IsActive, "refused changes are rolled back")
+
+	// changes that do not remove the last one are fine
+	plain.IsAdmin = true
+	require.NoError(t, guarded(repo, ctx, plain))
+	b.IsAdmin, b.IsActive = false, true
+	require.NoError(t, guarded(repo, ctx, b))
+}
+
+// A disabled administrator is not an available one.
+func TestUserRepo_UpdateAdminFieldsGuarded_IgnoresDisabledAdmins(t *testing.T) {
+	ctx := context.Background()
+	repo := repository.NewUserRepository(newTestDB(t))
+	active := createUser(t, repo, "act@example.com", true, true)
+	createUser(t, repo, "dis@example.com", true, false)
+	active.IsAdmin = false
+	assert.ErrorIs(t, guarded(repo, ctx, active), domain.ErrLastAdmin)
+}
+
+// An installation that has no active administrator is not made worse, so a
+// recovery step can still promote someone.
+func TestUserRepo_UpdateAdminFieldsGuarded_AllowsRecoveryFromNone(t *testing.T) {
+	ctx := context.Background()
+	repo := repository.NewUserRepository(newTestDB(t))
+	u := createUser(t, repo, "u@example.com", false, true)
+	u.IsAdmin = true
+	require.NoError(t, guarded(repo, ctx, u))
+}
+
+// The setup wizard opens only while no administrator account exists at all. An
+// installation whose administrators are merely disabled is not "fresh": a
+// stranger must not be able to claim it, and the restore-admin command is the
+// way back in.
+func TestUserRepo_HasAdmin_CountsDisabledAdministrators(t *testing.T) {
+	ctx := context.Background()
+	repo := repository.NewUserRepository(newTestDB(t))
+
+	has, err := repo.HasAdmin(ctx)
+	require.NoError(t, err)
+	assert.False(t, has, "an empty installation has no administrator")
+
+	createUser(t, repo, "off@example.com", true, false)
+	has, err = repo.HasAdmin(ctx)
+	require.NoError(t, err)
+	assert.True(t, has, "a disabled administrator still means the installation is set up")
+}
+
+// guarded applies both administrator fields of u through the guarded update, the way the tests describe a whole new state.
+func guarded(repo domain.UserRepository, ctx context.Context, u interface{}) error {
+	var user *domain.User
+	switch v := u.(type) {
+	case *domain.User:
+		user = v
+	case domain.User:
+		user = &v
+	}
+	return repo.UpdateAdminFieldsGuarded(ctx, user.ID, domain.AdminChange{IsAdmin: &user.IsAdmin, IsActive: &user.IsActive})
+}
+
+// Two changes to different fields of one account must not undo each other.
+func TestUserRepo_UpdateAdminFieldsGuarded_ChangesOnlyTheNamedFields(t *testing.T) {
+	ctx := context.Background()
+	repo := repository.NewUserRepository(newTestDB(t))
+	createUser(t, repo, "keep@example.com", true, true)
+	u := createUser(t, repo, "target@example.com", true, true)
+
+	no := false
+	require.NoError(t, repo.UpdateAdminFieldsGuarded(ctx, u.ID, domain.AdminChange{IsActive: &no})) // disable
+	require.NoError(t, repo.UpdateAdminFieldsGuarded(ctx, u.ID, domain.AdminChange{IsAdmin: &no}))  // then demote, from a view that still thought it was active
+	got, err := repo.FindByID(ctx, u.ID)
+	require.NoError(t, err)
+	assert.False(t, got.IsActive, "the earlier disable must survive")
+	assert.False(t, got.IsAdmin)
+
+	assert.ErrorIs(t, repo.UpdateAdminFieldsGuarded(ctx, 9999, domain.AdminChange{IsAdmin: &no}), domain.ErrNotFound)
 }

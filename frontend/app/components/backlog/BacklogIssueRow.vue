@@ -14,6 +14,10 @@ const emit = defineEmits<{
     "sprint-assign": [{ issueId: number; sprintId: number }];
 }>();
 
+const { can } = useProjectPermissions();
+// Moving a task into a sprint is a task edit; a viewer sees no control that would only fail.
+const canMove = computed(() => can("task.write"));
+
 const openSprints = computed(() =>
     (props.sprints ?? []).filter((s) => s.status !== SprintStatus.Completed),
 );
@@ -71,7 +75,7 @@ function onSprintChange(e: Event) {
 
         <!-- Add to sprint -->
         <select
-            v-if="openSprints.length > 0"
+            v-if="canMove && openSprints.length > 0"
             class="select select-bordered select-xs shrink-0 w-36"
             title="Add to sprint"
             @change="onSprintChange"

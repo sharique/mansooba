@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"github.com/sharique/mansooba/internal/domain"
 	"net/http"
 
 	"github.com/labstack/echo/v5"
@@ -51,12 +52,8 @@ func (h *SettingHandler) GetAll(c *echo.Context) error {
 func (h *SettingHandler) Patch(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
 
-	profile, err := h.userSvc.GetProfile(c.Request().Context(), callerID)
-	if err != nil {
+	if err := requireSystem(c, h.userSvc, callerID, domain.SysSettings); err != nil {
 		return err
-	}
-	if !profile.IsAdmin {
-		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
 	}
 
 	var req dto.PatchSettingsRequest

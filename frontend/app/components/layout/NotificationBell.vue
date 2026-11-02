@@ -41,6 +41,8 @@ function messageFor(n: Notification): string {
     case 'task_unassigned': return `${actor} unassigned you from ${n.issue_key}`
     case 'project_member_added': return `${actor} added you to ${project}`
     case 'project_member_removed': return `${actor} removed you from ${project}`
+    case 'project_role_changed': return `${actor} changed your role in ${project}`
+    case 'project_admin_claimed': return `${actor} took over as admin of ${project}`
     default: return 'You have a new notification'
   }
 }
@@ -55,7 +57,7 @@ function targetFor(n: Notification, knownProject: boolean): string {
     case 'task_assigned':
     case 'task_unassigned':
       return `/projects/${key}/issues/${n.issue_id}`
-    default: // project_member_added and unknown kinds
+    default: // project_member_added, project_role_changed, project_admin_claimed and unknown kinds
       return `/projects/${key}`
   }
 }

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/sharique/mansooba/internal/domain"
@@ -42,6 +41,7 @@ type attachmentService struct {
 	issueRepo      domain.IssueRepository
 	projectRepo    domain.ProjectRepository
 	memberRepo     domain.ProjectMemberRepository
+	access         Access
 	activitySvc    ActivityService
 	userRepo       domain.UserRepository
 	storage        AttachmentStorage
@@ -61,6 +61,7 @@ func NewAttachmentService(
 		issueRepo:      issueRepo,
 		projectRepo:    projectRepo,
 		memberRepo:     memberRepo,
+		access:         NewAccess(projectRepo, memberRepo, userRepo),
 		activitySvc:    activitySvc,
 		userRepo:       userRepo,
 		storage:        storage,
@@ -78,15 +79,8 @@ func (s *attachmentService) Upload(ctx context.Context, issueID, callerID uint, 
 		return nil, err
 	}
 
-	membership, err := s.memberRepo.FindByProjectAndUser(ctx, issue.ProjectID, callerID)
-	if err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return nil, domain.ErrForbidden
-		}
+	if _, err := s.access.RequireProject(ctx, issue.ProjectID, callerID, domain.CapAttachmentWrite); err != nil {
 		return nil, err
-	}
-	if membership.Role == "viewer" {
-		return nil, domain.ErrForbidden
 	}
 
 	count, err := s.attachmentRepo.CountByIssueID(ctx, issueID)
@@ -156,7 +150,7 @@ func (s *attachmentService) List(ctx context.Context, issueID, callerID uint) ([
 	if err != nil {
 		return nil, err
 	}
-	if err := s.requireMember(ctx, issue.ProjectID, callerID); err != nil {
+	if _, err := s.access.RequireProject(ctx, issue.ProjectID, callerID, domain.CapProjectView); err != nil {
 		return nil, err
 	}
 
@@ -186,7 +180,7 @@ func (s *attachmentService) GenerateDownloadURL(ctx context.Context, issueID, at
 	if err != nil {
 		return "", "", err
 	}
-	if err := s.requireMember(ctx, issue.ProjectID, callerID); err != nil {
+	if _, err := s.access.RequireProject(ctx, issue.ProjectID, callerID, domain.CapProjectView); err != nil {
 		return "", "", err
 	}
 
@@ -211,21 +205,18 @@ func (s *attachmentService) Delete(ctx context.Context, issueID, attachmentID, c
 		return domain.ErrNotFound
 	}
 
-	if a.UploaderID != callerID {
-		issue, err := s.issueRepo.FindByID(ctx, issueID)
-		if err != nil {
-			return err
-		}
-		membership, err := s.memberRepo.FindByProjectAndUser(ctx, issue.ProjectID, callerID)
-		if err != nil {
-			if errors.Is(err, domain.ErrNotFound) {
-				return domain.ErrForbidden
-			}
-			return err
-		}
-		if membership.Role != "admin" {
-			return domain.ErrForbidden
-		}
+	issue, err := s.issueRepo.FindByID(ctx, issueID)
+	if err != nil {
+		return err
+	}
+	// The uploader may delete their own file while they can still attach files
+	// (a viewer cannot); deleting someone else's takes the delete-any capability.
+	need := domain.CapAttachmentDeleteAny
+	if a.UploaderID == callerID {
+		need = domain.CapAttachmentWrite
+	}
+	if _, err := s.access.RequireProject(ctx, issue.ProjectID, callerID, need); err != nil {
+		return err
 	}
 
 	if err := s.storage.Delete(ctx, a.ObjectKey); err != nil {
@@ -242,16 +233,6 @@ func (s *attachmentService) Delete(ctx context.Context, issueID, attachmentID, c
 		OldValue: a.Filename,
 	})
 
-	return nil
-}
-
-func (s *attachmentService) requireMember(ctx context.Context, projectID, userID uint) error {
-	if _, err := s.memberRepo.FindByProjectAndUser(ctx, projectID, userID); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return domain.ErrForbidden
-		}
-		return err
-	}
 	return nil
 }
 

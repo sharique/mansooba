@@ -178,6 +178,9 @@ func (s *stubUserRepo) ListAll(_ context.Context, _, _ int) ([]*domain.User, int
 func (s *stubUserRepo) CountActiveAdmins(_ context.Context) (int64, error) { return 0, nil }
 
 func (s *stubUserRepo) UpdateAdminFields(_ context.Context, _ *domain.User) error { return nil }
+func (s *stubUserRepo) UpdateAdminFieldsGuarded(_ context.Context, _ uint, _ domain.AdminChange) error {
+	return nil
+}
 
 // stubRevokedRepo controls Exists and Create outcomes.
 type stubRevokedRepo struct {
@@ -697,5 +700,42 @@ func TestAuthService_Refresh_RecordsSessionInvalidationRejection(t *testing.T) {
 	}
 	if entries[0].Action != "refresh_rejected" || entries[0].Detail != "session invalidated by password change" {
 		t.Errorf("unexpected entry: %+v", entries[0])
+	}
+}
+
+// A system administrator can create another system administrator in one step;
+// without the option the new account is an ordinary user.
+func TestAuthService_Register_IsAdminOnlyWhenAsked(t *testing.T) {
+	repo := newStubUserRepo()
+	logs := &recordingSystemLogService{}
+	svc := service.NewAuthService(repo, newStubRevokedRepo(), logs, zap.NewNop(), "test-secret", "15m", "168h")
+
+	plain, err := svc.Register(context.Background(), dto.RegisterRequest{FullName: "Plain", Email: "plain@example.com", Password: "password123"}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	admin, err := svc.Register(context.Background(), dto.RegisterRequest{FullName: "Boss", Email: "boss@example.com", Password: "password123", IsAdmin: true}, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for email, want := range map[string]bool{"plain@example.com": false, "boss@example.com": true} {
+		u, _ := repo.FindByEmail(context.Background(), email)
+		if u.IsAdmin != want {
+			t.Errorf("%s: IsAdmin = %v, want %v", email, u.IsAdmin, want)
+		}
+	}
+	_ = plain
+	if admin.User.Email != "boss@example.com" {
+		t.Errorf("unexpected response: %+v", admin.User)
+	}
+	var detail string
+	for _, e := range logs.entries {
+		if e.Target == "boss@example.com" {
+			detail = e.Detail
+		}
+	}
+	if detail == "" {
+		t.Error("creating a system administrator should say so in the system log")
 	}
 }

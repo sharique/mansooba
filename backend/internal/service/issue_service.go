@@ -40,6 +40,8 @@ type issueService struct {
 
 	// notifier is optional (nil unless WithNotifier is called).
 	notifier NotificationService
+
+	access Access
 }
 
 // NewIssueService returns an IssueService backed by the given repositories.
@@ -61,6 +63,7 @@ func NewIssueService(
 		activitySvc: activitySvc,
 		userRepo:    userRepo,
 		sprintRepo:  sprintRepo,
+		access:      NewAccess(projectRepo, memberRepo, userRepo),
 	}
 }
 
@@ -89,11 +92,16 @@ var validStatuses = map[string]bool{
 }
 
 func (s *issueService) Create(ctx context.Context, projectKey string, callerID uint, req dto.CreateIssueRequest) (*dto.IssueResponse, error) {
-	project, err := s.projectRepo.FindByKey(ctx, projectKey)
+	project, _, err := s.access.RequireProjectByKey(ctx, projectKey, callerID, domain.CapTaskWrite)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.requireMember(ctx, project.ID, callerID); err != nil {
+
+	if err := s.requireAssignable(ctx, project.ID, req.AssigneeID); err != nil {
+		return nil, err
+	}
+	sprintID, err := s.resolveNewSprint(ctx, project.ID, req.SprintID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -114,6 +122,7 @@ func (s *issueService) Create(ctx context.Context, projectKey string, callerID u
 		AssigneeID:  assigneeOrNil(req.AssigneeID),
 		ReporterID:  callerID,
 		StoryPoints: req.StoryPoints,
+		SprintID:    sprintID,
 	}
 
 	if err := s.issueRepo.Create(ctx, issue); err != nil {
@@ -126,11 +135,8 @@ func (s *issueService) Create(ctx context.Context, projectKey string, callerID u
 }
 
 func (s *issueService) ListByProject(ctx context.Context, projectKey string, callerID uint, q dto.IssueListQuery) ([]*dto.IssueResponse, error) {
-	project, err := s.projectRepo.FindByKey(ctx, projectKey)
+	project, _, err := s.access.RequireProjectByKey(ctx, projectKey, callerID, domain.CapProjectView)
 	if err != nil {
-		return nil, err
-	}
-	if err := s.requireMember(ctx, project.ID, callerID); err != nil {
 		return nil, err
 	}
 
@@ -211,11 +217,8 @@ func (s *issueService) ListByProject(ctx context.Context, projectKey string, cal
 }
 
 func (s *issueService) FindByID(ctx context.Context, projectKey string, id uint, callerID uint) (*dto.IssueResponse, error) {
-	project, err := s.projectRepo.FindByKey(ctx, projectKey)
+	project, _, err := s.access.RequireProjectByKey(ctx, projectKey, callerID, domain.CapProjectView)
 	if err != nil {
-		return nil, err
-	}
-	if err := s.requireMember(ctx, project.ID, callerID); err != nil {
 		return nil, err
 	}
 
@@ -231,11 +234,8 @@ func (s *issueService) FindByID(ctx context.Context, projectKey string, id uint,
 }
 
 func (s *issueService) Update(ctx context.Context, projectKey string, id uint, callerID uint, req dto.UpdateIssueRequest) (*dto.IssueResponse, error) {
-	project, err := s.projectRepo.FindByKey(ctx, projectKey)
+	project, _, err := s.access.RequireProjectByKey(ctx, projectKey, callerID, domain.CapTaskWrite)
 	if err != nil {
-		return nil, err
-	}
-	if err := s.requireMember(ctx, project.ID, callerID); err != nil {
 		return nil, err
 	}
 
@@ -283,6 +283,9 @@ func (s *issueService) Update(ctx context.Context, projectKey string, id uint, c
 		issue.Priority = *req.Priority
 	}
 	if req.AssigneeID != nil {
+		if err := s.requireAssignable(ctx, project.ID, req.AssigneeID); err != nil {
+			return nil, err
+		}
 		// 0 means "clear" (ADR-036); JSON null is indistinguishable from absent.
 		issue.AssigneeID = assigneeOrNil(req.AssigneeID)
 	}
@@ -293,6 +296,14 @@ func (s *issueService) Update(ctx context.Context, projectKey string, id uint, c
 		if *req.SprintID == 0 {
 			issue.SprintID = nil
 		} else {
+			// A sprint of another project must not be reachable by guessing its id.
+			sprint, err := s.sprintRepo.FindByID(ctx, *req.SprintID)
+			if err != nil {
+				return nil, err
+			}
+			if sprint.ProjectID != project.ID {
+				return nil, domain.ErrNotFound
+			}
 			issue.SprintID = req.SprintID
 		}
 	}
@@ -311,11 +322,8 @@ func (s *issueService) Update(ctx context.Context, projectKey string, id uint, c
 }
 
 func (s *issueService) Delete(ctx context.Context, projectKey string, id uint, callerID uint) error {
-	project, err := s.projectRepo.FindByKey(ctx, projectKey)
+	project, _, err := s.access.RequireProjectByKey(ctx, projectKey, callerID, domain.CapProjectView)
 	if err != nil {
-		return err
-	}
-	if err := s.requireMember(ctx, project.ID, callerID); err != nil {
 		return err
 	}
 
@@ -327,12 +335,15 @@ func (s *issueService) Delete(ctx context.Context, projectKey string, id uint, c
 		return domain.ErrNotFound
 	}
 
-	// Reporter can always delete their own issue; project admin can delete any.
-	if issue.ReporterID != callerID {
-		membership, err := s.memberRepo.FindByProjectAndUser(ctx, project.ID, callerID)
-		if err != nil || membership.Role != "admin" {
-			return domain.ErrForbidden
-		}
+	// The reporter may delete their own task, but only while they can still
+	// edit tasks (a reporter demoted to viewer cannot); deleting anyone else's
+	// takes the delete-any capability.
+	need := domain.CapTaskDeleteAny
+	if issue.ReporterID == callerID {
+		need = domain.CapTaskWrite
+	}
+	if _, err := s.access.RequireProject(ctx, project.ID, callerID, need); err != nil {
+		return err
 	}
 
 	// Cascade attachments only after authorization has passed — never destroy
@@ -371,6 +382,44 @@ func (s *issueService) Delete(ctx context.Context, projectKey string, id uint, c
 	return nil
 }
 
+// resolveNewSprint checks the sprint a new task is to be created in: it must
+// belong to the project and still be open for work (planning or active). nil or 0
+// means the backlog.
+func (s *issueService) resolveNewSprint(ctx context.Context, projectID uint, sprintID *uint) (*uint, error) {
+	if sprintID == nil || *sprintID == 0 {
+		return nil, nil
+	}
+	sprint, err := s.sprintRepo.FindByID(ctx, *sprintID)
+	if err != nil {
+		return nil, err
+	}
+	if sprint.ProjectID != projectID {
+		return nil, domain.ErrNotFound
+	}
+	if sprint.Status == domain.SprintStatusCompleted {
+		return nil, domain.NewInputError("a completed sprint cannot take new tasks")
+	}
+	id := *sprintID
+	return &id, nil
+}
+
+// requireAssignable checks that the person a task is being assigned to is a member
+// of the project (any role, a viewer included). Without it a task could be handed
+// to an outsider, who would then be able to read it through their own task list.
+// A nil or zero assignee means "unassigned" and is always fine.
+func (s *issueService) requireAssignable(ctx context.Context, projectID uint, assignee *uint) error {
+	if assignee == nil || *assignee == 0 {
+		return nil
+	}
+	if _, err := s.access.RequireProject(ctx, projectID, *assignee, domain.CapProjectView); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.NewInputError("assignee must be a member of the project")
+		}
+		return err
+	}
+	return nil
+}
+
 // GetMyIssues returns all issues assigned to callerID across all projects.
 // If q.Status is non-empty only issues with that status are returned.
 func (s *issueService) GetMyIssues(ctx context.Context, callerID uint, q dto.IssueListQuery) ([]*dto.IssueResponse, error) {
@@ -379,9 +428,24 @@ func (s *issueService) GetMyIssues(ctx context.Context, callerID uint, q dto.Iss
 		return nil, err
 	}
 
+	// Only tasks in projects the caller still belongs to: someone who was removed
+	// from a project must not keep reading its tasks through their own list.
+	member := map[uint]bool{}
 	var resp []*dto.IssueResponse
 	for _, issue := range issues {
 		if q.Status != "" && issue.Status != q.Status {
+			continue
+		}
+		ok, seen := member[issue.ProjectID]
+		if !seen {
+			_, err := s.access.RequireProject(ctx, issue.ProjectID, callerID, domain.CapProjectView)
+			if err != nil && !errors.Is(err, domain.ErrNotFound) {
+				return nil, err
+			}
+			ok = err == nil
+			member[issue.ProjectID] = ok
+		}
+		if !ok {
 			continue
 		}
 		resp = append(resp, s.enrichIssueResponse(ctx, toIssueResponse(issue), issue))
@@ -517,16 +581,6 @@ func pointsLabel(pts *int) string {
 		return "none"
 	}
 	return fmt.Sprintf("%d", *pts)
-}
-
-func (s *issueService) requireMember(ctx context.Context, projectID, userID uint) error {
-	if _, err := s.memberRepo.FindByProjectAndUser(ctx, projectID, userID); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return domain.ErrForbidden
-		}
-		return err
-	}
-	return nil
 }
 
 func toIssueResponse(i *domain.Issue) *dto.IssueResponse {

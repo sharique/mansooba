@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"sort"
 
 	"github.com/sharique/mansooba/internal/domain"
@@ -19,6 +18,7 @@ type boardService struct {
 	projectRepo domain.ProjectRepository
 	memberRepo  domain.ProjectMemberRepository
 	sprintRepo  domain.SprintRepository
+	access      Access
 }
 
 // NewBoardService returns a BoardService backed by the given repositories.
@@ -33,6 +33,7 @@ func NewBoardService(
 		projectRepo: projectRepo,
 		memberRepo:  memberRepo,
 		sprintRepo:  sprintRepo,
+		access:      NewAccess(projectRepo, memberRepo, nil),
 	}
 }
 
@@ -46,11 +47,8 @@ var boardColumnOrder = []string{
 }
 
 func (s *boardService) GetBoard(ctx context.Context, projectKey string, callerID uint) (*dto.BoardResponse, error) {
-	project, err := s.projectRepo.FindByKey(ctx, projectKey)
+	project, _, err := s.access.RequireProjectByKey(ctx, projectKey, callerID, domain.CapProjectView)
 	if err != nil {
-		return nil, err
-	}
-	if err := s.requireBoardMember(ctx, project.ID, callerID); err != nil {
 		return nil, err
 	}
 
@@ -93,16 +91,6 @@ func (s *boardService) GetBoard(ctx context.Context, projectKey string, callerID
 	}
 
 	return &dto.BoardResponse{Columns: columns}, nil
-}
-
-func (s *boardService) requireBoardMember(ctx context.Context, projectID, userID uint) error {
-	if _, err := s.memberRepo.FindByProjectAndUser(ctx, projectID, userID); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return domain.ErrForbidden
-		}
-		return err
-	}
-	return nil
 }
 
 // boardPriorityRank orders priorities for the board: critical first, anything

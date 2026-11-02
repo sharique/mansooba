@@ -6,6 +6,9 @@ import { reactive, ref } from 'vue'
 import CommentSection from './CommentSection.vue'
 import MentionTextarea from './MentionTextarea.vue'
 import { useCommentsStore } from '~/stores/comments.store'
+import { stubPermissions, MEMBER, VIEWER } from '../../../test-helpers/permissions'
+
+const perms = stubPermissions(MEMBER, 'member')
 
 const mem = (id: number, name: string, username: string) =>
   ({ user_id: id, name, email: `${username}@example.com`, username, role: 'member', is_active: true })
@@ -31,6 +34,8 @@ function mountIt() {
 
 describe('CommentSection mentions', () => {
   beforeEach(() => {
+    perms.permissions = MEMBER
+    perms.myRole = 'member'
     setActivePinia(createPinia())
     const store = useCommentsStore()
     vi.spyOn(store, 'fetchComments').mockResolvedValue(undefined as never)
@@ -63,5 +68,26 @@ describe('CommentSection mentions', () => {
     expect(w.find('[role="status"]').text()).toContain('@lee is not a member')
     expect(w.find('button').attributes('disabled')).toBeUndefined()
     vi.useRealTimers()
+  })
+})
+
+describe('CommentSection roles', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.spyOn(useCommentsStore(), 'fetchComments').mockResolvedValue(undefined as never)
+  })
+
+  it('a viewer sees a reason instead of the comment box', () => {
+    perms.permissions = VIEWER
+    perms.myRole = 'viewer'
+    const w = mountIt()
+    expect(w.find('textarea').exists()).toBe(false)
+    expect(w.find('[data-testid="comment-denied"]').text()).toBe('denied:comment.write')
+  })
+
+  it('a member sees the comment box', () => {
+    perms.permissions = MEMBER
+    perms.myRole = 'member'
+    expect(mountIt().find('textarea').exists()).toBe(true)
   })
 })

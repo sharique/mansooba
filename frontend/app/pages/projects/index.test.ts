@@ -7,6 +7,9 @@ import ProjectsPage from './index.vue'
 // Mock useToast globally (Nuxt auto-import)
 vi.stubGlobal('useToast', () => ({ showSuccess: vi.fn(), showError: vi.fn() }))
 
+// A regular signed-in user: not a system administrator.
+vi.stubGlobal('useAuthStore', () => ({ isAdmin: false, user: { id: 5 } }))
+
 const mockFetchAll = vi.fn().mockResolvedValue(undefined)
 const mockProjectsStore = {
   projects: [] as { id: number; key: string; name: string }[],
@@ -51,5 +54,18 @@ describe('projects index page', () => {
     const w = shallowMount(ProjectsPage, { global: { stubs: globalStubs } })
     // Before promises flush (still loading) — skeleton shows, not empty state
     expect(w.find('[data-testid="empty-state"]').exists()).toBe(false)
+  })
+
+  it('offers "New Project" to a signed-in user who is not a system administrator', async () => {
+    mockProjectsStore.projects = [{ id: 1, key: 'PROJ', name: 'My Project' }]
+    const w = shallowMount(ProjectsPage, { global: { stubs: globalStubs } })
+    await flushPromises()
+    expect(w.findAll('button').some(b => b.text() === 'New Project')).toBe(true)
+  })
+
+  it('offers "Create your first project" to a non-administrator on the empty state', async () => {
+    const w = shallowMount(ProjectsPage, { global: { stubs: globalStubs } })
+    await flushPromises()
+    expect(w.text()).toContain('Create your first project')
   })
 })

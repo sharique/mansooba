@@ -212,7 +212,7 @@ func TestAttachmentService_Upload_NonMemberForbidden(t *testing.T) {
 	_, err := svc.Upload(context.Background(), 1, 999, []dto.AttachmentUploadFile{
 		{Filename: "a.png", Data: []byte("x"), ContentType: "image/png"},
 	})
-	assert.ErrorIs(t, err, domain.ErrForbidden)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
 }
 
 func TestAttachmentService_Upload_PerFileStorageFailureIsRejectedNotFatal(t *testing.T) {
@@ -301,7 +301,7 @@ func TestAttachmentService_List_NonMemberForbidden(t *testing.T) {
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
 
 	_, err := svc.List(context.Background(), 1, 999)
-	assert.ErrorIs(t, err, domain.ErrForbidden)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
 }
 
 // ── GenerateDownloadURL ──────────────────────────────────────────────────────
@@ -328,7 +328,7 @@ func TestAttachmentService_GenerateDownloadURL_NonMemberForbidden_NoURLGenerated
 	attachmentRepo.attachments = append(attachmentRepo.attachments, &domain.Attachment{ID: 5, IssueID: 1, ObjectKey: "issues/1/x.png", Filename: "x.png"})
 
 	url, _, err := svc.GenerateDownloadURL(context.Background(), 1, 5, 999)
-	assert.ErrorIs(t, err, domain.ErrForbidden)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
 	assert.Empty(t, url, "no presigned URL must ever be generated for a denied caller (research.md Decision 2)")
 }
 
@@ -350,6 +350,7 @@ func TestAttachmentService_Delete_UploaderCanDeleteOwn(t *testing.T) {
 	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"})
 	attachmentRepo.attachments = append(attachmentRepo.attachments, &domain.Attachment{ID: 5, IssueID: 1, UploaderID: 42, ObjectKey: "issues/1/x.png", Filename: "x.png"})
 
 	err := svc.Delete(context.Background(), 1, 5, 42)
@@ -396,7 +397,8 @@ func TestAttachmentService_Delete_ViewerForbiddenEvenIfSomehowUploader(t *testin
 	attachmentRepo.attachments = append(attachmentRepo.attachments, &domain.Attachment{ID: 5, IssueID: 1, UploaderID: 7, ObjectKey: "issues/1/x.png", Filename: "x.png"})
 
 	err := svc.Delete(context.Background(), 1, 5, 7)
-	require.NoError(t, err, "uploader-own-delete follows the same rule as comments — no re-check of current role")
+	assert.ErrorIs(t, err, domain.ErrForbidden, "owning a file is not enough: deleting needs permission to attach files, which a viewer lacks")
+	assert.Len(t, attachmentRepo.attachments, 1)
 }
 
 func TestAttachmentService_Delete_StorageFailureLeavesDBRowIntact(t *testing.T) {
@@ -405,6 +407,7 @@ func TestAttachmentService_Delete_StorageFailureLeavesDBRowIntact(t *testing.T) 
 	svc := newAttachmentService(attachmentRepo, issueRepo, projectRepo, memberRepo, activitySvc, userRepo, storage)
 
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10, ReporterID: 1})
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"})
 	attachmentRepo.attachments = append(attachmentRepo.attachments, &domain.Attachment{ID: 5, IssueID: 1, UploaderID: 42, ObjectKey: "issues/1/x.png", Filename: "x.png"})
 
 	err := svc.Delete(context.Background(), 1, 5, 42)

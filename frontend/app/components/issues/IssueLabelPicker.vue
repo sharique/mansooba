@@ -5,11 +5,12 @@
         v-for="l in attachedLabels"
         :key="l.id"
         :label="l"
-        class="cursor-pointer"
-        :title="`Remove ${l.name}`"
-        @click="detach(l.id)"
+        :class="canWrite ? 'cursor-pointer' : ''"
+        :title="canWrite ? `Remove ${l.name}` : undefined"
+        @click="canWrite && detach(l.id)"
       />
-      <div class="dropdown dropdown-bottom">
+      <span v-if="!canWrite && attachedLabels.length === 0" class="text-xs text-base-content/60">No labels</span>
+      <div v-if="canWrite" class="dropdown dropdown-bottom">
         <button tabindex="0" class="btn btn-xs btn-ghost">+ Label</button>
         <ul tabindex="0" class="dropdown-content menu bg-base-100 border border-base-200 rounded-box z-[10] p-1 shadow w-40">
           <li v-for="l in availableLabels" :key="l.id">
@@ -33,6 +34,8 @@ import type { Label } from '~/types/domain.types'
 
 const props = defineProps<{ issueId: number; projectKey: string }>()
 const store = useLabelsStore()
+const { can } = useProjectPermissions()
+const canWrite = computed(() => can('label.write'))
 
 onMounted(() => Promise.all([
   store.fetchProjectLabels(props.projectKey),

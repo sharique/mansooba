@@ -50,9 +50,8 @@ func NewSystemLogHandler(svc service.SystemLogService, userSvc service.UserServi
 // @Router       /admin/system-logs [get]
 func (h *SystemLogHandler) List(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
-	profile, err := h.userSvc.GetProfile(c.Request().Context(), callerID)
-	if err != nil || !profile.IsAdmin {
-		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
+	if err := requireSystem(c, h.userSvc, callerID, domain.SysLogs); err != nil {
+		return err
 	}
 
 	query, err := parseSystemLogListQuery(c)
