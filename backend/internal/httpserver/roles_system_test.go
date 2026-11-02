@@ -118,3 +118,28 @@ func TestSystem_AddedAsAMemberHasOnlyThatMembersRights(t *testing.T) {
 	rec := call(env.e, "PUT", "/api/v1/projects/rol/issues/"+env.issue1, env.sys, `{"title":"x"}`)
 	assert.Equal(t, http.StatusForbidden, rec.Code, "being a system administrator does not lift a viewer's limits: %s", rec.Body.String())
 }
+
+// Creating an account as a system administrator works through the API, and only a
+// system administrator can do it (a project admin cannot make anyone one).
+func TestSystem_CreateUserCanMakeASystemAdministrator(t *testing.T) {
+	env := newRolesEnv(t)
+	body := func(email string, admin bool) string {
+		a := "false"
+		if admin {
+			a = "true"
+		}
+		return `{"full_name":"New","email":"` + email + `","password":"Passw0rd!x","is_admin":` + a + `}`
+	}
+
+	assert.Equal(t, http.StatusForbidden, call(env.e, "POST", "/api/v1/auth/register", env.ada, body("viaada@example.com", true)).Code,
+		"a project admin cannot create a system administrator")
+
+	rec := call(env.e, "POST", "/api/v1/auth/register", env.sys, body("boss@example.com", true))
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+	bossToken := jsonField(t, rec, "access_token")
+	assert.Equal(t, http.StatusOK, call(env.e, "GET", "/api/v1/admin/users", bossToken, "").Code, "the new account is a system administrator")
+
+	rec = call(env.e, "POST", "/api/v1/auth/register", env.sys, body("plain@example.com", false))
+	require.Equal(t, http.StatusCreated, rec.Code)
+	assert.Equal(t, http.StatusForbidden, call(env.e, "GET", "/api/v1/admin/users", jsonField(t, rec, "access_token"), "").Code)
+}

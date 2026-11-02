@@ -5029,6 +5029,10 @@ const docTemplate = `{
                 "full_name": {
                     "type": "string"
                 },
+                "is_admin": {
+                    "description": "IsAdmin makes the new account a system administrator. Only a system\nadministrator can call this endpoint, so no one can use it to gain rights.",
+                    "type": "boolean"
+                },
                 "password": {
                     "type": "string"
                 },

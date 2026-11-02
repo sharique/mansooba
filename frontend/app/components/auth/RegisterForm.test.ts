@@ -70,3 +70,41 @@ describe('RegisterForm: username', () => {
     expect(w.find('.alert-error').text()).toContain('email already registered')
   })
 })
+
+describe('RegisterForm: system administrator option', () => {
+  beforeEach(() => {
+    register.mockReset().mockResolvedValue({})
+    checkUsername.mockReset().mockResolvedValue({ available: true, reason: '', message: '' })
+  })
+  const box = (w: ReturnType<typeof mount>) => w.find('[data-testid="make-system-admin"]')
+
+  it('is not offered unless the page asks for it', () => {
+    expect(box(mount(RegisterForm)).exists()).toBe(false)
+  })
+
+  it('is offered, unticked, with a plain explanation', () => {
+    const w = mount(RegisterForm, { props: { offerSystemAdmin: true } })
+    expect(box(w).exists()).toBe(true)
+    expect((box(w).element as HTMLInputElement).checked).toBe(false)
+    expect(w.text()).toContain('System administrator')
+    expect(w.text()).toContain('Does not give access to any project')
+  })
+
+  it('creates an ordinary user by default (no extra argument is sent)', async () => {
+    const w = mount(RegisterForm, { props: { offerSystemAdmin: true } })
+    await fill(w)
+    await w.find('form').trigger('submit')
+    await flushPromises()
+    expect(register).toHaveBeenLastCalledWith('Sam-Smith@example.com', 'Passw0rd!x', 'Sam Smith', 'samsmith')
+  })
+
+  it('creates a system administrator when ticked', async () => {
+    const w = mount(RegisterForm, { props: { offerSystemAdmin: true } })
+    await fill(w)
+    await box(w).setValue(true)
+    await w.find('form').trigger('submit')
+    await flushPromises()
+    expect(register).toHaveBeenLastCalledWith('Sam-Smith@example.com', 'Passw0rd!x', 'Sam Smith', 'samsmith', true)
+  })
+})
+

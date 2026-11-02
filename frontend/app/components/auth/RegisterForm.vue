@@ -56,6 +56,24 @@
           </li>
         </ul>
       </div>
+
+      <!-- Only offered where a system administrator creates an account -->
+      <div v-if="offerSystemAdmin" class="form-control">
+        <label class="label cursor-pointer justify-start gap-3 items-start">
+          <input
+            v-model="makeSystemAdmin"
+            type="checkbox"
+            class="checkbox checkbox-sm mt-0.5"
+            data-testid="make-system-admin"
+          />
+          <span>
+            <span class="label-text font-medium">System administrator</span>
+            <span class="block text-sm text-base-content/60">
+              Can manage users, settings and system logs. Does not give access to any project.
+            </span>
+          </span>
+        </label>
+      </div>
     </div>
 
     <div v-if="errorMessage" class="alert alert-error mt-4 py-2 text-sm">
@@ -75,7 +93,12 @@ import { adminService } from '~/services/admin.service'
 import { useUsernameField } from '~/composables/useUsernameField'
 import UsernameField from '~/components/common/UsernameField.vue'
 
+defineProps<{
+  /** Show the "System administrator" option (only where a system administrator creates an account). */
+  offerSystemAdmin?: boolean
+}>()
 const emit = defineEmits<{ success: [name: string] }>()
+const makeSystemAdmin = ref(false)
 
 const fullName = ref('')
 const email = ref('')
@@ -113,7 +136,13 @@ async function submit() {
   loading.value = true
   errorMessage.value = ''
   try {
-    await authService.register(email.value, password.value, fullName.value, usernameField.username.value || undefined)
+    const username = usernameField.username.value || undefined
+    if (makeSystemAdmin.value) {
+      await authService.register(email.value, password.value, fullName.value, username, true)
+    }
+    else {
+      await authService.register(email.value, password.value, fullName.value, username)
+    }
     emit('success', fullName.value)
   }
   catch (err: unknown) {
