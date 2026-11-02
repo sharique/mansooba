@@ -2,6 +2,9 @@
 import { shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import IssueDetail from '../IssueDetail.vue'
+import { stubPermissions, MEMBER, VIEWER, ADMIN } from '../../../../test-helpers/permissions'
+
+const perms = stubPermissions(MEMBER, 'member')
 
 const mockUpdate = vi.fn()
 const mockFetchActivity = vi.fn()
@@ -30,6 +33,8 @@ function assigneeSelect(w: ReturnType<typeof shallowMount>) {
 
 describe('IssueDetail assignee', () => {
   beforeEach(() => {
+    perms.permissions = MEMBER
+    perms.myRole = 'member'
     mockUpdate.mockReset().mockResolvedValue({})
     mockFetchActivity.mockReset()
   })
@@ -44,5 +49,47 @@ describe('IssueDetail assignee', () => {
     const w = shallowMount(IssueDetail, { props: { issue, projectKey: 'PROJ', members } })
     await assigneeSelect(w).setValue('4')
     expect(mockUpdate).toHaveBeenCalledWith('PROJ', 7, { assignee_id: 4 })
+  })
+})
+
+describe('IssueDetail roles', () => {
+  beforeEach(() => {
+    perms.permissions = MEMBER
+    perms.myRole = 'member'
+    mockUpdate.mockReset().mockResolvedValue({})
+  })
+  const mountIt = (i: object = issue) => shallowMount(IssueDetail, { props: { issue: i as never, projectKey: 'PROJ', members } })
+
+  test('a viewer gets disabled fields with a reason and no delete button', () => {
+    perms.permissions = VIEWER
+    perms.myRole = 'viewer'
+    const w = mountIt()
+    for (const sel of w.findAll('select')) {
+      expect(sel.attributes('disabled')).toBeDefined()
+      expect(sel.attributes('title')).toBe('denied:task.write')
+    }
+    expect(w.find('input[type="number"]').attributes('disabled')).toBeDefined()
+    expect(w.find('[data-testid="read-only-note"]').exists()).toBe(true)
+    expect(w.text()).not.toContain('Delete Issue')
+  })
+
+  test('a viewer clicking the title does not start editing', async () => {
+    perms.permissions = VIEWER
+    perms.myRole = 'viewer'
+    const w = mountIt()
+    await w.find('h2').trigger('click')
+    expect(w.find('input.input-bordered.text-xl').exists()).toBe(false)
+  })
+
+  test('a member can edit fields and delete their own task only', () => {
+    expect(mountIt().findAll('select')[0]!.attributes('disabled')).toBeUndefined()
+    expect(mountIt().text()).toContain('Delete Issue')
+    expect(mountIt({ ...(issue as object), reporter_id: 99 }).text()).not.toContain('Delete Issue')
+  })
+
+  test('an admin can delete another person\'s task', () => {
+    perms.permissions = ADMIN
+    perms.myRole = 'admin'
+    expect(mountIt({ ...(issue as object), reporter_id: 99 }).text()).toContain('Delete Issue')
   })
 })

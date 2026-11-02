@@ -1,6 +1,8 @@
 import { defineNuxtPlugin, navigateTo, useRuntimeConfig } from '#app'
 import { useAuthStore } from '~/stores/auth.store'
 import { useDbWaking } from '~/composables/useDbWaking'
+import { useProjectsStore } from '~/stores/projects.store'
+import { useToast } from '~/composables/useToast'
 
 // FR-013: the client gives up and shows a clear failure after 5 cumulative
 // minutes of retrying a waking_up response.
@@ -76,6 +78,31 @@ export async function fetchWithWakeRetry<T>(
   }
 }
 
+export interface WriteDeniedDeps {
+  /** Key of the project currently open, if any. */
+  currentKey?: string
+  refreshPermissions: (key: string) => Promise<void>
+  showError: (message: string) => void
+}
+
+/**
+ * A change (not a read) that the server refuses with 403 or 404 usually means the
+ * person's role changed while the page was open. Say why, in the server's words, and
+ * refetch the open project so the controls follow the new permissions.
+ */
+export async function handleWriteDenied(
+  status: number,
+  method: string | undefined,
+  message: string | undefined,
+  deps: WriteDeniedDeps,
+): Promise<void> {
+  if (status !== 403 && status !== 404) return
+  const m = (method ?? 'GET').toUpperCase()
+  if (m === 'GET' || m === 'HEAD') return
+  if (message) deps.showError(message)
+  if (deps.currentKey) await deps.refreshPermissions(deps.currentKey)
+}
+
 export default defineNuxtPlugin(() => {
   const authStore = useAuthStore()
   const config = useRuntimeConfig()
@@ -98,7 +125,20 @@ export default defineNuxtPlugin(() => {
         options.headers = headers
       }
     },
-    async onResponseError({ response }) {
+    async onResponseError({ response, options }) {
+      if (response.status === 403 || response.status === 404) {
+        const projectsStore = useProjectsStore()
+        await handleWriteDenied(
+          response.status,
+          options.method as string | undefined,
+          (response._data as { message?: string } | undefined)?.message,
+          {
+            currentKey: projectsStore.current?.key,
+            refreshPermissions: key => projectsStore.refreshPermissions(key),
+            showError: useToast().showError,
+          },
+        )
+      }
       if (response.status === 401) {
         try {
           const { access_token } = await $fetch<{ access_token: string }>(

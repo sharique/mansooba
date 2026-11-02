@@ -7,6 +7,10 @@ import BoardPage from './board.vue'
 import BoardColumn from '~/components/board/BoardColumn.vue'
 import { issuesService } from '~/services/issues.service'
 import { boardService } from '~/services/board.service'
+import { stubPermissions, MEMBER, VIEWER } from '../../../../test-helpers/permissions'
+
+const perms = stubPermissions(MEMBER, 'member')
+vi.stubGlobal('useProjectsStore', () => ({ fetchOne: vi.fn().mockResolvedValue(undefined) }))
 
 vi.mock('~/services/board.service', () => ({
   boardService: { getBoard: vi.fn().mockResolvedValue({ columns: [] }) },
@@ -21,7 +25,25 @@ vi.stubGlobal('useToast', () => ({ showSuccess: vi.fn(), showError: vi.fn() }))
 
 describe('board page', () => {
   beforeEach(() => {
+    perms.permissions = MEMBER
+    perms.myRole = 'member'
     setActivePinia(createPinia())
+  })
+
+  it('disables Create Issue for a viewer, with the reason', async () => {
+    perms.permissions = VIEWER
+    perms.myRole = 'viewer'
+    const w = shallowMount(BoardPage)
+    await flushPromises()
+    const btn = w.findAll('button').find(b => b.text() === 'Create Issue')!
+    expect(btn.attributes('disabled')).toBeDefined()
+    expect(btn.attributes('title')).toBe('denied:task.write')
+  })
+
+  it('enables Create Issue for a member', async () => {
+    const w = shallowMount(BoardPage)
+    await flushPromises()
+    expect(w.findAll('button').find(b => b.text() === 'Create Issue')!.attributes('disabled')).toBeUndefined()
   })
 
   it('does not render a burndown chart (it lives on the Reports page)', async () => {

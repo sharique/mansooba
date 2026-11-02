@@ -2,7 +2,11 @@
   <div class="mt-6">
     <div class="flex items-center justify-between mb-3">
       <h3 class="font-semibold text-sm text-base-content/70 uppercase tracking-wide">Related Tasks</h3>
-      <button class="btn btn-ghost btn-xs gap-1" @click="togglePopover">
+      <button
+        v-if="canWrite"
+        class="btn btn-ghost btn-xs gap-1"
+        @click="togglePopover"
+      >
         <Icon name="mdi:plus" class="w-4 h-4" /> Add relation
       </button>
     </div>
@@ -24,6 +28,7 @@
         <div class="flex items-center gap-2 shrink-0">
           <span class="badge badge-outline badge-xs">{{ rel.related_issue.status }}</span>
           <button
+            v-if="canWrite"
             class="btn btn-ghost btn-xs text-error"
             :aria-label="`Remove relation ${rel.id}`"
             @click="removeRelation(rel.id)"
@@ -38,7 +43,7 @@
     <p v-else class="text-sm text-base-content/40 py-2">No related tasks.</p>
 
     <!-- Add relation popover -->
-    <div v-if="popoverOpen" class="mt-3 rounded-lg border border-base-300 bg-base-100 p-4 space-y-3">
+    <div v-if="canWrite && popoverOpen" class="mt-3 rounded-lg border border-base-300 bg-base-100 p-4 space-y-3">
       <div class="form-control">
         <label class="label"><span class="label-text text-xs">Search tasks in this project</span></label>
         <input
@@ -90,6 +95,8 @@ import type { Issue } from '~/types/domain.types'
 const props = defineProps<{ issueId: number; projectKey: string }>()
 const store = useIssueRelationsStore()
 const { showSuccess, showError } = useToast()
+const { can } = useProjectPermissions()
+const canWrite = computed(() => can('task.write'))
 
 const popoverOpen = ref(false)
 const searchQuery = ref('')

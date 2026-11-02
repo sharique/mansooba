@@ -25,7 +25,14 @@
           Settings
         </NuxtLink>
       </div>
-      <button class="btn btn-primary btn-sm" @click="openCreateModal('')">Create Issue</button>
+      <button
+        class="btn btn-primary btn-sm"
+        :disabled="!can('task.write')"
+        :title="can('task.write') ? undefined : reason('task.write')"
+        @click="openCreateModal('')"
+      >
+        Create Issue
+      </button>
     </div>
 
     <!-- Skeleton -->
@@ -63,11 +70,15 @@ const route = useRoute()
 const key = route.params.key as string
 const { showSuccess, showError } = useToast()
 const store = useBoardStore()
+const projectsStore = useProjectsStore()
+const { can, reason } = useProjectPermissions()
 
 const selectedStatus = ref('')
 const modalOpen = ref(false)
 
 onMounted(async () => {
+  // The project carries what the signed-in user may do here (viewers get a read-only board).
+  projectsStore.fetchOne(key).catch(() => {})
   await store.load(key)
   if (store.error) showError('Failed to load sprint board')
 })

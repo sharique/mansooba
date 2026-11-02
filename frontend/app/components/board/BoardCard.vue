@@ -1,8 +1,8 @@
 <template>
   <div
     class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer mb-2 border-l-4 touch-manipulation"
-    :class="[priorityBorderClass(issue.priority), { 'no-drag': issue.locked }]"
-    :aria-disabled="issue.locked ? 'true' : undefined"
+    :class="[priorityBorderClass(issue.priority), { 'no-drag': issue.locked || !canMove }]"
+    :aria-disabled="issue.locked || !canMove ? 'true' : undefined"
     :data-issue-id="issue.id"
     @click="open"
   >
@@ -25,8 +25,8 @@
               :aria-label="`Move ${issue.key} to…`"
               :aria-expanded="String(menuOpen)"
               :aria-controls="listId"
-              :aria-disabled="issue.locked ? 'true' : undefined"
-              :title="issue.locked ? 'Sprint completed' : undefined"
+              :aria-disabled="issue.locked || !canMove ? 'true' : undefined"
+              :title="issue.locked ? 'Sprint completed' : moveDeniedReason"
               @click="toggleMenu"
             >
               <Icon name="mdi:dots-horizontal" class="w-4 h-4" />
@@ -87,8 +87,13 @@ const toggleEl = ref<HTMLButtonElement | null>(null)
 const listId = computed(() => `move-list-${props.issue.id}`)
 const targets = computed(() => BOARD_STATUSES.filter(s => s !== props.issue.status))
 
+const { can, reason } = useProjectPermissions()
+const canMove = computed(() => can('task.write'))
+// A completed sprint's lock wins; otherwise the role's reason is shown.
+const moveDeniedReason = computed(() => (canMove.value ? undefined : reason('task.write')))
+
 function toggleMenu() {
-  if (props.issue.locked) return
+  if (props.issue.locked || !canMove.value) return
   menuOpen.value = !menuOpen.value
 }
 

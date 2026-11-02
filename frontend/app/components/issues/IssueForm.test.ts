@@ -3,6 +3,9 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import IssueForm from './IssueForm.vue'
+import { stubPermissions, MEMBER, VIEWER } from '../../../test-helpers/permissions'
+
+const perms = stubPermissions(MEMBER, 'member')
 
 const mockCreate = vi.fn()
 const mockUpdate = vi.fn()
@@ -21,6 +24,8 @@ vi.stubGlobal('onMounted', (fn: () => void) => fn())
 
 describe('IssueForm', () => {
   beforeEach(() => {
+    perms.permissions = MEMBER
+    perms.myRole = 'member'
     setActivePinia(createPinia())
     mockCreate.mockReset()
     mockUpdate.mockReset()
@@ -74,5 +79,37 @@ describe('IssueForm', () => {
     await wrapper.find('form').trigger('submit')
     await Promise.resolve()
     expect(mockCreate.mock.calls[0]![1].assignee_id).toBeUndefined()
+  })
+})
+
+describe('IssueForm roles', () => {
+  beforeEach(() => {
+    perms.permissions = MEMBER
+    perms.myRole = 'member'
+    setActivePinia(createPinia())
+    mockCreate.mockReset()
+  })
+
+  test('a viewer cannot submit and sees why', async () => {
+    perms.permissions = VIEWER
+    perms.myRole = 'viewer'
+    const wrapper = mount(IssueForm, { props: { projectKey: 'PROJ' } })
+    await wrapper.find('[data-testid="title"]').setValue('Sneaky')
+    const submit = wrapper.find('[data-testid="submit"]')
+    expect(submit.attributes('disabled')).toBeDefined()
+    expect(wrapper.find('[data-testid="read-only-note"]').text()).toBe('denied:task.write')
+    await wrapper.find('form').trigger('submit')
+    expect(mockCreate).not.toHaveBeenCalled()
+    perms.permissions = MEMBER
+    perms.myRole = 'member'
+  })
+
+  test('a member can submit', async () => {
+    mockCreate.mockResolvedValueOnce({ id: 1 })
+    const wrapper = mount(IssueForm, { props: { projectKey: 'PROJ' } })
+    await wrapper.find('[data-testid="title"]').setValue('Real work')
+    expect(wrapper.find('[data-testid="read-only-note"]').exists()).toBe(false)
+    await wrapper.find('form').trigger('submit')
+    expect(mockCreate).toHaveBeenCalled()
   })
 })

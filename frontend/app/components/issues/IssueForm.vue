@@ -1,5 +1,6 @@
 <template>
   <form @submit.prevent="submit">
+    <p v-if="!canWrite" class="text-sm text-base-content/70 mb-3" data-testid="read-only-note">{{ reason('task.write') }}</p>
     <!-- Title -->
     <div class="form-control mb-4">
       <label class="label"><span class="label-text">Title <span class="text-error">*</span></span></label>
@@ -73,7 +74,13 @@
 
     <div class="flex gap-2 justify-end">
       <button type="button" class="btn btn-ghost" @click="$emit('cancelled')">Cancel</button>
-      <button data-testid="submit" type="submit" class="btn btn-primary" :disabled="saving">
+      <button
+        data-testid="submit"
+        type="submit"
+        class="btn btn-primary"
+        :disabled="saving || !canWrite"
+        :title="canWrite ? undefined : reason('task.write')"
+      >
         <span v-if="saving" class="loading loading-spinner loading-sm" />
         {{ issue ? 'Save' : 'Create' }}
       </button>
@@ -99,6 +106,8 @@ const emit = defineEmits<{
 }>()
 
 const issuesStore = useIssuesStore()
+const { can, reason } = useProjectPermissions()
+const canWrite = computed(() => can('task.write'))
 
 const form = reactive<CreateIssueRequest>({
   title: props.issue?.title ?? '',
@@ -122,6 +131,7 @@ onMounted(async () => {
 })
 
 async function submit() {
+  if (!canWrite.value) return
   titleError.value = !form.title.trim()
   if (titleError.value) return
 

@@ -3,16 +3,13 @@ import { flushPromises, shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
 import SprintsPage from './sprints.vue'
-import { useCanManageProject } from '~/composables/useCanManageProject'
+import { useProjectPermissions } from '~/composables/useProjectPermissions'
 
 const mockFetchOne = vi.fn()
-const mockFetchMembers = vi.fn()
 const mockFetchSprints = vi.fn()
 const projects = reactive({
-  current: { ownerId: 1 } as { ownerId: number } | null,
-  members: [] as { user_id: number; role: string }[],
+  current: null as { myRole?: string; permissions?: string[] } | null,
   fetchOne: mockFetchOne,
-  fetchMembers: mockFetchMembers,
 })
 const auth = reactive({ user: { id: 2 } })
 
@@ -20,35 +17,38 @@ vi.stubGlobal('useRoute', () => ({ params: { key: 'TEST' } }))
 vi.stubGlobal('useAuthStore', () => auth)
 vi.stubGlobal('useProjectsStore', () => projects)
 vi.stubGlobal('useSprintsStore', () => ({ sprints: [], fetchSprints: mockFetchSprints }))
-vi.stubGlobal('useCanManageProject', useCanManageProject)
+vi.stubGlobal('useProjectPermissions', useProjectPermissions)
 vi.stubGlobal('useToast', () => ({ showSuccess: vi.fn(), showError: vi.fn() }))
 
 describe('sprints page', () => {
   beforeEach(() => {
     mockFetchOne.mockReset().mockResolvedValue(undefined)
-    mockFetchMembers.mockReset().mockResolvedValue(undefined)
     mockFetchSprints.mockReset().mockResolvedValue(undefined)
-    projects.current = { ownerId: 1 }
-    projects.members = []
+    projects.current = { myRole: 'viewer', permissions: ['project.view'] }
   })
 
-  it('fetches the project, its members and the sprints on mount', async () => {
+  it('fetches the project and the sprints on mount', async () => {
     shallowMount(SprintsPage)
     await flushPromises()
     expect(mockFetchOne).toHaveBeenCalledWith('TEST')
-    expect(mockFetchMembers).toHaveBeenCalledWith('TEST')
     expect(mockFetchSprints).toHaveBeenCalledWith('TEST')
   })
 
-  it('passes can-manage true for an admin member', async () => {
-    projects.members = [{ user_id: 2, role: 'admin' }]
+  it('passes can-manage true when the server grants sprint.manage', async () => {
+    projects.current = { myRole: 'admin', permissions: ['project.view', 'sprint.manage'] }
     const w = shallowMount(SprintsPage)
     await flushPromises()
     expect(w.find('sprintssprintlist').attributes('can-manage')).toBe('true')
   })
 
-  it('passes can-manage false for a regular member', async () => {
-    projects.members = [{ user_id: 2, role: 'member' }]
+  it('passes can-manage false for a member without sprint.manage', async () => {
+    projects.current = { myRole: 'member', permissions: ['project.view', 'task.write'] }
+    const w = shallowMount(SprintsPage)
+    await flushPromises()
+    expect(w.find('sprintssprintlist').attributes('can-manage')).toBe('false')
+  })
+
+  it('passes can-manage false for a viewer', async () => {
     const w = shallowMount(SprintsPage)
     await flushPromises()
     expect(w.find('sprintssprintlist').attributes('can-manage')).toBe('false')
