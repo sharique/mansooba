@@ -57,6 +57,8 @@ attachment upload cap is a hardcoded route-level body limit, not an admin settin
 
 The sidebar System section is rendered only when `authStore.isAdmin` is true.
 
+Users page: the *Account role* column says **System administrator** or **User** (not "admin"/"member", which are project roles), with *Make system administrator* / *Remove system administrator* buttons (removing asks first). Create user page: a **System administrator** checkbox, unticked by default, creates the new account as one; the choice is written to the System Logs.
+
 ## API endpoints
 
 See [api.md](../arch/api.md). Key admin routes:
@@ -65,5 +67,5 @@ See [api.md](../arch/api.md). Key admin routes:
 - `PATCH /api/v1/settings`
 - `GET /api/v1/admin/users`
 - `PATCH /api/v1/admin/users/:id` — body may include `is_admin` and/or `is_active`
-- `POST /api/v1/auth/register` (admin JWT required)
+- `POST /api/v1/auth/register` (system administrator JWT required; optional `is_admin: true` creates the account as a system administrator)
 - `GET /api/v1/admin/projects/without-admin`, `POST /api/v1/admin/projects/:key/claim-admin`

@@ -61,7 +61,10 @@ In plain words:
 - **A project always has at least one active admin.** Demoting or removing the last one is refused. Admins cannot remove themselves; they can step down by changing their own role while another admin remains.
 - **Role changes apply on the person's next action.** No new sign-in is needed.
 - **Anyone who can sign in can create a project** and is its admin from the start. Being the creator gives no right beyond that: another admin can change the creator's role like anyone else's.
-- **A viewer can be assigned a task.** Assigning needs permission to edit tasks; the person assigned can be any member.
+- **A task can only be assigned to a member of its project** (any role, a viewer included). Assigning needs permission to edit tasks.
+- **Leaving a project takes its tasks with you.** Someone removed from a project no longer sees its tasks or activity in their own "my tasks" and "my activity" lists.
+- **Mentions reach members only.** Mentioning someone outside the project sends no notification, because a notification names the task and the project.
+- **Other projects' ids are not reachable.** A sprint, label or task from another project, used inside this project's URL or request, is treated as not found.
 - Changing roles, adding and removing people, and deleting projects are written to the **System Logs**, and the person affected is notified.
 
 ## The system administrator

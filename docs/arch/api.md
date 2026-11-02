@@ -10,8 +10,8 @@ Swagger UI is available at `/swagger/index.html` when the server is running.
 
 | Method | Path | Auth | Description |
 |--------|------|:----:|-------------|
-| POST | `/auth/register` | — | Register a new user |
-| POST | `/auth/login` | — | Login; returns `access_token` + `refresh_token` |
+| POST | `/auth/register` | — | Register a new user (system administrators only; optional `is_admin` makes the new account a system administrator) |
+| POST | `/auth/login` | — | Login; returns `access_token` + `refresh_token`. A malformed email is `400`; a well-formed but wrong login is `401` |
 | POST | `/auth/refresh` | — | Exchange refresh token for a new access token |
 | GET | `/auth/me` | ✓ | Get current user profile (includes `is_admin`) |
 | PUT | `/auth/me` | ✓ | Update profile (name, timezone) |
@@ -100,8 +100,8 @@ All routes below are scoped to a specific issue (`/issues/:id/`).
 |--------|------|-------------|
 | GET | `/issues/:id/comments` | List comments for an issue |
 | POST | `/issues/:id/comments` | Add a comment |
-| PUT | `/issues/:id/comments/:cid` | Update a comment (author only) |
-| DELETE | `/issues/:id/comments/:cid` | Delete a comment (the author while they can comment, or an admin) |
+| PUT | `/issues/:id/comments/:cid` | Update a comment (author only; `404` if the comment is not on issue `:id`) |
+| DELETE | `/issues/:id/comments/:cid` | Delete a comment (the author while they can comment, or an admin; `404` if the comment is not on issue `:id`) |
 
 ### Activity
 
