@@ -327,3 +327,30 @@ func TestRoles_RemovedMemberLosesTheirAssignedTasksFromTheirList(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	assert.NotContains(t, rec.Body.String(), `"one"`, "the removed member must not keep reading the task")
 }
+
+// A comment is addressed through its own task: the task in the URL must be the
+// comment's task, otherwise the comment is "not found" (no reaching a comment by
+// guessing ids under another task).
+func TestComments_MustBeAddressedThroughTheirOwnTask(t *testing.T) {
+	env := newRolesEnv(t) // comment env.comment belongs to task env.issue1, written by Ada
+	wrong := "/api/v1/issues/" + env.issue2 + "/comments/" + env.comment
+	right := "/api/v1/issues/" + env.issue1 + "/comments/" + env.comment
+
+	assert.Equal(t, http.StatusNotFound, call(env.e, "PUT", wrong, env.ada, `{"body":"edited"}`).Code)
+	assert.Equal(t, http.StatusNotFound, call(env.e, "DELETE", wrong, env.ada, "").Code)
+	rec := call(env.e, "GET", "/api/v1/issues/"+env.issue1+"/comments", env.ada, "")
+	assert.Contains(t, rec.Body.String(), "hello", "the comment is untouched")
+
+	assert.Equal(t, http.StatusOK, call(env.e, "PUT", right, env.ada, `{"body":"edited"}`).Code)
+	assert.Equal(t, http.StatusNoContent, call(env.e, "DELETE", right, env.ada, "").Code)
+}
+
+// Login checks the shape of the email like every other endpoint.
+func TestLogin_RejectsAMalformedEmailWithABadRequest(t *testing.T) {
+	env := newRolesEnv(t)
+	rec := call(env.e, "POST", "/api/v1/auth/login", "", `{"email":"not-an-email","password":"whatever1"}`)
+	assert.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+	assert.Contains(t, messageOf(t, rec.Body.String()), "email")
+	rec = call(env.e, "POST", "/api/v1/auth/login", "", `{"email":"ada@example.com","password":"wrong-password"}`)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code, "a well-formed but wrong login is still 401")
+}

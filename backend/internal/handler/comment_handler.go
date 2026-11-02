@@ -98,9 +98,10 @@ func (h *CommentHandler) Update(c *echo.Context) error {
 	if err != nil {
 		return echo.ErrBadRequest
 	}
-	// The :id (issue ID) param is not validated here — the service enforces ownership
-	// by looking up the comment directly. A mismatched issue ID returns 200 if the
-	// comment exists and the caller owns it.
+	issueID, err := parseUintParam(c, "id")
+	if err != nil {
+		return echo.ErrBadRequest
+	}
 	var req dto.UpdateCommentRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
@@ -108,7 +109,7 @@ func (h *CommentHandler) Update(c *echo.Context) error {
 	if err := validateRequest(c, &req); err != nil {
 		return err
 	}
-	resp, err := h.svc.Update(c.Request().Context(), cid, callerID, req)
+	resp, err := h.svc.Update(c.Request().Context(), issueID, cid, callerID, req)
 	if err != nil {
 		return mapCommentError(err)
 	}
@@ -132,7 +133,11 @@ func (h *CommentHandler) Delete(c *echo.Context) error {
 	if err != nil {
 		return echo.ErrBadRequest
 	}
-	if err := h.svc.Delete(c.Request().Context(), cid, callerID); err != nil {
+	issueID, err := parseUintParam(c, "id")
+	if err != nil {
+		return echo.ErrBadRequest
+	}
+	if err := h.svc.Delete(c.Request().Context(), issueID, cid, callerID); err != nil {
 		return mapCommentError(err)
 	}
 	return c.NoContent(http.StatusNoContent)

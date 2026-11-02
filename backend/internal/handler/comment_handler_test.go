@@ -38,11 +38,11 @@ func (s *stubCommentService) List(ctx context.Context, issueID, callerID uint) (
 	return s.comments, nil
 }
 
-func (s *stubCommentService) Update(ctx context.Context, commentID, callerID uint, req dto.UpdateCommentRequest) (*dto.CommentResponse, error) {
+func (s *stubCommentService) Update(ctx context.Context, _, commentID, callerID uint, req dto.UpdateCommentRequest) (*dto.CommentResponse, error) {
 	return &dto.CommentResponse{ID: commentID, Body: req.Body}, nil
 }
 
-func (s *stubCommentService) Delete(ctx context.Context, commentID, callerID uint) error {
+func (s *stubCommentService) Delete(ctx context.Context, _, commentID, callerID uint) error {
 	if s.deleteFn != nil {
 		return s.deleteFn(commentID, callerID)
 	}

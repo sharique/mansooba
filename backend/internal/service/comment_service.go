@@ -19,8 +19,10 @@ var mentionRe = regexp.MustCompile(`(?:^|[^A-Za-z0-9_.@])@([A-Za-z0-9_]+)`)
 type CommentService interface {
 	Create(ctx context.Context, issueID, callerID uint, req dto.CreateCommentRequest) (*dto.CommentResponse, error)
 	List(ctx context.Context, issueID, callerID uint) ([]*dto.CommentResponse, error)
-	Update(ctx context.Context, commentID, callerID uint, req dto.UpdateCommentRequest) (*dto.CommentResponse, error)
-	Delete(ctx context.Context, commentID, callerID uint) error
+	// Update and Delete address a comment through its own task: a comment that
+	// belongs to a different task than issueID is ErrNotFound.
+	Update(ctx context.Context, issueID, commentID, callerID uint, req dto.UpdateCommentRequest) (*dto.CommentResponse, error)
+	Delete(ctx context.Context, issueID, commentID, callerID uint) error
 }
 
 type commentService struct {
@@ -119,10 +121,13 @@ func (s *commentService) List(ctx context.Context, issueID, callerID uint) ([]*d
 	return result, nil
 }
 
-func (s *commentService) Update(ctx context.Context, commentID, callerID uint, req dto.UpdateCommentRequest) (*dto.CommentResponse, error) {
+func (s *commentService) Update(ctx context.Context, issueID, commentID, callerID uint, req dto.UpdateCommentRequest) (*dto.CommentResponse, error) {
 	comment, err := s.commentRepo.FindByID(ctx, commentID)
 	if err != nil {
 		return nil, err
+	}
+	if comment.IssueID != issueID {
+		return nil, domain.ErrNotFound
 	}
 	issue, err := s.issueRepo.FindByID(ctx, comment.IssueID)
 	if err != nil {
@@ -142,10 +147,13 @@ func (s *commentService) Update(ctx context.Context, commentID, callerID uint, r
 	return toCommentResponse(comment), nil
 }
 
-func (s *commentService) Delete(ctx context.Context, commentID, callerID uint) error {
+func (s *commentService) Delete(ctx context.Context, issueID, commentID, callerID uint) error {
 	comment, err := s.commentRepo.FindByID(ctx, commentID)
 	if err != nil {
 		return err
+	}
+	if comment.IssueID != issueID {
+		return domain.ErrNotFound
 	}
 	issue, err := s.issueRepo.FindByID(ctx, comment.IssueID)
 	if err != nil {

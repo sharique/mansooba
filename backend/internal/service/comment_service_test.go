@@ -136,7 +136,7 @@ func TestCommentService_Update_OwnerCanEdit(t *testing.T) {
 	svc, commentRepo, _ := newCommentTestEnv()
 	_, _ = svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "original"})
 
-	updated, err := svc.Update(context.Background(), commentRepo.comments[0].ID, 42, dto.UpdateCommentRequest{Body: "edited"})
+	updated, err := svc.Update(context.Background(), 1, commentRepo.comments[0].ID, 42, dto.UpdateCommentRequest{Body: "edited"})
 	require.NoError(t, err)
 	assert.Equal(t, "edited", updated.Body)
 }
@@ -144,14 +144,14 @@ func TestCommentService_Update_OwnerCanEdit(t *testing.T) {
 func TestCommentService_Update_NonMemberSeesNotFound(t *testing.T) {
 	svc, commentRepo, _ := newCommentTestEnv()
 	_, _ = svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "original"})
-	_, err := svc.Update(context.Background(), commentRepo.comments[0].ID, 99, dto.UpdateCommentRequest{Body: "edit"})
+	_, err := svc.Update(context.Background(), 1, commentRepo.comments[0].ID, 99, dto.UpdateCommentRequest{Body: "edit"})
 	assert.ErrorIs(t, err, domain.ErrNotFound)
 }
 
 func TestCommentService_Delete_OwnerCanDelete(t *testing.T) {
 	svc, commentRepo, _ := newCommentTestEnv()
 	_, _ = svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "bye"})
-	err := svc.Delete(context.Background(), commentRepo.comments[0].ID, 42)
+	err := svc.Delete(context.Background(), 1, commentRepo.comments[0].ID, 42)
 	require.NoError(t, err)
 	assert.Len(t, commentRepo.comments, 0)
 }
@@ -175,7 +175,7 @@ func TestCommentService_Delete_AdminCanDeleteOthersComment(t *testing.T) {
 	_, _ = svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "author comment"})
 
 	// Admin deletes it
-	err := svc.Delete(context.Background(), commentRepo.comments[0].ID, 99)
+	err := svc.Delete(context.Background(), 1, commentRepo.comments[0].ID, 99)
 	require.NoError(t, err)
 	assert.Len(t, commentRepo.comments, 0)
 }
@@ -479,7 +479,7 @@ func TestCommentService_Mentions_OnlyReachProjectMembers(t *testing.T) {
 func TestCommentService_Update_ForbiddenForAMemberWhoIsNotTheAuthor(t *testing.T) {
 	svc, commentRepo, _ := newCommentTestEnv()
 	_, _ = svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "original"})
-	_, err := svc.Update(context.Background(), commentRepo.comments[0].ID, 43, dto.UpdateCommentRequest{Body: "edit"})
+	_, err := svc.Update(context.Background(), 1, commentRepo.comments[0].ID, 43, dto.UpdateCommentRequest{Body: "edit"})
 	assert.ErrorIs(t, err, domain.ErrForbidden)
 }
 
@@ -506,11 +506,11 @@ func TestCommentService_DeleteRules(t *testing.T) {
 		require.NoError(t, err)
 		return commentRepo.comments[len(commentRepo.comments)-1].ID
 	}
-	assert.NoError(t, svc.Delete(ctx, mk(42), 42), "the author deletes their own")
-	assert.ErrorIs(t, svc.Delete(ctx, mk(42), 43), domain.ErrForbidden, "another member does not")
-	assert.NoError(t, svc.Delete(ctx, mk(42), 44), "an admin deletes anyone's")
-	assert.ErrorIs(t, svc.Delete(ctx, mk(42), 99), domain.ErrNotFound, "an outsider learns nothing")
-	assert.ErrorIs(t, svc.Delete(ctx, mk(42), 45), domain.ErrForbidden, "a viewer deletes nothing")
+	assert.NoError(t, svc.Delete(ctx, 1, mk(42), 42), "the author deletes their own")
+	assert.ErrorIs(t, svc.Delete(ctx, 1, mk(42), 43), domain.ErrForbidden, "another member does not")
+	assert.NoError(t, svc.Delete(ctx, 1, mk(42), 44), "an admin deletes anyone's")
+	assert.ErrorIs(t, svc.Delete(ctx, 1, mk(42), 99), domain.ErrNotFound, "an outsider learns nothing")
+	assert.ErrorIs(t, svc.Delete(ctx, 1, mk(42), 45), domain.ErrForbidden, "a viewer deletes nothing")
 }
 
 func TestCommentService_AuthorDemotedToViewerCannotEditOrDelete(t *testing.T) {
@@ -527,7 +527,22 @@ func TestCommentService_AuthorDemotedToViewerCannotEditOrDelete(t *testing.T) {
 	id := commentRepo.comments[0].ID
 	memberRepo.members[0].Role = "viewer"
 
-	_, err = svc.Update(ctx, id, 42, dto.UpdateCommentRequest{Body: "edit"})
+	_, err = svc.Update(ctx, 1, id, 42, dto.UpdateCommentRequest{Body: "edit"})
 	assert.ErrorIs(t, err, domain.ErrForbidden)
-	assert.ErrorIs(t, svc.Delete(ctx, id, 42), domain.ErrForbidden)
+	assert.ErrorIs(t, svc.Delete(ctx, 1, id, 42), domain.ErrForbidden)
+}
+
+func TestCommentService_UpdateAndDeleteNeedTheCommentsOwnTask(t *testing.T) {
+	ctx := context.Background()
+	svc, commentRepo, _ := newCommentTestEnv()
+	_, _ = svc.Create(ctx, 1, 42, dto.CreateCommentRequest{Body: "mine"})
+	id := commentRepo.comments[0].ID
+
+	_, err := svc.Update(ctx, 2, id, 42, dto.UpdateCommentRequest{Body: "edit"})
+	assert.ErrorIs(t, err, domain.ErrNotFound, "task 2 is not this comment's task")
+	assert.ErrorIs(t, svc.Delete(ctx, 2, id, 42), domain.ErrNotFound)
+	assert.Len(t, commentRepo.comments, 1, "nothing was changed")
+
+	_, err = svc.Update(ctx, 1, id, 42, dto.UpdateCommentRequest{Body: "edit"})
+	assert.NoError(t, err)
 }

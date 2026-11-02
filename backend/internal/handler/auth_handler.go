@@ -75,6 +75,9 @@ func (h *AuthHandler) Login(c *echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
 	}
+	if err := validateRequest(c, &req); err != nil {
+		return err
+	}
 
 	resp, err := h.svc.Login(c.Request().Context(), req)
 	if err != nil {

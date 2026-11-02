@@ -337,14 +337,14 @@
   },
   {
     "name": "login_validation",
-    "status": 401,
+    "status": 400,
     "headers": {
       "Content-Type": "application/json",
       "Vary": "Origin"
     },
     "body": {
-      "code": "Unauthorized",
-      "message": "invalid credentials"
+      "code": "Bad Request",
+      "message": "email must be a valid email address"
     }
   },
   {
