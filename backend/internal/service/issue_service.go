@@ -100,6 +100,10 @@ func (s *issueService) Create(ctx context.Context, projectKey string, callerID u
 	if err := s.requireAssignable(ctx, project.ID, req.AssigneeID); err != nil {
 		return nil, err
 	}
+	sprintID, err := s.resolveNewSprint(ctx, project.ID, req.SprintID)
+	if err != nil {
+		return nil, err
+	}
 
 	// Sequential key: count existing issues for this project.
 	existing, err := s.issueRepo.FindByProjectID(ctx, project.ID)
@@ -118,6 +122,7 @@ func (s *issueService) Create(ctx context.Context, projectKey string, callerID u
 		AssigneeID:  assigneeOrNil(req.AssigneeID),
 		ReporterID:  callerID,
 		StoryPoints: req.StoryPoints,
+		SprintID:    sprintID,
 	}
 
 	if err := s.issueRepo.Create(ctx, issue); err != nil {
@@ -375,6 +380,27 @@ func (s *issueService) Delete(ctx context.Context, projectKey string, id uint, c
 		ProjectID: project.ID, IssueKey: issue.Key, IssueTitle: issue.Title, SprintID: issue.SprintID,
 	})
 	return nil
+}
+
+// resolveNewSprint checks the sprint a new task is to be created in: it must
+// belong to the project and still be open for work (planning or active). nil or 0
+// means the backlog.
+func (s *issueService) resolveNewSprint(ctx context.Context, projectID uint, sprintID *uint) (*uint, error) {
+	if sprintID == nil || *sprintID == 0 {
+		return nil, nil
+	}
+	sprint, err := s.sprintRepo.FindByID(ctx, *sprintID)
+	if err != nil {
+		return nil, err
+	}
+	if sprint.ProjectID != projectID {
+		return nil, domain.ErrNotFound
+	}
+	if sprint.Status == domain.SprintStatusCompleted {
+		return nil, domain.NewInputError("a completed sprint cannot take new tasks")
+	}
+	id := *sprintID
+	return &id, nil
 }
 
 // requireAssignable checks that the person a task is being assigned to is a member

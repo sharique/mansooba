@@ -5,6 +5,7 @@ package httpserver_test
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -125,4 +126,34 @@ func TestRoles_AnAdminCannotRemoveThemselves(t *testing.T) {
 	rec := call(env.e, "DELETE", "/api/v1/projects/rol/members/"+adaID, env.ada, "")
 	assert.Equal(t, http.StatusForbidden, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Ask another admin to remove you")
+}
+
+// A task can be created straight into a planning or active sprint; without one
+// it lands in the backlog; a finished or foreign sprint is refused.
+func TestIssues_CreateIntoASprintOrTheBacklog(t *testing.T) {
+	env := newRolesEnv(t)
+	create := func(body string) *httptest.ResponseRecorder {
+		return call(env.e, "POST", "/api/v1/projects/rol/issues", env.ben, body)
+	}
+	rec := create(`{"title":"to backlog","type":"task","priority":"low"}`)
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+	assert.NotContains(t, rec.Body.String(), `"sprint_id":`+env.sprint)
+
+	rec = create(`{"title":"to sprint","type":"task","priority":"low","sprint_id":` + env.sprint + `}`)
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+	assert.Equal(t, env.sprint, jsonField(t, rec, "sprint_id"))
+
+	// it shows up in the sprint and not in the backlog
+	rec = call(env.e, "GET", "/api/v1/projects/rol/sprints/"+env.sprint+"/issues", env.ben, "")
+	assert.Contains(t, rec.Body.String(), "to sprint")
+	rec = call(env.e, "GET", "/api/v1/projects/rol/backlog", env.ben, "")
+	assert.Contains(t, rec.Body.String(), "to backlog")
+	assert.NotContains(t, rec.Body.String(), "to sprint")
+
+	// a sprint of another project is not there
+	rec = call(env.e, "POST", "/api/v1/projects", env.ada, `{"name":"Other","key":"OTH"}`)
+	require.Equal(t, http.StatusCreated, rec.Code)
+	rec = call(env.e, "POST", "/api/v1/projects/oth/sprints", env.ada, `{"name":"theirs"}`)
+	other := jsonField(t, rec, "id")
+	assert.Equal(t, http.StatusNotFound, create(`{"title":"x","type":"task","priority":"low","sprint_id":`+other+`}`).Code)
 }

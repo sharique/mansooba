@@ -70,7 +70,7 @@ returns 409 on every subsequent call.
 | Method | Path | Auth | Description |
 |--------|------|:----:|-------------|
 | GET | `/projects/:key/issues` | ✓ | List issues with optional filters (see below) |
-| POST | `/projects/:key/issues` | ✓ | Create an issue |
+| POST | `/projects/:key/issues` | ✓ | Create an issue (optional `sprint_id` puts it straight into a planning or active sprint; omitted means the backlog) |
 | GET | `/projects/:key/issues/:id` | ✓ | Get an issue |
 | PUT | `/projects/:key/issues/:id` | ✓ | Update an issue |
 | DELETE | `/projects/:key/issues/:id` | ✓ | Delete an issue (the reporter while they can edit tasks, or an admin) |

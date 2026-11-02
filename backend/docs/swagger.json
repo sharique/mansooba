@@ -4569,6 +4569,10 @@
                         "critical"
                     ]
                 },
+                "sprint_id": {
+                    "description": "SprintID puts the new task straight into a planning or active sprint of the\nproject. Omitted (or 0) means the backlog.",
+                    "type": "integer"
+                },
                 "story_points": {
                     "type": "integer"
                 },

@@ -1244,3 +1244,53 @@ func TestIssueService_GetMyIssues_HidesProjectsThePersonLeft(t *testing.T) {
 	require.Len(t, result, 1)
 	assert.Equal(t, "A-1", result[0].Key, "a viewer still sees the tasks assigned to them; a removed member does not")
 }
+
+// ── choosing a sprint when creating a task ───────────────────────────────────
+
+func newSprintCreateEnv(t *testing.T) (service.IssueService, *stubSprintRepo, *domain.Project) {
+	t.Helper()
+	projectRepo, memberRepo, sprintRepo := newStubProjectRepo(), newStubProjectMemberRepo(), newStubSprintRepo()
+	svc := service.NewIssueService(newStubIssueRepo(), projectRepo, memberRepo, &stubActivitySvc{}, newStubUserRepo(), sprintRepo)
+	return svc, sprintRepo, seedProject(context.Background(), projectRepo, memberRepo)
+}
+
+func TestIssueService_Create_CanPutTheTaskStraightIntoAPlanningOrActiveSprint(t *testing.T) {
+	svc, sprints, project := newSprintCreateEnv(t)
+	ctx := context.Background()
+	for _, status := range []string{domain.SprintStatusPlanning, domain.SprintStatusActive} {
+		sp := &domain.Sprint{ProjectID: project.ID, Name: status, Status: status}
+		require.NoError(t, sprints.Create(ctx, sp))
+		resp, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, SprintID: &sp.ID})
+		require.NoError(t, err, status)
+		require.NotNil(t, resp.SprintID, status)
+		assert.Equal(t, sp.ID, *resp.SprintID)
+	}
+}
+
+func TestIssueService_Create_WithoutASprintGoesToTheBacklog(t *testing.T) {
+	svc, _, _ := newSprintCreateEnv(t)
+	resp, err := svc.Create(context.Background(), "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
+	require.NoError(t, err)
+	assert.Nil(t, resp.SprintID)
+	zero := uint(0)
+	resp, err = svc.Create(context.Background(), "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, SprintID: &zero})
+	require.NoError(t, err)
+	assert.Nil(t, resp.SprintID, "0 means no sprint")
+}
+
+func TestIssueService_Create_RefusesACompletedOrForeignSprint(t *testing.T) {
+	svc, sprints, project := newSprintCreateEnv(t)
+	ctx := context.Background()
+	done := &domain.Sprint{ProjectID: project.ID, Name: "done", Status: domain.SprintStatusCompleted}
+	foreign := &domain.Sprint{ProjectID: project.ID + 50, Name: "theirs", Status: domain.SprintStatusPlanning}
+	require.NoError(t, sprints.Create(ctx, done))
+	require.NoError(t, sprints.Create(ctx, foreign))
+
+	_, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, SprintID: &done.ID})
+	assert.ErrorIs(t, err, domain.ErrInvalidInput, "a finished sprint cannot take new work")
+	_, err = svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, SprintID: &foreign.ID})
+	assert.ErrorIs(t, err, domain.ErrNotFound, "another project's sprint does not exist here")
+	missing := uint(999)
+	_, err = svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, SprintID: &missing})
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+}

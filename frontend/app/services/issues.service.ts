@@ -8,6 +8,8 @@ export interface CreateIssueRequest {
   status?: string
   assignee_id?: number
   story_points?: number
+  /** Put the new task straight into a planning or active sprint; omit for the backlog. */
+  sprint_id?: number
 }
 
 export interface UpdateIssuePayload extends Partial<CreateIssueRequest> {
