@@ -25,9 +25,20 @@ func Migrate(db *gorm.DB) error {
 	} else if n > 0 {
 		return &UsernamesMissingError{Count: n}
 	}
+	// Collapse repeated memberships before the unique index exists; make each
+	// project's owner an admin once the tables are in their final shape.
+	removed, err := dedupeProjectMembers(db)
+	if err != nil {
+		return err
+	}
 	if err := autoMigrateAll(db); err != nil {
 		return err
 	}
+	created, raised, err := runOwnerStepOnce(db)
+	if err != nil {
+		return err
+	}
+	logRolesStep(removed, created, raised)
 	return enforceUsernameNotNull(db)
 }
 

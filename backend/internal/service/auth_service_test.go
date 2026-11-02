@@ -178,6 +178,9 @@ func (s *stubUserRepo) ListAll(_ context.Context, _, _ int) ([]*domain.User, int
 func (s *stubUserRepo) CountActiveAdmins(_ context.Context) (int64, error) { return 0, nil }
 
 func (s *stubUserRepo) UpdateAdminFields(_ context.Context, _ *domain.User) error { return nil }
+func (s *stubUserRepo) UpdateAdminFieldsGuarded(_ context.Context, _ uint, _ domain.AdminChange) error {
+	return nil
+}
 
 // stubRevokedRepo controls Exists and Create outcomes.
 type stubRevokedRepo struct {

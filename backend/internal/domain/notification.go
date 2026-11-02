@@ -12,6 +12,11 @@ const (
 	NotificationKindTaskUnassigned       = "task_unassigned"
 	NotificationKindProjectMemberAdded   = "project_member_added"
 	NotificationKindProjectMemberRemoved = "project_member_removed"
+	// NotificationKindProjectRoleChanged tells a member that an admin changed
+	// their role in a project. NotificationKindProjectAdminClaimed tells the
+	// members of an abandoned project that a system administrator took it over.
+	NotificationKindProjectRoleChanged  = "project_role_changed"
+	NotificationKindProjectAdminClaimed = "project_admin_claimed"
 )
 
 // Notification tells one recipient about an event another user caused. IssueID,

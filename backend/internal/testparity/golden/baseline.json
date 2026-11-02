@@ -824,8 +824,24 @@
       "description": "parity project",
       "id": 3,
       "key": "alpha",
+      "my_role": "admin",
       "name": "Alpha",
-      "owner_id": 1
+      "owner_id": 1,
+      "permissions": [
+        "attachment.delete_any",
+        "attachment.write",
+        "comment.delete_any",
+        "comment.write",
+        "label.delete",
+        "label.write",
+        "member.manage",
+        "project.delete",
+        "project.edit",
+        "project.view",
+        "sprint.manage",
+        "task.delete_any",
+        "task.write"
+      ]
     }
   },
   {
@@ -839,8 +855,24 @@
       "description": "",
       "id": 4,
       "key": "alpha2",
+      "my_role": "admin",
       "name": "Alpha 2",
-      "owner_id": 1
+      "owner_id": 1,
+      "permissions": [
+        "attachment.delete_any",
+        "attachment.write",
+        "comment.delete_any",
+        "comment.write",
+        "label.delete",
+        "label.write",
+        "member.manage",
+        "project.delete",
+        "project.edit",
+        "project.view",
+        "sprint.manage",
+        "task.delete_any",
+        "task.write"
+      ]
     }
   },
   {
@@ -854,8 +886,24 @@
       "description": "parity project",
       "id": 3,
       "key": "alpha",
+      "my_role": "admin",
       "name": "Alpha",
-      "owner_id": 1
+      "owner_id": 1,
+      "permissions": [
+        "attachment.delete_any",
+        "attachment.write",
+        "comment.delete_any",
+        "comment.write",
+        "label.delete",
+        "label.write",
+        "member.manage",
+        "project.delete",
+        "project.edit",
+        "project.view",
+        "sprint.manage",
+        "task.delete_any",
+        "task.write"
+      ]
     }
   },
   {
@@ -872,14 +920,14 @@
   },
   {
     "name": "project_get_non_member",
-    "status": 403,
+    "status": 404,
     "headers": {
       "Content-Type": "application/json",
       "Vary": "Origin"
     },
     "body": {
-      "code": "Forbidden",
-      "message": "forbidden"
+      "code": "Not Found",
+      "message": "not found"
     }
   },
   {
@@ -893,8 +941,24 @@
       "description": "changed",
       "id": 3,
       "key": "alpha",
+      "my_role": "admin",
       "name": "Alpha Renamed",
-      "owner_id": 1
+      "owner_id": 1,
+      "permissions": [
+        "attachment.delete_any",
+        "attachment.write",
+        "comment.delete_any",
+        "comment.write",
+        "label.delete",
+        "label.write",
+        "member.manage",
+        "project.delete",
+        "project.edit",
+        "project.view",
+        "sprint.manage",
+        "task.delete_any",
+        "task.write"
+      ]
     }
   },
   {
@@ -955,7 +1019,7 @@
     },
     "body": {
       "code": "Forbidden",
-      "message": "forbidden"
+      "message": "Members can't add, remove or change people"
     }
   },
   {
@@ -1446,7 +1510,7 @@
     },
     "body": {
       "code": "Forbidden",
-      "message": "forbidden"
+      "message": "Members can't manage sprints"
     }
   },
   {
@@ -1898,14 +1962,14 @@
   },
   {
     "name": "activity_non_member",
-    "status": 403,
+    "status": 404,
     "headers": {
       "Content-Type": "application/json",
       "Vary": "Origin"
     },
     "body": {
-      "code": "Forbidden",
-      "message": "forbidden"
+      "code": "Not Found",
+      "message": "not found"
     }
   },
   {
@@ -2074,38 +2138,38 @@
   },
   {
     "name": "relations_list_non_member",
-    "status": 403,
+    "status": 404,
     "headers": {
       "Content-Type": "application/json",
       "Vary": "Origin"
     },
     "body": {
-      "code": "Forbidden",
-      "message": "forbidden"
+      "code": "Not Found",
+      "message": "Not Found"
     }
   },
   {
     "name": "relation_create_non_member",
-    "status": 403,
+    "status": 404,
     "headers": {
       "Content-Type": "application/json",
       "Vary": "Origin"
     },
     "body": {
-      "code": "Forbidden",
-      "message": "forbidden"
+      "code": "Not Found",
+      "message": "Not Found"
     }
   },
   {
     "name": "relation_delete_non_member",
-    "status": 403,
+    "status": 404,
     "headers": {
       "Content-Type": "application/json",
       "Vary": "Origin"
     },
     "body": {
-      "code": "Forbidden",
-      "message": "forbidden"
+      "code": "Not Found",
+      "message": "not found"
     }
   },
   {
@@ -2517,7 +2581,7 @@
     }
   },
   {
-    "name": "project_delete_by_non_owner",
+    "name": "project_delete_by_non_admin",
     "status": 403,
     "headers": {
       "Content-Type": "application/json",
@@ -2525,7 +2589,39 @@
     },
     "body": {
       "code": "Forbidden",
-      "message": "forbidden"
+      "message": "Members can't delete the project"
+    }
+  },
+  {
+    "name": "project_delete_with_tasks",
+    "status": 409,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Conflict",
+      "message": "Project still has 1 task. Remove them first.",
+      "task_count": 1
+    }
+  },
+  {
+    "name": "issue_delete_last",
+    "status": 204,
+    "headers": {
+      "Vary": "Origin"
+    }
+  },
+  {
+    "name": "project_delete_wrong_name",
+    "status": 400,
+    "headers": {
+      "Content-Type": "application/json",
+      "Vary": "Origin"
+    },
+    "body": {
+      "code": "Bad Request",
+      "message": "type the project name exactly to confirm deleting it"
     }
   },
   {

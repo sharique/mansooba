@@ -94,11 +94,11 @@ func TestOverviewService_OnlyProjectMembers(t *testing.T) {
 
 	for _, caller := range []uint{e.outsider, e.otherPM} {
 		_, err := e.svc.Sprint(e.ctx, "OVR", caller)
-		assert.ErrorIs(t, err, domain.ErrForbidden)
+		assert.ErrorIs(t, err, domain.ErrNotFound)
 		_, err = e.svc.Tasks(e.ctx, "OVR", caller)
-		assert.ErrorIs(t, err, domain.ErrForbidden)
+		assert.ErrorIs(t, err, domain.ErrNotFound)
 		_, err = e.svc.Activity(e.ctx, "OVR", caller, "all")
-		assert.ErrorIs(t, err, domain.ErrForbidden)
+		assert.ErrorIs(t, err, domain.ErrNotFound)
 	}
 	_, err := e.svc.Sprint(e.ctx, "NOPE", e.member)
 	assert.ErrorIs(t, err, domain.ErrNotFound)

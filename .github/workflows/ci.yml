@@ -30,6 +30,21 @@ jobs:
     # S3-backed storage tests (attachments, avatars) run against real
     # LocalStack — no mocks (Constitution Principle III).
     services:
+      # Real PostgreSQL for the concurrency tests (two admins demoting each other
+      # at once) that SQLite cannot reproduce; same major line as production.
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: mansooba
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: mansooba_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mansooba -d mansooba_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
       localstack:
         image: localstack/localstack:4.14.0
         env:
@@ -77,6 +92,9 @@ jobs:
         env:
           # A missing LocalStack must fail the build, not silently skip the S3 tests.
           REQUIRE_LOCALSTACK: "1"
+          # Likewise for PostgreSQL: the concurrency tests must run in CI, not skip.
+          REQUIRE_POSTGRES: "1"
+          POSTGRES_TEST_DSN: "host=localhost user=mansooba password=test dbname=mansooba_test port=5432 sslmode=disable"
 
   frontend:
     name: Frontend

@@ -48,6 +48,17 @@ func (r *stubLabelRepo) FindByID(_ context.Context, id uint) (*domain.Label, err
 	return nil, domain.ErrNotFound
 }
 
+func (r *stubLabelRepo) DeleteByProjectID(_ context.Context, projectID uint) error {
+	kept := r.labels[:0]
+	for _, l := range r.labels {
+		if l.ProjectID != projectID {
+			kept = append(kept, l)
+		}
+	}
+	r.labels = kept
+	return nil
+}
+
 func (r *stubLabelRepo) Delete(_ context.Context, id uint) error {
 	for i, l := range r.labels {
 		if l.ID == id {
@@ -97,7 +108,11 @@ func newLabelTestEnv() (service.LabelService, *stubLabelRepo, *stubActivitySvc) 
 	projectRepo := newStubProjectRepo()
 	projectRepo.projects["PROJ"] = &domain.Project{ID: 10, Key: "PROJ"}
 	memberRepo := newStubProjectMemberRepo()
-	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"})
+	memberRepo.members = append(memberRepo.members,
+		&domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"},
+		&domain.ProjectMember{ProjectID: 10, UserID: 44, Role: "admin"},
+		&domain.ProjectMember{ProjectID: 10, UserID: 45, Role: "viewer"},
+	)
 
 	svc := service.NewLabelService(labelRepo, issueRepo, projectRepo, memberRepo, activitySvc)
 	return svc, labelRepo, activitySvc
@@ -175,7 +190,7 @@ func TestLabelService_ListByIssue_ReturnsAttachedLabels(t *testing.T) {
 func TestLabelService_ListByIssue_ForbiddenForNonMember(t *testing.T) {
 	svc, _, _ := newLabelTestEnv()
 	_, err := svc.ListByIssue(context.Background(), 1, 99) // userID 99 is not a member
-	assert.ErrorIs(t, err, domain.ErrForbidden)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
 }
 
 func TestLabelService_Delete_RemovesLabel(t *testing.T) {
@@ -183,7 +198,27 @@ func TestLabelService_Delete_RemovesLabel(t *testing.T) {
 	_, _ = svc.Create(context.Background(), "PROJ", 42, dto.CreateLabelRequest{Name: "gone", Color: "#e11d48"})
 	id := labelRepo.labels[0].ID
 
-	err := svc.Delete(context.Background(), "PROJ", id, 42)
+	// removing a label from the project is an admin action
+	assert.ErrorIs(t, svc.Delete(context.Background(), "PROJ", id, 42), domain.ErrForbidden)
+	assert.Len(t, labelRepo.labels, 1)
+
+	err := svc.Delete(context.Background(), "PROJ", id, 44)
 	require.NoError(t, err)
 	assert.Len(t, labelRepo.labels, 0)
+}
+
+func TestLabelService_ViewerCanReadButNotChangeLabels(t *testing.T) {
+	svc, labelRepo, _ := newLabelTestEnv()
+	ctx := context.Background()
+	_, err := svc.Create(ctx, "PROJ", 45, dto.CreateLabelRequest{Name: "x", Color: "#e11d48"})
+	assert.ErrorIs(t, err, domain.ErrForbidden)
+	assert.Empty(t, labelRepo.labels)
+
+	made, err := svc.Create(ctx, "PROJ", 42, dto.CreateLabelRequest{Name: "bug", Color: "#e11d48"})
+	require.NoError(t, err)
+	assert.ErrorIs(t, svc.AttachToIssue(ctx, 1, made.ID, 45), domain.ErrForbidden)
+	_, err = svc.ListByProject(ctx, "PROJ", 45)
+	assert.NoError(t, err)
+	_, err = svc.ListByIssue(ctx, 1, 45)
+	assert.NoError(t, err)
 }

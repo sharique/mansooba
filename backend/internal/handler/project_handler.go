@@ -114,18 +114,27 @@ func (h *ProjectHandler) Update(c *echo.Context) error {
 }
 
 // Delete godoc
-// @Summary      Delete a project
+// @Summary      Delete an empty project
+// @Description  Needs the project's exact name in the body and a project with no tasks left.
 // @Tags         projects
+// @Accept       json
 // @Security     BearerAuth
-// @Param        key path string true "Project key"
+// @Param        key  path string                   true "Project key"
+// @Param        body body dto.DeleteProjectRequest true "Confirmation"
 // @Success      204
+// @Failure      400 {object} apierror.APIError "Name missing or wrong"
 // @Failure      401 {object} apierror.APIError "Unauthorized"
 // @Failure      403 {object} apierror.APIError "Forbidden"
 // @Failure      404 {object} apierror.APIError "Not found"
+// @Failure      409 {object} apierror.APIError "Project still has tasks (task_count)"
 // @Router       /projects/{key} [delete]
 func (h *ProjectHandler) Delete(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
-	if err := h.svc.Delete(c.Request().Context(), c.Param("key"), callerID); err != nil {
+	var req dto.DeleteProjectRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.ErrBadRequest
+	}
+	if err := h.svc.Delete(c.Request().Context(), c.Param("key"), callerID, req.ConfirmName); err != nil {
 		return mapProjectError(err)
 	}
 	return c.NoContent(http.StatusNoContent)
@@ -179,6 +188,42 @@ func (h *ProjectHandler) AddMember(c *echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
+// ChangeMemberRole godoc
+// @Summary      Change a member's role
+// @Tags         projects
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        key    path string                true "Project key"
+// @Param        userId path string                true "User ID"
+// @Param        body   body dto.ChangeRoleRequest true "New role"
+// @Success      200 {object} dto.MemberResponse
+// @Failure      400 {object} apierror.APIError "Bad request"
+// @Failure      401 {object} apierror.APIError "Unauthorized"
+// @Failure      403 {object} apierror.APIError "Forbidden"
+// @Failure      404 {object} apierror.APIError "Not found"
+// @Failure      409 {object} apierror.APIError "Would leave the project without an active admin"
+// @Router       /projects/{key}/members/{userId} [patch]
+func (h *ProjectHandler) ChangeMemberRole(c *echo.Context) error {
+	callerID := c.Get("userID").(uint)
+	targetID, err := strconv.ParseUint(c.Param("userId"), 10, 64)
+	if err != nil {
+		return echo.ErrBadRequest
+	}
+	var req dto.ChangeRoleRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.ErrBadRequest
+	}
+	if err := validateRequest(c, &req); err != nil {
+		return err
+	}
+	resp, err := h.svc.ChangeMemberRole(c.Request().Context(), c.Param("key"), callerID, uint(targetID), req.Role)
+	if err != nil {
+		return mapProjectError(err)
+	}
+	return c.JSON(http.StatusOK, resp)
+}
+
 // RemoveMember godoc
 // @Summary      Remove a member from a project
 // @Tags         projects
@@ -208,9 +253,11 @@ func mapProjectError(err error) error {
 	case errors.Is(err, domain.ErrNotFound):
 		return echo.NewHTTPError(http.StatusNotFound, "not found")
 	case errors.Is(err, domain.ErrForbidden):
-		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
+		return forbiddenError(err)
 	case errors.Is(err, domain.ErrConflict):
 		return echo.NewHTTPError(http.StatusConflict, "conflict")
 	}
+	// Everything else (invalid input, last admin, self-removal, project not empty)
+	// is worded and given its status by the central error handler.
 	return err
 }

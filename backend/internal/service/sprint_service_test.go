@@ -63,6 +63,17 @@ func (r *stubSprintRepo) Update(_ context.Context, s *domain.Sprint) error {
 	return domain.ErrNotFound
 }
 
+func (r *stubSprintRepo) DeleteByProjectID(_ context.Context, projectID uint) error {
+	kept := r.sprints[:0]
+	for _, s := range r.sprints {
+		if s.ProjectID != projectID {
+			kept = append(kept, s)
+		}
+	}
+	r.sprints = kept
+	return nil
+}
+
 func (r *stubSprintRepo) Delete(_ context.Context, id uint) error {
 	for i, s := range r.sprints {
 		if s.ID == id {
@@ -663,14 +674,14 @@ func TestSprintService_Velocity_ProjectNotFound(t *testing.T) {
 	}
 }
 
-func TestSprintService_Velocity_ForbiddenForNonMember(t *testing.T) {
+func TestSprintService_Velocity_NonMemberSeesNotFound(t *testing.T) {
 	svc, projectRepo, memberRepo, _, _ := newSprintService()
 	ctx := context.Background()
 	seedSprintProject(ctx, projectRepo, memberRepo, 1) // owner=1
 
 	_, err := svc.Velocity(ctx, "TEST", 99) // caller 99 is not a member
-	if !errors.Is(err, domain.ErrForbidden) {
-		t.Errorf("expected ErrForbidden, got %v", err)
+	if !errors.Is(err, domain.ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
 	}
 }
 
@@ -773,5 +784,29 @@ func TestSprintService_Update_CompletedSprintChangesNothing(t *testing.T) {
 	_, err := svc.Update(ctx, "TEST", sp.ID, 1, dto.UpdateSprintRequest{EndDate: utcDate(2026, 9, 20)})
 	if !errors.Is(err, domain.ErrSprintNotEditable) {
 		t.Fatalf("expected ErrSprintNotEditable, got %v", err)
+	}
+}
+
+// Project roles for sprints: only an admin manages them; every member reads them.
+func TestSprintService_OnlyAdminsManageSprints(t *testing.T) {
+	svc, projectRepo, memberRepo, _, _ := newSprintService()
+	ctx := context.Background()
+	p := seedSprintProject(ctx, projectRepo, memberRepo, 1) // user 1 is admin
+	_ = memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: p.ID, UserID: 2, Role: "member"})
+	_ = memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: p.ID, UserID: 3, Role: "viewer"})
+
+	if _, err := svc.Create(ctx, "TEST", 1, dto.CreateSprintRequest{Name: "S1"}); err != nil {
+		t.Fatalf("admin should create a sprint: %v", err)
+	}
+	for _, caller := range []uint{2, 3} {
+		if _, err := svc.Create(ctx, "TEST", caller, dto.CreateSprintRequest{Name: "S2"}); !errors.Is(err, domain.ErrForbidden) {
+			t.Errorf("caller %d must not create sprints, got %v", caller, err)
+		}
+		if _, err := svc.List(ctx, "TEST", caller); err != nil {
+			t.Errorf("caller %d must be able to read sprints: %v", caller, err)
+		}
+		if _, err := svc.Backlog(ctx, "TEST", caller); err != nil {
+			t.Errorf("caller %d must be able to read the backlog: %v", caller, err)
+		}
 	}
 }

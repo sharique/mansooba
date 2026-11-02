@@ -75,7 +75,7 @@ type Storage interface {
 |--------|-----------|-------|
 | `User` | `Name`, `Email`, `PasswordHash`, `AvatarURL`, `IsSuperAdmin` | |
 | `Project` | `Key`, `Name`, `Description` | Key is used as the URL slug |
-| `ProjectMember` | `UserID`, `ProjectID`, `Role` | Role: `member` or `admin` |
+| `ProjectMember` | `UserID`, `ProjectID`, `Role` | Role: `admin`, `member` or `viewer`; one membership per person per project; what each role may do is in [roles-and-permissions.md](../roles-and-permissions.md) and `internal/domain/access.go` |
 | `Issue` | `Key`, `Title`, `Description`, `Type`, `Status`, `Priority`, `AssigneeID`, `ReporterID`, `SprintID`, `StoryPoints`, `CompletedAt` | |
 | `Sprint` | `Name`, `ProjectID`, `Status`, `StartDate`, `EndDate` | Status: `planned`, `active`, `completed` |
 | `Comment` | `IssueID`, `AuthorID`, `Body` | |

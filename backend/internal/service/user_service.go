@@ -21,11 +21,16 @@ type UserService interface {
 	// and returns its content type. The caller must close the reader. Returns
 	// domain.ErrNotFound if no such avatar exists.
 	GetAvatar(ctx context.Context, filename string) (io.ReadCloser, string, error)
+	// RequireSystem checks that the caller is an active system administrator
+	// holding cap; anything else is domain.ErrForbidden. This is the one place
+	// the handlers ask, so none of them reads the administrator flag itself.
+	RequireSystem(ctx context.Context, userID uint, cap domain.SystemCapability) error
 }
 
 type userServiceImpl struct {
 	userRepo    domain.UserRepository
 	avatarStore domain.AvatarStore
+	access      Access
 }
 
 // NewUserService returns a UserService backed by the given repository and
@@ -34,7 +39,12 @@ func NewUserService(userRepo domain.UserRepository, avatarStore domain.AvatarSto
 	return &userServiceImpl{
 		userRepo:    userRepo,
 		avatarStore: avatarStore,
+		access:      NewAccess(nil, nil, userRepo),
 	}
+}
+
+func (s *userServiceImpl) RequireSystem(ctx context.Context, userID uint, cap domain.SystemCapability) error {
+	return s.access.RequireSystem(ctx, userID, cap)
 }
 
 func (s *userServiceImpl) GetProfile(ctx context.Context, userID uint) (*dto.UserProfileResponse, error) {

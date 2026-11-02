@@ -61,10 +61,10 @@ Status transitions are unconstrained — any status can be set directly from any
 - Deleting an issue cascade-deletes both the attachment rows and their S3 objects (a
   batched `S3.DeleteObjects` call) — never just the DB rows, which would orphan objects
   in the bucket
-- Delete permission: the uploader, or a project admin (enforced server-side); the UI
-  currently only surfaces the delete control to the uploader, matching the same known
-  gap as comments (no per-project role surfaced to the frontend yet beyond the global
-  `IsAdmin` superadmin flag)
+- Delete permission: the uploader (while they can still attach files, so not a viewer),
+  or a project admin; enforced server-side. The project response tells the interface
+  what the caller may do (`permissions`), so controls are shown or hidden to match. See
+  [roles-and-permissions.md](../roles-and-permissions.md)
 
 ## API endpoints
 

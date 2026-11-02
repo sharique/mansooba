@@ -16,6 +16,36 @@ import (
 type stubProjectRepo struct {
 	projects map[string]*domain.Project
 	nextID   uint
+	// members, when set, receives the admin membership CreateWithAdmin records.
+	members *stubProjectMemberRepo
+	// abandoned is what FindWithoutActiveAdmin returns.
+	abandoned []*domain.Project
+	// tasks is how many tasks DeleteIfEmpty finds.
+	tasks int64
+}
+
+func (r *stubProjectRepo) DeleteIfEmpty(ctx context.Context, id uint) error {
+	if r.tasks > 0 {
+		return &domain.ProjectNotEmptyError{TaskCount: int(r.tasks)}
+	}
+	if r.members != nil {
+		_ = r.members.DeleteByProjectID(ctx, id)
+	}
+	return r.Delete(ctx, id)
+}
+
+func (r *stubProjectRepo) CreateWithAdmin(ctx context.Context, p *domain.Project, adminUserID uint) error {
+	if err := r.Create(ctx, p); err != nil {
+		return err
+	}
+	if r.members != nil {
+		return r.members.Create(ctx, &domain.ProjectMember{ProjectID: p.ID, UserID: adminUserID, Role: domain.RoleAdmin})
+	}
+	return nil
+}
+
+func (r *stubProjectRepo) FindWithoutActiveAdmin(_ context.Context) ([]*domain.Project, error) {
+	return r.abandoned, nil
 }
 
 func newStubProjectRepo() *stubProjectRepo {
@@ -80,10 +110,76 @@ func (r *stubProjectRepo) Delete(_ context.Context, id uint) error {
 type stubProjectMemberRepo struct {
 	members []*domain.ProjectMember
 	nextID  uint
+	// inactive marks accounts as disabled for the active-admin count.
+	inactive map[uint]bool
 }
 
 func newStubProjectMemberRepo() *stubProjectMemberRepo {
 	return &stubProjectMemberRepo{nextID: 1}
+}
+
+// inactive lists accounts the stub treats as disabled when counting active admins.
+func (r *stubProjectMemberRepo) countActiveAdmins(projectID uint) int64 {
+	var n int64
+	for _, m := range r.members {
+		if m.ProjectID == projectID && m.Role == domain.RoleAdmin && !r.inactive[m.UserID] {
+			n++
+		}
+	}
+	return n
+}
+
+func (r *stubProjectMemberRepo) CountActiveAdmins(_ context.Context, projectID uint) (int64, error) {
+	return r.countActiveAdmins(projectID), nil
+}
+
+func (r *stubProjectMemberRepo) ChangeRole(_ context.Context, projectID, userID uint, role string) error {
+	for _, m := range r.members {
+		if m.ProjectID == projectID && m.UserID == userID {
+			before := r.countActiveAdmins(projectID)
+			old := m.Role
+			m.Role = role
+			if before > 0 && r.countActiveAdmins(projectID) == 0 {
+				m.Role = old
+				return domain.ErrLastProjectAdmin
+			}
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+
+func (r *stubProjectMemberRepo) Remove(_ context.Context, projectID, userID uint) error {
+	for i, m := range r.members {
+		if m.ProjectID == projectID && m.UserID == userID {
+			before := r.countActiveAdmins(projectID)
+			kept := append(append([]*domain.ProjectMember{}, r.members[:i]...), r.members[i+1:]...)
+			saved := r.members
+			r.members = kept
+			if before > 0 && r.countActiveAdmins(projectID) == 0 {
+				r.members = saved
+				return domain.ErrLastProjectAdmin
+			}
+			return nil
+		}
+	}
+	return domain.ErrNotFound
+}
+
+func (r *stubProjectMemberRepo) AddAdminIfNone(_ context.Context, projectID, userID uint) (*domain.ProjectMember, error) {
+	if r.countActiveAdmins(projectID) > 0 {
+		return nil, domain.ErrConflict
+	}
+	for _, m := range r.members {
+		if m.ProjectID == projectID && m.UserID == userID {
+			m.Role = domain.RoleAdmin
+			return m, nil
+		}
+	}
+	m := &domain.ProjectMember{ID: r.nextID, ProjectID: projectID, UserID: userID, Role: domain.RoleAdmin}
+	r.nextID++
+	r.members = append(r.members, m)
+	return m, nil
 }
 
 func (r *stubProjectMemberRepo) Create(_ context.Context, m *domain.ProjectMember) error {
@@ -181,10 +277,18 @@ func (s *stubIssueRepoForProject) FindByAssignee(_ context.Context, _ uint) ([]*
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
+// linked returns a project stub whose CreateWithAdmin records the admin in members.
+func linked(members *stubProjectMemberRepo) *stubProjectRepo {
+	r := newStubProjectRepo()
+	r.members = members
+	return r
+}
+
 func newProjectService() service.ProjectService {
+	members := newStubProjectMemberRepo()
 	return service.NewProjectService(
-		newStubProjectRepo(),
-		newStubProjectMemberRepo(),
+		linked(members),
+		members,
 		newStubUserRepo(),
 		&stubIssueRepoForProject{},
 		nil,
@@ -228,27 +332,143 @@ func TestProjectService_Create_KeyConflictAppendsDigit(t *testing.T) {
 	}
 }
 
-func TestProjectService_FindByKey_ForbiddenForNonMember(t *testing.T) {
+// FR-006: someone outside the project gets the same answer as for a project
+// that does not exist, so keys cannot be guessed.
+func TestProjectService_FindByKey_NonMemberSeesNotFound(t *testing.T) {
 	svc := newProjectService()
 
 	_, _ = svc.Create(context.Background(), 1, dto.CreateProjectRequest{Name: "My Project"})
 
-	_, err := svc.FindByKey(context.Background(), "mypr", 99)
+	_, errHidden := svc.FindByKey(context.Background(), "mypr", 99)
+	_, errMissing := svc.FindByKey(context.Background(), "nosuch", 99)
 
-	if !errors.Is(err, domain.ErrForbidden) {
-		t.Errorf("expected ErrForbidden, got %v", err)
+	if !errors.Is(errHidden, domain.ErrNotFound) {
+		t.Errorf("expected ErrNotFound for a non-member, got %v", errHidden)
+	}
+	if errHidden != errMissing {
+		t.Errorf("hidden project and missing project must give the same error: %v vs %v", errHidden, errMissing)
+	}
+}
+
+// rolesFixture is a project with one person in each role (ids 1 admin, 2 member, 3 viewer, 4 outsider).
+func rolesFixture(t *testing.T) (service.ProjectService, *stubProjectMemberRepo) {
+	t.Helper()
+	ctx := context.Background()
+	userRepo := newStubUserRepo()
+	memberRepo := newStubProjectMemberRepo()
+	svc := service.NewProjectService(linked(memberRepo), memberRepo, userRepo, &stubIssueRepoForProject{}, nil)
+	for id, name := range map[uint]string{2: "ben", 3: "cy", 4: "dee", 5: "eve"} {
+		_ = userRepo.Create(ctx, &domain.User{ID: id, Name: name, Email: name + "@example.com", Password: "x", IsActive: true})
+	}
+	if _, err := svc.Create(ctx, 1, dto.CreateProjectRequest{Name: "My Project"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, m := range []struct {
+		email string
+		role  string
+	}{{"ben@example.com", "member"}, {"cy@example.com", "viewer"}} {
+		if err := svc.AddMember(ctx, "mypr", 1, dto.AddMemberRequest{Email: m.email, Role: m.role}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return svc, memberRepo
+}
+
+func TestProjectService_OnlyAdminsEditTheProjectAndManageMembers(t *testing.T) {
+	svc, _ := rolesFixture(t)
+	ctx := context.Background()
+	for _, tc := range []struct {
+		name   string
+		caller uint
+		allow  bool
+	}{{"admin", 1, true}, {"member", 2, false}, {"viewer", 3, false}} {
+		_, errEdit := svc.Update(ctx, "mypr", tc.caller, dto.UpdateProjectRequest{Description: "x"})
+		errAdd := svc.AddMember(ctx, "mypr", tc.caller, dto.AddMemberRequest{Email: "dee@example.com", Role: "member"})
+		errRemove := svc.RemoveMember(ctx, "mypr", tc.caller, 4)
+		for what, err := range map[string]error{"edit": errEdit, "add": errAdd} {
+			if tc.allow && err != nil {
+				t.Errorf("%s: %s should be allowed, got %v", tc.name, what, err)
+			}
+			if !tc.allow && !errors.Is(err, domain.ErrForbidden) {
+				t.Errorf("%s: %s should be forbidden, got %v", tc.name, what, err)
+			}
+		}
+		if !tc.allow && !errors.Is(errRemove, domain.ErrForbidden) {
+			t.Errorf("%s: remove should be forbidden, got %v", tc.name, errRemove)
+		}
+		if tc.allow {
+			_ = svc.RemoveMember(ctx, "mypr", tc.caller, 4) // tidy for the next case
+		}
+	}
+}
+
+func TestProjectService_ReadsCarryTheCallersRoleAndPermissions(t *testing.T) {
+	svc, _ := rolesFixture(t)
+	ctx := context.Background()
+	for _, tc := range []struct {
+		caller   uint
+		role     string
+		mustHave string
+		mustLack string
+	}{
+		{1, "admin", "project.delete", ""},
+		{2, "member", "task.write", "sprint.manage"},
+		{3, "viewer", "project.view", "task.write"},
+	} {
+		p, err := svc.FindByKey(ctx, "mypr", tc.caller)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if p.MyRole != tc.role {
+			t.Errorf("caller %d: my_role = %q, want %q", tc.caller, p.MyRole, tc.role)
+		}
+		has := map[string]bool{}
+		for _, c := range p.Permissions {
+			has[c] = true
+		}
+		if !has[tc.mustHave] {
+			t.Errorf("%s permissions %v should include %s", tc.role, p.Permissions, tc.mustHave)
+		}
+		if tc.mustLack != "" && has[tc.mustLack] {
+			t.Errorf("%s permissions %v should not include %s", tc.role, p.Permissions, tc.mustLack)
+		}
+	}
+}
+
+// The creator holds no right except through their admin membership.
+func TestProjectService_DemotedCreatorLosesAdminPowers(t *testing.T) {
+	svc, memberRepo := rolesFixture(t)
+	ctx := context.Background()
+	for _, m := range memberRepo.members {
+		if m.UserID == 1 {
+			m.Role = "member"
+		}
+	}
+	if _, err := svc.Update(ctx, "mypr", 1, dto.UpdateProjectRequest{Description: "x"}); !errors.Is(err, domain.ErrForbidden) {
+		t.Errorf("a demoted creator must not edit the project, got %v", err)
+	}
+	if err := svc.AddMember(ctx, "mypr", 1, dto.AddMemberRequest{Email: "dee@example.com", Role: "member"}); !errors.Is(err, domain.ErrForbidden) {
+		t.Errorf("a demoted creator must not add members, got %v", err)
+	}
+}
+
+func TestProjectService_AddMember_RejectsAnUnknownRole(t *testing.T) {
+	svc, _ := rolesFixture(t)
+	err := svc.AddMember(context.Background(), "mypr", 1, dto.AddMemberRequest{Email: "dee@example.com", Role: "owner"})
+	if !errors.Is(err, domain.ErrInvalidInput) {
+		t.Errorf("expected ErrInvalidInput for role owner, got %v", err)
 	}
 }
 
 func TestProjectService_AddMember_ConflictIfAlreadyMember(t *testing.T) {
 	userRepo := newStubUserRepo()
-	projectRepo := newStubProjectRepo()
 	memberRepo := newStubProjectMemberRepo()
+	projectRepo := linked(memberRepo)
 	svc := service.NewProjectService(projectRepo, memberRepo, userRepo, &stubIssueRepoForProject{}, nil)
 
 	// Register a target user
 	ctx := context.Background()
-	_ = userRepo.Create(ctx, &domain.User{ID: 2, Name: "Bob", Email: "bob@example.com", Password: "x"})
+	_ = userRepo.Create(ctx, &domain.User{ID: 2, Name: "Bob", Email: "bob@example.com", Password: "x", IsActive: true})
 	_, _ = svc.Create(ctx, 1, dto.CreateProjectRequest{Name: "My Project"})
 
 	err1 := svc.AddMember(ctx, "mypr", 1, dto.AddMemberRequest{Email: "bob@example.com", Role: "member"})
@@ -262,7 +482,7 @@ func TestProjectService_AddMember_ConflictIfAlreadyMember(t *testing.T) {
 	}
 }
 
-func TestProjectService_RemoveMember_CannotRemoveOwner(t *testing.T) {
+func TestProjectService_RemoveMember_AdminCannotRemoveThemselves(t *testing.T) {
 	svc := newProjectService()
 	ctx := context.Background()
 
@@ -270,8 +490,8 @@ func TestProjectService_RemoveMember_CannotRemoveOwner(t *testing.T) {
 
 	err := svc.RemoveMember(ctx, resp.Key, 1, 1)
 
-	if !errors.Is(err, domain.ErrForbidden) {
-		t.Errorf("expected ErrForbidden when removing owner, got %v", err)
+	if !errors.Is(err, domain.ErrSelfRemoval) {
+		t.Errorf("expected ErrSelfRemoval, got %v", err)
 	}
 }
 
@@ -334,14 +554,15 @@ func TestProjectService_FindByKey_UppercaseInputNormalizedToLowercase(t *testing
 func newNotifyingProjectService() (service.ProjectService, *recordingNotifier, *stubUserRepo) {
 	userRepo := newStubUserRepo()
 	rec := &recordingNotifier{}
-	svc := service.NewProjectService(newStubProjectRepo(), newStubProjectMemberRepo(), userRepo, &stubIssueRepoForProject{}, rec)
+	members := newStubProjectMemberRepo()
+	svc := service.NewProjectService(linked(members), members, userRepo, &stubIssueRepoForProject{}, rec)
 	return svc, rec, userRepo
 }
 
 func TestProjectService_AddAndRemoveMember_Notify(t *testing.T) {
 	svc, rec, userRepo := newNotifyingProjectService()
 	ctx := context.Background()
-	_ = userRepo.Create(ctx, &domain.User{ID: 2, Name: "Bob", Email: "bob@example.com", Password: "x"})
+	_ = userRepo.Create(ctx, &domain.User{ID: 2, Name: "Bob", Email: "bob@example.com", Password: "x", IsActive: true})
 	proj, _ := svc.Create(ctx, 1, dto.CreateProjectRequest{Name: "My Project"})
 
 	if err := svc.AddMember(ctx, proj.Key, 1, dto.AddMemberRequest{Email: "bob@example.com", Role: "member"}); err != nil {
@@ -362,7 +583,7 @@ func TestProjectService_AddAndRemoveMember_Notify(t *testing.T) {
 func TestProjectService_FailedMembershipChangesDoNotNotify(t *testing.T) {
 	svc, rec, userRepo := newNotifyingProjectService()
 	ctx := context.Background()
-	_ = userRepo.Create(ctx, &domain.User{ID: 2, Name: "Bob", Email: "bob@example.com", Password: "x"})
+	_ = userRepo.Create(ctx, &domain.User{ID: 2, Name: "Bob", Email: "bob@example.com", Password: "x", IsActive: true})
 	proj, _ := svc.Create(ctx, 1, dto.CreateProjectRequest{Name: "My Project"})
 
 	// forbidden: caller 9 is not a member

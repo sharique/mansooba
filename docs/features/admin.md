@@ -11,7 +11,21 @@ settings, user list, and create user. Non-admins cannot access these pages.
 
 The promote/demote admin and disable account actions check whether the target user is
 the last active admin. If so, the operation is rejected — the platform must always have
-at least one active admin.
+at least one active admin. The check and the write happen in one transaction that first
+locks the active administrators, so two requests that each remove the other cannot both
+succeed.
+
+If administrator accounts exist but none is active (only possible by editing the database
+or restoring an old backup), run the server-side command `./restore-admin --email <address>`;
+the public setup wizard is deliberately not reopened for that case.
+
+### What the system administrator does not do
+
+The flag covers users, settings and system logs only. It opens no project: a system
+administrator who is not a member of a project gets "not found" for it, like anyone else.
+The one exception is a project with no active admin, which a system administrator can
+find under **System → Projects without an admin** and take over with an explicit,
+logged step. See [roles-and-permissions.md](../roles-and-permissions.md).
 
 ### Global settings schema
 
@@ -52,3 +66,4 @@ See [api.md](../arch/api.md). Key admin routes:
 - `GET /api/v1/admin/users`
 - `PATCH /api/v1/admin/users/:id` — body may include `is_admin` and/or `is_active`
 - `POST /api/v1/auth/register` (admin JWT required)
+- `GET /api/v1/admin/projects/without-admin`, `POST /api/v1/admin/projects/:key/claim-admin`

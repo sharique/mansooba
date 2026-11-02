@@ -93,7 +93,12 @@ func newCommentTestEnv() (service.CommentService, *stubCommentRepo, *stubActivit
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10})
 
 	memberRepo := newStubProjectMemberRepo()
-	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"})
+	memberRepo.members = append(memberRepo.members,
+		&domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"},
+		&domain.ProjectMember{ProjectID: 10, UserID: 43, Role: "member"},
+		&domain.ProjectMember{ProjectID: 10, UserID: 44, Role: "admin"},
+		&domain.ProjectMember{ProjectID: 10, UserID: 45, Role: "viewer"},
+	)
 
 	commentRepo := newStubCommentRepo()
 	activitySvc := &stubActivityService{}
@@ -118,7 +123,7 @@ func TestCommentService_Create_PersistsAndRecordsActivity(t *testing.T) {
 func TestCommentService_Create_ForbiddenWhenNotMember(t *testing.T) {
 	svc, _, _ := newCommentTestEnv()
 	_, err := svc.Create(context.Background(), 1, 99, dto.CreateCommentRequest{Body: "x"})
-	assert.ErrorIs(t, err, domain.ErrForbidden)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
 }
 
 func TestCommentService_Create_NotFoundWhenIssueAbsent(t *testing.T) {
@@ -136,11 +141,11 @@ func TestCommentService_Update_OwnerCanEdit(t *testing.T) {
 	assert.Equal(t, "edited", updated.Body)
 }
 
-func TestCommentService_Update_ForbiddenForNonOwner(t *testing.T) {
+func TestCommentService_Update_NonMemberSeesNotFound(t *testing.T) {
 	svc, commentRepo, _ := newCommentTestEnv()
 	_, _ = svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "original"})
 	_, err := svc.Update(context.Background(), commentRepo.comments[0].ID, 99, dto.UpdateCommentRequest{Body: "edit"})
-	assert.ErrorIs(t, err, domain.ErrForbidden)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
 }
 
 func TestCommentService_Delete_OwnerCanDelete(t *testing.T) {
@@ -340,6 +345,9 @@ func (r *stubUserRepoMention) ListAll(_ context.Context, _, _ int) ([]*domain.Us
 
 func (r *stubUserRepoMention) CountActiveAdmins(_ context.Context) (int64, error) { return 0, nil }
 
+func (r *stubUserRepoMention) UpdateAdminFieldsGuarded(_ context.Context, _ uint, _ domain.AdminChange) error {
+	return nil
+}
 func (r *stubUserRepoMention) UpdateAdminFields(_ context.Context, _ *domain.User) error {
 	return nil
 }
@@ -349,7 +357,14 @@ func newCommentTestEnvWithNotifications() (service.CommentService, *stubCommentR
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10})
 
 	memberRepo := newStubProjectMemberRepo()
-	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"})
+	memberRepo.members = append(memberRepo.members,
+		&domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"},
+		// the people the mention tests mention; carol (11) is deliberately not a member
+		&domain.ProjectMember{ProjectID: 10, UserID: 7, Role: "member"},
+		&domain.ProjectMember{ProjectID: 10, UserID: 8, Role: "viewer"},
+		&domain.ProjectMember{ProjectID: 10, UserID: 9, Role: "member"},
+		&domain.ProjectMember{ProjectID: 10, UserID: 10, Role: "member"},
+	)
 
 	commentRepo := newStubCommentRepo()
 	activitySvc := &stubActivityService{}
@@ -361,6 +376,7 @@ func newCommentTestEnvWithNotifications() (service.CommentService, *stubCommentR
 			// Email prefix "sam" belongs to a different account than username "sam".
 			{ID: 9, Name: "Sam Two", Email: "sam@example.com", Username: "sam2"},
 			{ID: 10, Name: "Sam One", Email: "sam.one@other.com", Username: "sam"},
+			{ID: 11, Name: "Carol Outsider", Email: "carol@other.com", Username: "carol"},
 		},
 	}
 
@@ -451,9 +467,67 @@ func TestCommentService_Mentions_BoundaryRule(t *testing.T) {
 
 // A mention of a user who is not a member of the project still notifies them
 // under today's rule (limiting it to members is a roadmap item).
-func TestCommentService_Mentions_NonMemberStillNotified(t *testing.T) {
+// A notification names the task and project, so mentioning someone outside the
+// project must not send one (a viewer is a member and is told).
+func TestCommentService_Mentions_OnlyReachProjectMembers(t *testing.T) {
 	svc, _, _, notifRepo := newCommentTestEnvWithNotifications()
-	_, err := svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "@bob"})
-	require.NoError(t, err) // bob (id 8) is not a member of project 10 in this fixture
-	assert.Equal(t, []uint{8}, notifiedUsers(notifRepo))
+	_, err := svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "@carol @bob"})
+	require.NoError(t, err)
+	assert.Equal(t, []uint{8}, notifiedUsers(notifRepo), "bob (a viewer) is told, carol (not in the project) is not")
+}
+
+func TestCommentService_Update_ForbiddenForAMemberWhoIsNotTheAuthor(t *testing.T) {
+	svc, commentRepo, _ := newCommentTestEnv()
+	_, _ = svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "original"})
+	_, err := svc.Update(context.Background(), commentRepo.comments[0].ID, 43, dto.UpdateCommentRequest{Body: "edit"})
+	assert.ErrorIs(t, err, domain.ErrForbidden)
+}
+
+// Project roles: 42 and 43 members, 44 admin, 45 viewer, 99 outsider.
+func TestCommentService_ViewerCannotCommentButCanRead(t *testing.T) {
+	svc, _, _ := newCommentTestEnv()
+	_, err := svc.Create(context.Background(), 1, 45, dto.CreateCommentRequest{Body: "x"})
+	assert.ErrorIs(t, err, domain.ErrForbidden)
+	var denied *domain.AccessDeniedError
+	require.ErrorAs(t, err, &denied)
+	assert.Equal(t, "Viewers can't comment", denied.Reason())
+
+	_, _ = svc.Create(context.Background(), 1, 42, dto.CreateCommentRequest{Body: "hello"})
+	list, err := svc.List(context.Background(), 1, 45)
+	require.NoError(t, err)
+	assert.Len(t, list, 1)
+}
+
+func TestCommentService_DeleteRules(t *testing.T) {
+	ctx := context.Background()
+	svc, commentRepo, _ := newCommentTestEnv()
+	mk := func(by uint) uint {
+		_, err := svc.Create(ctx, 1, by, dto.CreateCommentRequest{Body: "c"})
+		require.NoError(t, err)
+		return commentRepo.comments[len(commentRepo.comments)-1].ID
+	}
+	assert.NoError(t, svc.Delete(ctx, mk(42), 42), "the author deletes their own")
+	assert.ErrorIs(t, svc.Delete(ctx, mk(42), 43), domain.ErrForbidden, "another member does not")
+	assert.NoError(t, svc.Delete(ctx, mk(42), 44), "an admin deletes anyone's")
+	assert.ErrorIs(t, svc.Delete(ctx, mk(42), 99), domain.ErrNotFound, "an outsider learns nothing")
+	assert.ErrorIs(t, svc.Delete(ctx, mk(42), 45), domain.ErrForbidden, "a viewer deletes nothing")
+}
+
+func TestCommentService_AuthorDemotedToViewerCannotEditOrDelete(t *testing.T) {
+	ctx := context.Background()
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 10})
+	memberRepo := newStubProjectMemberRepo()
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 10, UserID: 42, Role: "member"})
+	commentRepo := newStubCommentRepo()
+	svc := service.NewCommentService(commentRepo, issueRepo, memberRepo, &stubActivityService{}, newStubNotificationRepo(), &stubUserRepoMention{})
+
+	_, err := svc.Create(ctx, 1, 42, dto.CreateCommentRequest{Body: "mine"})
+	require.NoError(t, err)
+	id := commentRepo.comments[0].ID
+	memberRepo.members[0].Role = "viewer"
+
+	_, err = svc.Update(ctx, id, 42, dto.UpdateCommentRequest{Body: "edit"})
+	assert.ErrorIs(t, err, domain.ErrForbidden)
+	assert.ErrorIs(t, svc.Delete(ctx, id, 42), domain.ErrForbidden)
 }

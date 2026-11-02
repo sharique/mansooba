@@ -182,7 +182,7 @@ func mapIssueError(err error) error {
 	case errors.Is(err, domain.ErrNotFound):
 		return echo.NewHTTPError(http.StatusNotFound, "not found")
 	case errors.Is(err, domain.ErrForbidden):
-		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
+		return forbiddenError(err)
 	case errors.Is(err, domain.ErrConflict):
 		return echo.NewHTTPError(http.StatusConflict, "conflict")
 	case errors.Is(err, domain.ErrAttachmentStorageUnavailable):

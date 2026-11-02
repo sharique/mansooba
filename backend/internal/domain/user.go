@@ -8,7 +8,7 @@ import (
 // User represents an authenticated account in the system.
 // Password stores a bcrypt hash — never the plaintext value.
 // AvatarURL and Timezone are optional profile fields.
-// IsAdmin grants platform-wide admin privileges (global settings, project creation).
+// IsAdmin marks a system administrator: it governs users, settings and system logs and grants no access inside any project.
 // IsActive is false when an admin has disabled the account; all token issuance is blocked.
 type User struct {
 	ID    uint   `gorm:"primaryKey"`
@@ -28,6 +28,12 @@ type User struct {
 
 	TokenValidAfter                  *time.Time // nil = no session-invalidation boundary (ADR-032)
 	ConsecutiveFailedPasswordChanges int        `gorm:"not null;default:0"`
+}
+
+// AdminChange names the administrator fields to change; nil leaves a field alone.
+type AdminChange struct {
+	IsAdmin  *bool
+	IsActive *bool
 }
 
 // UserRepository defines the persistence contract for User.
@@ -65,4 +71,11 @@ type UserRepository interface {
 	CountActiveAdmins(ctx context.Context) (int64, error)
 	// UpdateAdminFields writes only the is_admin and is_active columns for the given user.
 	UpdateAdminFields(ctx context.Context, user *User) error
+	// UpdateAdminFieldsGuarded changes only the fields set in change, for the
+	// user with the given id, under a lock on the active system administrators,
+	// and rolls back with ErrLastAdmin when the change would leave an installation
+	// that had an active administrator without one. Two requests arriving
+	// together cannot both pass, and a field not named in change is never
+	// overwritten with a stale value.
+	UpdateAdminFieldsGuarded(ctx context.Context, id uint, change AdminChange) error
 }

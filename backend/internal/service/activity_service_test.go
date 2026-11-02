@@ -115,7 +115,7 @@ func TestActivityService_GetMyActivity_ReturnsOnlyCallerEvents(t *testing.T) {
 	issueRepo := newStubIssueRepo()
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, Key: "P-1", Title: "T"})
 
-	svc := service.NewActivityService(repo, userRepo, issueRepo, membersOf(1))
+	svc := service.NewActivityService(repo, userRepo, issueRepo, membersOf(1, 5))
 
 	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 1, ActorID: 5, Kind: domain.ActivityStatusChanged})
 	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 1, ActorID: 9, Kind: domain.ActivityCommentAdded})
@@ -173,7 +173,7 @@ func TestActivityService_GetMyActivity_ActorAvatarURLPopulated(t *testing.T) {
 	issueRepo := newStubIssueRepo()
 	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, Key: "P-1", Title: "Task"})
 
-	svc := service.NewActivityService(repo, userRepo, issueRepo, membersOf(1))
+	svc := service.NewActivityService(repo, userRepo, issueRepo, membersOf(6))
 	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 1, ActorID: 6, Kind: domain.ActivityStatusChanged})
 
 	events, err := svc.GetMyActivity(context.Background(), 6, 20, 0)
@@ -195,7 +195,7 @@ func TestActivityService_ListByIssue_RefusesNonMembers(t *testing.T) {
 	_ = svc.Record(context.Background(), &domain.ActivityEvent{IssueID: 1, ActorID: 2, Kind: domain.ActivityStatusChanged})
 
 	_, err := svc.ListByIssue(context.Background(), 1, 99)
-	assert.ErrorIs(t, err, domain.ErrForbidden)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
 
 	events, err := svc.ListByIssue(context.Background(), 1, 2)
 	require.NoError(t, err)
@@ -215,7 +215,9 @@ func TestActivityService_GetMyActivity_NamesADeletedTaskFromItsSnapshot(t *testi
 	repo := newStubActivityRepo()
 	userRepo := newStubUserRepo()
 	_ = userRepo.Create(context.Background(), &domain.User{ID: 5, Name: "Carol", Email: "carol@test.com", Password: "x"})
-	svc := service.NewActivityService(repo, userRepo, newStubIssueRepo(), membersOf(1))
+	members := newStubProjectMemberRepo()
+	_ = members.Create(context.Background(), &domain.ProjectMember{ProjectID: 1, UserID: 5, Role: "member"})
+	svc := service.NewActivityService(repo, userRepo, newStubIssueRepo(), members)
 
 	_ = svc.Record(context.Background(), &domain.ActivityEvent{
 		IssueID: 77, ActorID: 5, Kind: domain.ActivityIssueDeleted,
@@ -229,4 +231,26 @@ func TestActivityService_GetMyActivity_NamesADeletedTaskFromItsSnapshot(t *testi
 	assert.Equal(t, "P-77", my[0].IssueKey)
 	assert.Equal(t, "Gone task", my[0].IssueTitle)
 	assert.Equal(t, "Carol", my[0].ActorName)
+}
+
+// A person removed from a project keeps none of its tasks or activity in their own lists.
+func TestActivityService_GetMyActivity_HidesProjectsThePersonLeft(t *testing.T) {
+	ctx := context.Background()
+	repo := newStubActivityRepo()
+	userRepo := newStubUserRepo()
+	_ = userRepo.Create(ctx, &domain.User{ID: 5, Name: "Carol", Email: "carol@test.com", Password: "x"})
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = append(issueRepo.issues,
+		&domain.Issue{ID: 1, ProjectID: 0, Key: "P-1", Title: "still mine"},
+		&domain.Issue{ID: 2, ProjectID: 3, Key: "Q-1", Title: "left behind"})
+	svc := service.NewActivityService(repo, userRepo, issueRepo, membersOf(5)) // member of project 0 only
+
+	_ = svc.Record(ctx, &domain.ActivityEvent{IssueID: 1, ActorID: 5, Kind: domain.ActivityStatusChanged})
+	_ = svc.Record(ctx, &domain.ActivityEvent{IssueID: 2, ActorID: 5, Kind: domain.ActivityStatusChanged})
+	_ = svc.Record(ctx, &domain.ActivityEvent{IssueID: 9, ActorID: 5, Kind: domain.ActivityIssueDeleted, ProjectID: 3, IssueKey: "Q-9", IssueTitle: "deleted in a left project"})
+
+	my, err := svc.GetMyActivity(ctx, 5, 20, 0)
+	require.NoError(t, err)
+	require.Len(t, my, 1)
+	assert.Equal(t, "P-1", my[0].IssueKey)
 }

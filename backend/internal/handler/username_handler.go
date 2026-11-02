@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"github.com/sharique/mansooba/internal/domain"
 	"net/http"
 
 	"github.com/labstack/echo/v5"
@@ -34,9 +35,8 @@ func NewUsernameHandler(svc service.UsernameService, userSvc service.UserService
 // @Router       /admin/usernames/check [get]
 func (h *UsernameHandler) Check(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
-	profile, err := h.userSvc.GetProfile(c.Request().Context(), callerID)
-	if err != nil || !profile.IsAdmin {
-		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
+	if err := requireSystem(c, h.userSvc, callerID, domain.SysUsers); err != nil {
+		return err
 	}
 	username := c.QueryParam("username")
 	if username == "" {
