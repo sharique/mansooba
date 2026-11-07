@@ -142,7 +142,7 @@ async function handleRoleToggle(user: AdminUser) {
       'Remove system administrator access?',
       'Remove',
       async () => {
-        await applyPatch(user, { is_admin: false })
+        if (!(await applyPatch(user, { is_admin: false }))) throw new Error('refused')
       }
     )
   } else {
@@ -158,7 +158,7 @@ async function handleActiveToggle(user: AdminUser) {
       'Disable account?',
       'Disable',
       async () => {
-        await applyPatch(user, { is_active: false })
+        if (!(await applyPatch(user, { is_active: false }))) throw new Error('refused')
       }
     )
   } else {
@@ -166,7 +166,17 @@ async function handleActiveToggle(user: AdminUser) {
   }
 }
 
-async function applyPatch(user: AdminUser, patch: { is_admin?: boolean; is_active?: boolean }) {
+// The server's own sentence (for example why the last administrator cannot go),
+// never the generic "[PATCH] url: 409 Conflict" text.
+function reasonFrom(e: unknown): string {
+  const data = (e as { data?: { message?: string } } | null)?.data
+  if (data?.message) return data.message
+  return e instanceof Error ? e.message : 'An error occurred'
+}
+
+// Returns false when the change was refused; the reason is shown in the dialog
+// when one is open, otherwise in the banner.
+async function applyPatch(user: AdminUser, patch: { is_admin?: boolean; is_active?: boolean }): Promise<boolean> {
   const prevAdmin = user.is_admin
   const prevActive = user.is_active
 
@@ -179,17 +189,15 @@ async function applyPatch(user: AdminUser, patch: { is_admin?: boolean; is_activ
     const updated = await patchUser(user.id, patch)
     user.is_admin = updated.is_admin
     user.is_active = updated.is_active
+    return true
   } catch (e: unknown) {
     // Revert on error
     user.is_admin = prevAdmin
     user.is_active = prevActive
 
-    const msg = e instanceof Error ? e.message : 'An error occurred'
-    if (msg.includes('LAST_ADMIN') || msg.includes('last active admin')) {
-      confirmError.value = 'Cannot remove the last active admin.'
-    } else {
-      error.value = msg
-    }
+    if (pendingAction) confirmError.value = reasonFrom(e)
+    else error.value = reasonFrom(e)
+    return false
   } finally {
     actionLoading.value = null
   }
@@ -221,7 +229,7 @@ async function confirmAction() {
     await pendingAction()
     closeDialog()
   } catch {
-    // error handled in applyPatch
+    // refused: the reason is already shown in the dialog, which stays open
   } finally {
     confirmLoading.value = false
   }

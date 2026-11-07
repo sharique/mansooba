@@ -74,3 +74,34 @@ describe('system/users page: system administrator wording', () => {
     expect(fetchUsers).not.toHaveBeenCalled()
   })
 })
+
+describe('system/users page: refused changes', () => {
+  const refuse = { status: 409, message: '[PATCH] "/api/v1/admin/users/1": 409 Conflict', data: { message: 'Cannot remove the last active admin. Promote another user first.' } }
+
+  beforeEach(() => {
+    auth.isAdmin = true
+    patchUser.mockReset().mockRejectedValue(refuse)
+  })
+
+  it('shows the server reason in the dialog and keeps it open when the last administrator would go', async () => {
+    const w = mountIt()
+    await flushPromises()
+    await row(w, 'sys@example.com').findAll('button').find(b => b.text() === 'Remove system administrator')!.trigger('click')
+    await w.find('dialog .btn-error').trigger('click')
+    await flushPromises()
+    const dialog = w.find('dialog')
+    expect(dialog.text()).toContain('Cannot remove the last active admin. Promote another user first.')
+    expect(dialog.text()).not.toContain('409 Conflict')
+    expect(people.value[0]!.is_admin).toBe(true)
+  })
+
+  it('shows the server reason, not the raw request text, when a change without a dialog is refused', async () => {
+    patchUser.mockRejectedValue({ ...refuse, data: { message: 'Some other reason' } })
+    const w = mountIt()
+    await flushPromises()
+    await row(w, 'plain@example.com').findAll('button').find(b => b.text() === 'Make system administrator')!.trigger('click')
+    await flushPromises()
+    expect(w.text()).toContain('Some other reason')
+    expect(w.text()).not.toContain('409 Conflict')
+  })
+})
