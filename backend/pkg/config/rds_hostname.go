@@ -5,7 +5,7 @@ import "strings"
 // normalizeDriver maps a DB_DRIVER value onto a canonical name ("postgres"
 // or "mysql"), matching pkg/database/database.go's own driver switch
 // (which already treats postgres/postgresql and mysql/mariadb as
-// equivalent pairs). Returns "" for sqlite or any unrecognized driver.
+// equivalent pairs). Returns "" for any unrecognized driver (an unset one included).
 func normalizeDriver(driver string) string {
 	switch driver {
 	case "postgres", "postgresql":

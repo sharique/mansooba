@@ -1,0 +1,64 @@
+# Runs the backend tests against MariaDB and MySQL.
+#
+# Continuous integration (ci.yml) tests on PostgreSQL only, to keep runs short.
+# MariaDB and MySQL are officially supported too, so this workflow checks them
+# on demand: start it by hand from the Actions tab (or `gh workflow run
+# db-matrix.yml`) before each release and quote the result in the release notes.
+# It is deliberately not triggered by pushes or pull requests.
+name: Database matrix (on demand)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test on ${{ matrix.name }}
+    runs-on: ubuntu-26.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: MariaDB 11
+            driver: mariadb
+            image: mariadb:11
+            env_var: MARIADB_ROOT_PASSWORD
+            health: "healthcheck.sh --connect --innodb_initialized"
+          - name: MySQL 8.4
+            driver: mysql
+            image: mysql:8.4
+            env_var: MYSQL_ROOT_PASSWORD
+            health: "mysqladmin ping -h 127.0.0.1 -uroot -ptest"
+
+    services:
+      database:
+        image: ${{ matrix.image }}
+        env:
+          MARIADB_ROOT_PASSWORD: test
+          MYSQL_ROOT_PASSWORD: test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "${{ matrix.health }}"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/go.mod
+          cache: true
+          cache-dependency-path: backend/go.sum
+
+      - name: Test
+        working-directory: backend
+        run: go test -race -count=1 ./...
+        env:
+          TEST_DB_DRIVER: ${{ matrix.driver }}
+          TEST_DB_DSN: "root:test@tcp(127.0.0.1:3306)/?parseTime=true"

@@ -6,7 +6,7 @@ A full-featured project management app for teams: plan sprints, track and triage
 and collaborate through comments, mentions, and activity feeds - all built with a
 spec-driven engineering process.
 
-**Backend:** Go + Echo v4 · GORM · SQLite / PostgreSQL  
+**Backend:** Go + Echo v4 · GORM · PostgreSQL / MySQL / MariaDB  
 **Frontend:** Nuxt 4 · Pinia · Tailwind CSS v4 · DaisyUI  
 **DevOps:** Docker · GitHub Actions CI/CD · Terraform · AWS (EC2, RDS, S3, IAM, SES) · Grafana Loki
 

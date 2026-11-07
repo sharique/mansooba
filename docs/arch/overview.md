@@ -7,7 +7,7 @@
 | Backend language | Go 1.27 |
 | Backend framework | Echo v4 |
 | ORM | GORM |
-| Databases | SQLite (dev default), PostgreSQL, MySQL / MariaDB |
+| Databases | PostgreSQL (preferred), MySQL / MariaDB |
 | Object storage | AWS S3 in prod, LocalStack in local dev (aws-sdk-go-v2) |
 | Auth | JWT (golang-jwt/jwt) |
 | Logging | Zap |
@@ -56,7 +56,7 @@ code/
 │       ├── types/             # TypeScript domain, API, auth, setup types
 │       └── utils/             # chart helpers, issue style maps
 │
-├── compose.yml                # Dev stack: SQLite + LocalStack + Mailpit + backend +
+├── compose.yml                # Dev stack: PostgreSQL + LocalStack + Mailpit + backend +
 │                              # frontend + Loki + Alloy (default) + Grafana (opt-in)
 ├── compose.prod.yml           # Prod stack: pulls GHCR images, connects to external DB
 ├── loki/, alloy/, grafana/    # System Logs backing store + log shipping + optional

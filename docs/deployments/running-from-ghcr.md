@@ -13,7 +13,7 @@ Images are built and pushed automatically on every merge to `main` via GitHub Ac
 ## Contents
 
 - [Prerequisites](#prerequisites)
-- [Option A — Quick local run (SQLite + LocalStack)](#option-a-quick-local-run-sqlite-localstack)
+- [Option A — Quick local run (PostgreSQL + LocalStack)](#option-a-quick-local-run-postgresql-localstack)
 - [Option B — Full stack with PostgreSQL (compose.prod.yml)](#option-b-full-stack-with-postgresql-composeprodyml)
   - [Step 1 — Create a `.env` file](#step-1-create-a-env-file)
   - [Step 2 — Create a local override file](#step-2-create-a-local-override-file)
@@ -38,14 +38,28 @@ docker compose version    # Docker Compose v2.x
 
 ---
 
-## Option A — Quick local run (SQLite + LocalStack)
+## Option A — Quick local run (PostgreSQL + LocalStack)
 
-The fastest way to run the full stack locally. Uses SQLite for the database and a local LocalStack container for S3-compatible object storage (issue attachments) — no Postgres setup required.
+The fastest way to run the full stack locally. Runs PostgreSQL in a container and a local LocalStack container for S3-compatible object storage (issue attachments) — nothing to install besides Docker.
 
 Create a `compose.quickstart.yml` anywhere:
 
 ```yaml
 services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: mansooba
+      POSTGRES_PASSWORD: mansooba
+      POSTGRES_DB: mansooba
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mansooba -d mansooba"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   localstack:
     image: localstack/localstack:4.14.0
     ports:
@@ -85,8 +99,8 @@ services:
       - "8080:8080"
     environment:
       JWT_SECRET: dev-secret-change-me
-      DB_DRIVER: sqlite
-      DB_DSN: /data/dev.db
+      DB_DRIVER: postgres
+      DB_DSN: "host=postgres port=5432 user=mansooba password=mansooba dbname=mansooba sslmode=disable"
       CORS_ORIGINS: http://localhost:3000
       STORAGE_ENDPOINT: http://localstack:4566
       # PresignEndpoint overrides the host baked into presigned download URLs — the
@@ -97,9 +111,9 @@ services:
       STORAGE_ACCESS_KEY_ID: test
       STORAGE_SECRET_ACCESS_KEY: test
       STORAGE_USE_PATH_STYLE: "true"
-    volumes:
-      - sqlite_data:/data
     depends_on:
+      postgres:
+        condition: service_healthy
       localstack-init:
         condition: service_completed_successfully
     healthcheck:
@@ -118,7 +132,7 @@ services:
         condition: service_healthy
 
 volumes:
-  sqlite_data:
+  postgres_data:
   localstack_data:
 ```
 
@@ -131,7 +145,7 @@ docker compose -f compose.quickstart.yml up -d
 
 App is at **http://localhost:3000** · API at **http://localhost:8080** · LocalStack health check at **http://localhost:4566/_localstack/health**
 
-> SQLite data persists in the `sqlite_data` volume. Stop with `docker compose -f compose.quickstart.yml down` (add `-v` to wipe data too).
+> Data persists in the `postgres_data` volume. Stop with `docker compose -f compose.quickstart.yml down` (add `-v` to wipe data too).
 
 > This quickstart intentionally skips System Logs (the Loki-backed audit trail) and
 > Grafana to stay minimal — see Option B for those.
@@ -179,7 +193,7 @@ GF_SECURITY_ADMIN_PASSWORD=change-me
 GF_AUTH_ANONYMOUS_ENABLED=false
 ```
 
-> The backend supports `DB_DRIVER=sqlite`, `postgres`, or `mysql` / `mariadb`. For local use, any of these work fine — swap the `DB_DRIVER` and `DB_DSN` values and add the matching database container to `compose.override.yml` if using MariaDB. For production (e.g. EC2 + RDS), set `DB_DSN` to the RDS endpoint with `sslmode=require` and replace the LocalStack vars with real AWS S3 access: unset `STORAGE_ENDPOINT`, `STORAGE_PRESIGN_ENDPOINT`, `STORAGE_ACCESS_KEY_ID`, and `STORAGE_SECRET_ACCESS_KEY` entirely, set `STORAGE_USE_PATH_STYLE=false`, and rely on the EC2 instance's IAM role for credentials (see ADR-029) — never a static key in production. On the demo/showcase RDS deployment specifically, also set `RDS_INSTANCE_IDENTIFIER` so the idle auto-stop/wake-on-hit feature (spec 010, ADR-030) can find and manage the instance — `RDS_AUTOSTOP_ENABLED` defaults to `true`, but the feature stays inert until `RDS_INSTANCE_IDENTIFIER` is set AND matches `DB_DSN`'s hostname (see the table below), so `DB_DRIVER=postgres` alone is not enough to activate it, and this is not optional on the real RDS deployment.
+> The backend supports `DB_DRIVER=postgres` or `mysql` / `mariadb` (both `DB_DRIVER` and `DB_DSN` are required; there is no default). For local use, either works — swap the `DB_DRIVER` and `DB_DSN` values and add the matching database container to `compose.override.yml` if using MariaDB. For production (e.g. EC2 + RDS), set `DB_DSN` to the RDS endpoint with `sslmode=require` and replace the LocalStack vars with real AWS S3 access: unset `STORAGE_ENDPOINT`, `STORAGE_PRESIGN_ENDPOINT`, `STORAGE_ACCESS_KEY_ID`, and `STORAGE_SECRET_ACCESS_KEY` entirely, set `STORAGE_USE_PATH_STYLE=false`, and rely on the EC2 instance's IAM role for credentials — never a static key in production. On the demo/showcase RDS deployment specifically, also set `RDS_INSTANCE_IDENTIFIER` so the idle auto-stop/wake-on-hit feature can find and manage the instance — `RDS_AUTOSTOP_ENABLED` defaults to `true`, but the feature stays inert until `RDS_INSTANCE_IDENTIFIER` is set AND matches `DB_DSN`'s hostname (see the table below), so `DB_DRIVER=postgres` alone is not enough to activate it, and this is not optional on the real RDS deployment.
 
 ### Step 2 — Create a local override file
 
@@ -386,8 +400,8 @@ services:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `JWT_SECRET` | ✅ | — | Secret for signing JWTs. Use `openssl rand -hex 32`. The only var the backend requires at startup. |
-| `DB_DRIVER` | ✅ | — | `sqlite`, `postgres` / `postgresql`, or `mysql` / `mariadb` |
-| `DB_DSN` | ✅ | — | SQLite path, Postgres DSN, or MySQL/MariaDB DSN |
+| `DB_DRIVER` | ✅ | — | `postgres` / `postgresql`, or `mysql` / `mariadb` |
+| `DB_DSN` | ✅ | — | Postgres DSN or MySQL/MariaDB DSN |
 | `CORS_ORIGINS` | ✅ | — | Comma-separated allowed origins (e.g. `http://localhost`) |
 | `LOG_LEVEL` | | `info` | `debug`, `info`, `warn`, `error` |
 | `SERVER_PORT` | | `8080` | Port the backend listens on |

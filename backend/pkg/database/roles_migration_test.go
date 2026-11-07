@@ -44,7 +44,7 @@ func membersOf(t *testing.T, db *gorm.DB, projectID uint) map[uint]string {
 
 func legacyRolesFixture(t *testing.T) (db *gorm.DB, p map[string]uint, u map[string]uint) {
 	t.Helper()
-	db = openSQLite(t)
+	db = openEmptyDatabase(t)
 	require.NoError(t, db.AutoMigrate(&domain.User{}, &domain.Project{}, &legacyMember{}))
 	u = map[string]uint{}
 	for _, n := range []string{"ada", "ben", "cy", "dee"} {
@@ -129,7 +129,7 @@ func TestMigrate_OneMembershipPerPersonPerProjectIsEnforced(t *testing.T) {
 
 // A fresh install has no project_members table when the dedupe step runs.
 func TestMigrate_FreshDatabaseSucceedsAndHasTheUniqueIndex(t *testing.T) {
-	db := openSQLite(t)
+	db := openEmptyDatabase(t)
 	require.NoError(t, database.Migrate(db))
 	require.NoError(t, db.Exec(`INSERT INTO project_members (project_id, user_id, role) VALUES (1, 1, 'admin')`).Error)
 	assert.Error(t, db.Exec(`INSERT INTO project_members (project_id, user_id, role) VALUES (1, 1, 'member')`).Error)

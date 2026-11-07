@@ -1,7 +1,6 @@
 package database
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -9,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
-	"gorm.io/driver/sqlite"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
@@ -75,7 +74,7 @@ func TestMySQL_UnsizedUniqueIndexStringsAreTextWithoutTheFix(t *testing.T) {
 
 func TestSizeIndexedStrings_MakesEveryIndexedColumnIndexableOnMySQL(t *testing.T) {
 	db := mysqlWithoutServer(t)
-	require.NoError(t, sizeIndexedStrings(db, migrationModels()...))
+	require.NoError(t, SizeIndexedStrings(db, migrationModels()...))
 
 	fields := indexedStrings(t, db, migrationModels())
 	require.NotEmpty(t, fields)
@@ -90,7 +89,7 @@ func TestSizeIndexedStrings_MakesEveryIndexedColumnIndexableOnMySQL(t *testing.T
 
 func TestSizeIndexedStrings_KeepsAnExplicitSizeAndLeavesOtherColumnsAlone(t *testing.T) {
 	db := mysqlWithoutServer(t)
-	require.NoError(t, sizeIndexedStrings(db, migrationModels()...))
+	require.NoError(t, SizeIndexedStrings(db, migrationModels()...))
 
 	byName := func(model any, col string) *schema.Field {
 		stmt := &gorm.Statement{DB: db}
@@ -106,28 +105,15 @@ func TestSizeIndexedStrings_KeepsAnExplicitSizeAndLeavesOtherColumnsAlone(t *tes
 }
 
 func TestSizeIndexedStrings_DoesNothingOnOtherDatabases(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	// The PostgreSQL dialect, never connected: only the schema GORM would build matters.
+	db, err := gorm.Open(
+		postgres.New(postgres.Config{DSN: "host=127.0.0.1 port=1 user=none dbname=none"}),
+		&gorm.Config{DisableAutomaticPing: true},
+	)
 	require.NoError(t, err)
-	require.NoError(t, sizeIndexedStrings(db, migrationModels()...))
+	require.NoError(t, SizeIndexedStrings(db, migrationModels()...))
 
 	stmt := &gorm.Statement{DB: db}
 	require.NoError(t, stmt.Parse(&domain.User{}))
-	assert.Equal(t, 0, stmt.Schema.FieldsByDBName["email"].Size, "PostgreSQL and SQLite columns must not change")
-}
-
-// Against a real server. Set MYSQL_TEST_DSN to an empty scratch database, for example
-//
-//	MYSQL_TEST_DSN='root:secret@tcp(127.0.0.1:3306)/mansooba?charset=utf8mb4&parseTime=True&loc=Local'
-//
-// The test creates every table, then runs the migration a second time.
-func TestMigrate_MySQL_FreshDatabase(t *testing.T) {
-	dsn := os.Getenv("MYSQL_TEST_DSN")
-	if dsn == "" {
-		t.Skip("MYSQL_TEST_DSN not set")
-	}
-	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	require.NoError(t, err)
-
-	require.NoError(t, Migrate(db), "first migration on an empty database")
-	require.NoError(t, Migrate(db), "migrating again must be a no-op")
+	assert.Equal(t, 0, stmt.Schema.FieldsByDBName["email"].Size, "PostgreSQL columns must not change")
 }

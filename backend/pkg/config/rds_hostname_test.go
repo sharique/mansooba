@@ -11,7 +11,7 @@ func TestNormalizeDriver(t *testing.T) {
 		{"postgresql", "postgres"},
 		{"mysql", "mysql"},
 		{"mariadb", "mysql"},
-		{"sqlite", ""},
+		{"oracle", ""},
 		{"", ""},
 	}
 	for _, tt := range tests {
@@ -67,9 +67,9 @@ func TestExtractDSNHost(t *testing.T) {
 			want:   "localhost",
 		},
 		{
-			name:   "sqlite has no host",
-			driver: "sqlite",
-			dsn:    "./dev.db",
+			name:   "an unrecognised driver has no host",
+			driver: "oracle",
+			dsn:    "x",
 			want:   "",
 		},
 		{
@@ -169,9 +169,9 @@ func TestConfig_RDSAutoStopApplies(t *testing.T) {
 		want bool
 	}{
 		{
-			name: "sqlite always false",
+			name: "an unrecognised driver is always false",
 			cfg: Config{
-				DBDriver: "sqlite", DBDSN: "./dev.db",
+				DBDriver: "oracle", DBDSN: "x",
 				RDSAutoStopEnabled: true, RDSInstanceIdentifier: "mansooba-db",
 			},
 			want: false,

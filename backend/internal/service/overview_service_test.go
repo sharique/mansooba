@@ -8,7 +8,7 @@ import (
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
-	"github.com/sharique/mansooba/pkg/config"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/sharique/mansooba/pkg/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +16,7 @@ import (
 )
 
 // The overview reads real data and names people, so it is member-only. These
-// tests use real repositories on in-memory SQLite and a fixed clock.
+// tests use real repositories on a real database and a fixed clock.
 
 var overviewNow = time.Date(2026, 10, 17, 15, 0, 0, 0, time.UTC)
 
@@ -34,8 +34,7 @@ type overviewEnv struct {
 func newOverviewEnv(t *testing.T) *overviewEnv {
 	t.Helper()
 	ctx := context.Background()
-	db, err := database.Open(&config.Config{DBDriver: "sqlite", DBDSN: ":memory:"})
-	require.NoError(t, err)
+	db := testdb.New(t)
 	require.NoError(t, database.Migrate(db))
 
 	users := repository.NewUserRepository(db)

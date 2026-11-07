@@ -22,11 +22,11 @@ import (
 
 func newServer(t *testing.T, mutate func(*config.Config)) *echo.Echo {
 	t.Helper()
-	cfg := testConfig()
+	cfg := testConfig(t)
 	if mutate != nil {
 		mutate(cfg)
 	}
-	e, cleanup, err := httpserver.NewInMemory(cfg)
+	e, cleanup, err := httpserver.NewTestServer(cfg)
 	require.NoError(t, err)
 	t.Cleanup(cleanup)
 	return e

@@ -19,8 +19,7 @@ type Config struct {
 	DBDriver   string `mapstructure:"DB_DRIVER"`
 	DBDSN      string `mapstructure:"DB_DSN"`
 
-	// Connection pool — optional, per-driver defaults apply when zero.
-	// SQLite always uses MaxOpenConns=1 regardless of this setting.
+	// Connection pool — optional; Load sets bounded defaults (25 open, 5 idle).
 	DBMaxOpenConns    int    `mapstructure:"DB_MAX_OPEN_CONNS"`
 	DBMaxIdleConns    int    `mapstructure:"DB_MAX_IDLE_CONNS"`
 	DBConnMaxLifetime string `mapstructure:"DB_CONN_MAX_LIFETIME"` // e.g. "5m"; "0" = never expire
@@ -124,10 +123,12 @@ func Load() *Config {
 
 	// Defaults
 	viper.SetDefault("SERVER_PORT", "8080")
-	viper.SetDefault("DB_DRIVER", "sqlite")
-	viper.SetDefault("DB_DSN", "./dev.db")
-	viper.SetDefault("DB_MAX_OPEN_CONNS", 0)
-	viper.SetDefault("DB_MAX_IDLE_CONNS", 2)
+	// The database has no default: DB_DRIVER and DB_DSN are required (ValidateDatabase).
+	// The empty defaults only make viper read the variables.
+	viper.SetDefault("DB_DRIVER", "")
+	viper.SetDefault("DB_DSN", "")
+	viper.SetDefault("DB_MAX_OPEN_CONNS", 25)
+	viper.SetDefault("DB_MAX_IDLE_CONNS", 5)
 	viper.SetDefault("DB_CONN_MAX_LIFETIME", "0")
 	viper.SetDefault("JWT_SECRET", "")
 	viper.SetDefault("JWT_ACCESS_TTL", "15m")

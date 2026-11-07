@@ -1,7 +1,7 @@
 package handler_test
 
 // T003: Integration test for the change-password endpoint against a real
-// SQLite DB, real PasswordChangeService, real AuthService, real bcrypt
+// database, real PasswordChangeService, real AuthService, real bcrypt
 // hashing, and real AuthHandler.Login/Refresh calls — no mocks for this
 // auth-critical path (Constitution Principle III).
 //

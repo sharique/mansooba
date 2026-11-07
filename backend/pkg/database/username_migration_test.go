@@ -2,14 +2,13 @@ package database_test
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
-	"github.com/sharique/mansooba/pkg/config"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/sharique/mansooba/pkg/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,17 +48,17 @@ func usernameColumnNullable(t *testing.T, db *gorm.DB) bool {
 	return false
 }
 
-func openSQLite(t *testing.T) *gorm.DB {
+// openEmptyDatabase returns a database with no tables, for building an old
+// schema by hand before running the migration.
+func openEmptyDatabase(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := database.Open(&config.Config{DBDriver: "sqlite", DBDSN: ":memory:"})
-	require.NoError(t, err)
-	return db
+	return testdb.NewEmpty(t)
 }
 
 // A fresh database gets the final schema straight away: NOT NULL and unique,
 // enforced by the database itself.
 func TestMigrate_FreshDatabaseHasANonNullUniqueUsername(t *testing.T) {
-	db := openSQLite(t)
+	db := openEmptyDatabase(t)
 	require.NoError(t, database.Migrate(db))
 
 	assert.False(t, usernameColumnNullable(t, db))
@@ -72,28 +71,13 @@ func TestMigrate_FreshDatabaseHasANonNullUniqueUsername(t *testing.T) {
 // Migrate, which makes the column NOT NULL. Awkward emails get distinct valid
 // usernames and nothing else about the accounts changes.
 func TestUpgrade_LegacyUsersTableEndsNonNull(t *testing.T) {
-	upgradeLegacyUsers(t, openSQLite(t))
-}
-
-// The same upgrade on PostgreSQL, the production database. CI runs SQLite only,
-// so this runs when USERNAME_MIGRATION_PG_DSN points at a throwaway PostgreSQL
-// (for example a postgres:17 container on a spare port).
-func TestUpgrade_LegacyUsersTableEndsNonNull_PostgreSQL(t *testing.T) {
-	dsn := os.Getenv("USERNAME_MIGRATION_PG_DSN")
-	if dsn == "" {
-		t.Skip("set USERNAME_MIGRATION_PG_DSN to run against PostgreSQL")
-	}
-	db, err := database.Open(&config.Config{DBDriver: "postgres", DBDSN: dsn})
-	require.NoError(t, err)
-	for _, tbl := range []string{"notifications", "users"} {
-		require.NoError(t, db.Exec(`DROP TABLE IF EXISTS `+tbl+` CASCADE`).Error)
-	}
-	upgradeLegacyUsers(t, db)
+	upgradeLegacyUsers(t, openEmptyDatabase(t))
 }
 
 func upgradeLegacyUsers(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	ctx := context.Background()
+	require.NoError(t, database.SizeIndexedStrings(db, &legacyUser{})) // MySQL cannot index unsized text
 	require.NoError(t, db.AutoMigrate(&legacyUser{}))
 	emails := []string{"sam-smith@x.com", "sam@a.com", "sam@b.com", "admin@x.com", "ab@x.com"}
 	for _, e := range emails {

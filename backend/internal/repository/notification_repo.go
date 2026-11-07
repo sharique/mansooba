@@ -35,7 +35,7 @@ func (r *notificationRepo) FindUnreadByRecipientID(ctx context.Context, recipien
 			"COALESCE(actor.name, '') AS actor_name").
 		Joins("LEFT JOIN issues ON issues.id = notifications.issue_id").
 		// The project comes from the notification itself (project kinds) or, for
-		// issue kinds, from the issue. Portable SQL only (SQLite and PostgreSQL).
+		// issue kinds, from the issue. Plain SQL that PostgreSQL, MySQL and MariaDB all run as written.
 		Joins("LEFT JOIN projects ON projects.id = CASE WHEN notifications.project_id <> 0 THEN notifications.project_id ELSE issues.project_id END").
 		Joins("LEFT JOIN users AS actor ON actor.id = notifications.actor_id").
 		Where("notifications.recipient_id = ? AND notifications.read = false", recipientID).

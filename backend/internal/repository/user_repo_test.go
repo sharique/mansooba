@@ -7,21 +7,15 @@ import (
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/repository"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 func newTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open test db: %v", err)
-	}
-	if err := db.AutoMigrate(&domain.User{}, &domain.Project{}, &domain.ProjectMember{}, &domain.Issue{}, &domain.Sprint{}, &domain.Attachment{}); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	db := testdb.New(t)
 	return db
 }
 
@@ -422,4 +416,21 @@ func TestUserRepo_UpdateAdminFieldsGuarded_ChangesOnlyTheNamedFields(t *testing.
 	assert.False(t, got.IsAdmin)
 
 	assert.ErrorIs(t, repo.UpdateAdminFieldsGuarded(ctx, 9999, domain.AdminChange{IsAdmin: &no}), domain.ErrNotFound)
+}
+
+// newDBWithProjects is newTestDB plus projects 1 to 9. Inserting a task, sprint,
+// label or member into a project takes a lock on the project row and is refused
+// when the project does not exist, so tests that use project ids 1 to 9 without
+// creating them first need these rows.
+func newDBWithProjects(t *testing.T) *gorm.DB {
+	t.Helper()
+	db := newTestDB(t)
+	for id := uint(1); id <= 9; id++ {
+		require.NoError(t, db.Create(&domain.Project{ID: id, Key: fmt.Sprintf("P%d", id), Name: fmt.Sprintf("Project %d", id), OwnerID: 1}).Error)
+	}
+	if db.Dialector.Name() == "postgres" {
+		// explicit ids do not advance the sequence
+		require.NoError(t, db.Exec(`SELECT setval(pg_get_serial_sequence('projects', 'id'), 9)`).Error)
+	}
+	return db
 }

@@ -7,8 +7,7 @@ import (
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/repository"
-	"github.com/sharique/mansooba/pkg/config"
-	"github.com/sharique/mansooba/pkg/database"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -22,10 +21,7 @@ func (r *recordedLog) Record(_ context.Context, e domain.SystemLogEntry) {
 
 func newDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := database.Open(&config.Config{DBDriver: "sqlite", DBDSN: ":memory:"})
-	require.NoError(t, err)
-	require.NoError(t, database.Migrate(db))
-	return db
+	return testdb.New(t)
 }
 
 func addUser(t *testing.T, db *gorm.DB, email string, isAdmin, isActive bool) *domain.User {

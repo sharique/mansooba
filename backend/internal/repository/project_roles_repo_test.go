@@ -1,8 +1,7 @@
 package repository_test
 
-// Last-admin guards and the project queries behind role management, on real
-// SQLite. The simultaneous-request cases are in project_lastadmin_pg_test.go
-// (PostgreSQL).
+// Last-admin guards and the project queries behind role management, on a real
+// database. The simultaneous-request cases are in lastadmin_test.go.
 
 import (
 	"context"
@@ -240,4 +239,15 @@ func TestProjectRepo_DeleteIfEmpty(t *testing.T) {
 	assert.Len(t, kept, 1)
 
 	assert.ErrorIs(t, projects.DeleteIfEmpty(ctx, 99999), domain.ErrNotFound)
+}
+
+// Setting a member to the role they already have changes nothing and is not an
+// error (MySQL and MariaDB count only changed rows, so this once looked like
+// "no such member").
+func TestProjectMembers_ChangeRole_ToTheSameRoleIsNotAnError(t *testing.T) {
+	f := newRolesRepoFixture(t, newTestDB(t))
+	ctx := context.Background()
+
+	require.NoError(t, f.members.ChangeRole(ctx, f.project.ID, f.ben.ID, domain.RoleMember), "ben is already a member")
+	assert.ErrorIs(t, f.members.ChangeRole(ctx, f.project.ID, 9999, domain.RoleMember), domain.ErrNotFound, "a user who is not a member is still not found")
 }

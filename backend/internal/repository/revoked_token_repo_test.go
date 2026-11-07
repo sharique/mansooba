@@ -1,6 +1,6 @@
 package repository_test
 
-// T010: Integration tests for gormRevokedTokenRepository against real SQLite.
+// T010: Integration tests for gormRevokedTokenRepository against a real database.
 // Constitution Principle III: security paths must use real infrastructure, no mocks.
 
 import (
@@ -10,19 +10,13 @@ import (
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/repository"
-	"gorm.io/driver/sqlite"
+	"github.com/sharique/mansooba/internal/testdb"
 	"gorm.io/gorm"
 )
 
 func newRevokedTokenDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open test db: %v", err)
-	}
-	if err := db.AutoMigrate(&domain.RevokedToken{}); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	db := testdb.New(t)
 	return db
 }
 

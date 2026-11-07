@@ -12,6 +12,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -39,6 +40,13 @@ var version = "dev"
 func main() {
 	cfg := config.Load()
 
+	// Refuse a missing or unsupported database setting (SQLite included) before
+	// anything else starts: one plain line on stderr, no files touched.
+	if err := config.ValidateDatabase(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
 	logger.Init(cfg.LogLevel)
 	defer logger.Sync()
 	log := logger.Logger
@@ -64,7 +72,11 @@ func main() {
 	}
 	defer sqlDB.Close()
 
-	log.Info("database connection established", zap.String("driver", cfg.DBDriver))
+	log.Info("database connection established",
+		zap.String("driver", cfg.DatabaseKind()),
+		zap.Int("max_open_conns", cfg.DBMaxOpenConns), // 0 = unlimited
+		zap.Int("max_idle_conns", cfg.DBMaxIdleConns),
+		zap.String("conn_max_lifetime", cfg.DBConnMaxLifetime))
 
 	if err := database.Migrate(db); err != nil {
 		log.Fatal("failed to run migrations", zap.Error(err))
@@ -148,7 +160,7 @@ func main() {
 	// AWS demo deployment": a contributor running local Postgres via
 	// docker-compose (a supported dev path, docs/running-locally-using-docker.md)
 	// is also DB_DRIVER=postgres, but has no real RDS instance to describe.
-	// Local dev (SQLite or local Postgres/MySQL/MariaDB) never touches this
+	// Local dev (a local Postgres/MySQL/MariaDB) never touches this
 	// code path and needs no AWS credentials. dbLifecycleTracker and rdsClient
 	// stay nil when disabled; startDBIdleCheck (US1) and the dbwake middleware
 	// (US2) both check for nil before doing anything.

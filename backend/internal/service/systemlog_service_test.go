@@ -14,13 +14,12 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
+	"github.com/sharique/mansooba/internal/testdb"
 )
 
 // mockSystemLogRepo is a test double for domain.SystemLogRepository, letting
@@ -66,9 +65,7 @@ func (m *mockSystemLogRepo) waitForCreate(t *testing.T) {
 // tests to conveniently set up settings data via Patch.
 func newTestSettingStack(t *testing.T) (domain.GlobalSettingRepository, service.SettingService) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&domain.GlobalSetting{}, &domain.User{}))
+	db := testdb.New(t)
 	repo := repository.NewSettingRepository(db)
 	settingSvc := service.NewSettingService(repo, repository.NewUserRepository(db), stubSystemLogService{})
 	return repo, settingSvc

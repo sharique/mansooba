@@ -2,40 +2,20 @@ package seed_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/seed"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
-
-var dbCounter int
 
 func newTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	dbCounter++
-	// Each test gets its own named in-memory database so they don't share state.
-	dsn := fmt.Sprintf("file:seed_test_%d?mode=memory&cache=shared", dbCounter)
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Discard})
-	require.NoError(t, err, "open in-memory DB")
-	err = db.AutoMigrate(
-		&domain.User{},
-		&domain.Project{},
-		&domain.ProjectMember{},
-		&domain.Sprint{},
-		&domain.Issue{},
-		&domain.Label{},
-		&domain.IssueLabel{},
-		&domain.Comment{},
-	)
-	require.NoError(t, err, "auto migrate")
-	return db
+	return testdb.New(t)
 }
 
 func createAdmin(t *testing.T, db *gorm.DB) *domain.User {

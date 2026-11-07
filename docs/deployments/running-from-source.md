@@ -23,7 +23,7 @@ Use this guide when you want a tight Go + Node dev loop without building Docker 
 
 - Go 1.27 (the version declared in `backend/go.mod`; it wins over whatever you have installed)
 - Node 24 LTS + npm 11 (the version declared in `frontend/.nvmrc`)
-- Docker (for Mailpit; needed for password-reset email in dev)
+- Docker (for PostgreSQL, Mailpit and LocalStack; or your own PostgreSQL, see step 2)
 
 > **Go toolchain:** Go downloads the toolchain named in `go.mod` automatically only when
 > `GOTOOLCHAIN` is `auto` (the default). If your machine sets `GOTOOLCHAIN=local`, either
@@ -36,7 +36,8 @@ Use this guide when you want a tight Go + Node dev loop without building Docker 
 
 ```sh
 cp backend/.env.example backend/.env
-# Edit backend/.env as needed — SQLite defaults work out of the box
+# Edit backend/.env as needed. DB_DRIVER and DB_DSN are required and have no default; the
+# example file already matches the PostgreSQL that step 2 starts.
 ```
 
 Key variables:
@@ -50,8 +51,9 @@ Key variables:
 | `JWT_ACCESS_TTL` | `15m` | Access token lifetime |
 | `JWT_REFRESH_TTL` | `168h` | Refresh token lifetime (7 days) |
 | `APP_ENV` | `production` | Set to `development` to omit the `Secure` flag on cookies (required for plain HTTP local dev) |
-| `DB_DRIVER` | `sqlite` | `sqlite`, `postgres`, `mysql` / `mariadb` |
-| `DB_DSN` | `./dev.db` | SQLite file path, or a full connection string for Postgres/MySQL |
+| `DB_DRIVER` | *(required)* | `postgres` (preferred), `mysql` or `mariadb`. There is no default |
+| `DB_DSN` | *(required)* | Connection string for that database (examples in `backend/.env.example`) |
+| `DB_MAX_OPEN_CONNS` / `DB_MAX_IDLE_CONNS` | `25` / `5` | Connection pool size; `0` open connections means unlimited |
 | `REVOKED_TOKEN_CLEANUP_INTERVAL` | `15m` | How often the background goroutine purges expired revoked-token records |
 | `SMTP_HOST` | `mailpit` | SMTP server host; use `localhost` when running Mailpit outside Compose |
 | `SMTP_PORT` | `1025` | SMTP port |
@@ -68,17 +70,31 @@ working on that feature.
 
 ---
 
-## 2. Start Mailpit, LocalStack, and Loki
+## 2. Start PostgreSQL, Mailpit, LocalStack, and Loki
 
-Mailpit captures outbound SMTP so password-reset emails don't reach real inboxes. LocalStack
+PostgreSQL is the database (preferred; MySQL and MariaDB are supported too, see below). Mailpit captures outbound SMTP so password-reset emails don't reach real inboxes. LocalStack
 provides local S3-compatible storage for issue attachments. Loki (011-system-logs) is the backing
-store for System Logs, the admin-only audit trail. Start all three from `compose.yml` without
+store for System Logs, the admin-only audit trail. Start them from `compose.yml` without
 starting the rest of the stack:
 
 ```sh
 cd code
-docker compose up mailpit localstack localstack-init loki -d
+docker compose up postgres mailpit localstack localstack-init loki -d
 ```
+
+The database listens on `localhost:5432` (user, password and database are all `mansooba`), which is
+what `backend/.env.example` expects. If port 5432 is taken, start it on another port with
+`POSTGRES_PORT=15432 docker compose up postgres -d` and change the port in `DB_DSN`. Data is kept in
+the `postgres_data` volume, so it survives a restart.
+
+**No Docker, or your own database?** Point `DB_DSN` at any PostgreSQL 18 (or a supported MySQL or
+MariaDB, with `DB_DRIVER=mysql`) that has an empty database and a user who owns it. The tested
+versions are PostgreSQL 18, MariaDB 11 and MySQL 8.4.
+
+**Using MariaDB or MySQL instead?** Start one (`docker run -d --name mdb -p 3306:3306 -e
+MARIADB_ROOT_PASSWORD=secret -e MARIADB_DATABASE=mansooba mariadb:11`) and set
+`DB_DRIVER=mysql` and `DB_DSN=root:secret@tcp(localhost:3306)/mansooba?charset=utf8mb4&parseTime=True&loc=Local`.
+The app behaves the same.
 
 Mailpit inbox: **http://localhost:8025**
 
@@ -171,7 +187,7 @@ go run ./cmd/seed
 ```
 
 The import is skipped when the demo project already exists, so to see new demo data you need a
-fresh database (delete `backend/dev.db` for SQLite).
+fresh database (drop and recreate it, or wipe the volume with `docker compose down -v postgres`).
 
 ---
 
@@ -180,6 +196,7 @@ fresh database (delete `backend/dev.db` for SQLite).
 ```sh
 # Backend
 cd backend
+export TEST_DB_DSN="host=localhost user=mansooba password=mansooba dbname=mansooba_test port=5432 sslmode=disable"
 go test ./...
 go vet ./...
 
@@ -191,7 +208,9 @@ npx nuxi typecheck    # TypeScript check
 npm run build         # production build; run it before opening a PR
 ```
 
-The storage tests (attachments, avatars) run against the LocalStack from step 2 and are skipped
+Database tests run on the PostgreSQL from step 2 (each test gets its own database inside
+`mansooba_test`, which the compose service creates on first start) and fail, with instructions, when
+it is not reachable. The storage tests (attachments, avatars) run against the LocalStack from step 2 and are skipped
 when it is not running. To make a missing LocalStack a failure instead, set `REQUIRE_LOCALSTACK=1`.
 LocalStack does not keep its bucket across restarts. If the tests fail with `NoSuchBucket`,
 recreate it:
@@ -210,4 +229,5 @@ AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
 | `go.mod requires go >= 1.27 (running go 1.2x; GOTOOLCHAIN=local)` | See the Go toolchain note under [Prerequisites](#prerequisites). |
 | Browser console shows `Cannot read properties of null (reading 'emitsOptions')`, or pages break after a reload | The dev server's cache is stale, usually after switching branches or running `npm run build` while `npm run dev` was up. Stop the dev server, run `rm -rf frontend/.nuxt frontend/node_modules/.cache/vite`, restart it and hard-refresh the browser. |
 | The frontend loads but every request fails with a CORS error | Add the frontend's origin to `CORS_ORIGINS` and restart the backend. |
+| `database: ... is not set`, or `could not connect to ... after 30s` | `DB_DRIVER` and `DB_DSN` are required (copy them from `backend/.env.example`). The backend waits up to 30 seconds for a database that is still starting; if it gives up, start PostgreSQL (step 2) and check the address in `DB_DSN`. |
 | Password-reset email never arrives | Start Mailpit (step 2) and read the message at http://localhost:8025. |

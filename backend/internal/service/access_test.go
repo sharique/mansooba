@@ -8,13 +8,13 @@ import (
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-// Real SQLite, real repositories: access decisions are a security path
+// A real database, real repositories: access decisions are a security path
 // (Constitution III), so no stubs here.
 type accessFixture struct {
 	db      *gorm.DB
@@ -29,12 +29,7 @@ type accessFixture struct {
 
 func newAccessFixture(t *testing.T) *accessFixture {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	sqlDB, err := db.DB()
-	require.NoError(t, err)
-	sqlDB.SetMaxOpenConns(1)
-	require.NoError(t, db.AutoMigrate(&domain.User{}, &domain.Project{}, &domain.ProjectMember{}))
+	db := testdb.New(t)
 
 	mk := func(name string, isAdmin bool) *domain.User {
 		u := &domain.User{Name: name, Email: name + "@example.com", Username: name, Password: "x", IsAdmin: isAdmin, IsActive: true}

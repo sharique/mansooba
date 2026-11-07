@@ -7,6 +7,7 @@
       <main class="flex-1 p-4 lg:p-6 max-w-7xl w-full mx-auto">
         <slot />
       </main>
+      <LayoutFooter />
     </div>
 
     <div class="drawer-side z-30">

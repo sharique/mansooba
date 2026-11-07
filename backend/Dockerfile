@@ -2,14 +2,11 @@
 # Pinned to the Go release line (not an exact patch — a rebuild picks up patch
 # and security releases; no floating tags).
 # The line must match the go directive in go.mod and the Go version in CI;
-# scripts/verify-versions.sh enforces that. We need CGO for mattn/go-sqlite3
-# (wraps the C SQLite library), so we install gcc and musl-dev from the
-# Alpine package index.
+# scripts/verify-versions.sh enforces that. The binaries are built without CGO, so
+# there is no C compiler in the builder and the result is a static executable.
 FROM golang:1.27-alpine3.24 AS builder
 
-ENV CGO_ENABLED=1
-
-RUN apk add --no-cache gcc musl-dev
+ENV CGO_ENABLED=0
 
 WORKDIR /app
 
