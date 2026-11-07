@@ -12,7 +12,8 @@
 
 <script setup lang="ts">
 // Lets any user find this instance's source and licence (AGPL-3.0 section
-// 13). Mounted in TopBar and every unauthenticated page.
+// 13). Mounted in the footer of the signed-in layout and on every
+// unauthenticated page.
 import { useAboutStore } from '~/stores/about.store'
 
 const store = useAboutStore()

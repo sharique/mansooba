@@ -1,8 +1,6 @@
 // @vitest-environment happy-dom
-// TopBar renders AppSourceNotice. TopBar is chosen over
-// Sidebar because the sidebar is a collapsed drawer below the `lg`
-// breakpoint, so a notice there would need two taps on
-// a phone; TopBar renders unconditionally at every screen width.
+// The source and licence notice moved from the top bar to the page footer
+// (see Footer.test.ts); the top bar must no longer render it.
 import { shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import TopBar from './TopBar.vue'
@@ -30,10 +28,10 @@ describe('TopBar', () => {
     vi.clearAllMocks()
   })
 
-  it('renders the source and licence notice', () => {
+  it('no longer renders the source and licence notice (it is in the footer)', () => {
     const w = shallowMount(TopBar, {
       global: { components: { AppSourceNotice }, stubs: { AppSourceNotice: false, Icon: true, UserAvatar: true } },
     })
-    expect(w.find('[data-testid="source-notice"]').exists()).toBe(true)
+    expect(w.find('[data-testid="source-notice"]').exists()).toBe(false)
   })
 })
