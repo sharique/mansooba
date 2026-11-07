@@ -19,7 +19,9 @@ func NewSprintRepository(db *gorm.DB) domain.SprintRepository {
 
 // Create inserts a new sprint and populates its ID.
 func (r *sprintRepo) Create(ctx context.Context, sprint *domain.Sprint) error {
-	return r.db.WithContext(ctx).Create(sprint).Error
+	return createInProject(ctx, r.db, sprint.ProjectID, func(tx *gorm.DB) error {
+		return tx.Create(sprint).Error
+	})
 }
 
 // FindByID retrieves a sprint by primary key. Returns domain.ErrNotFound when absent.

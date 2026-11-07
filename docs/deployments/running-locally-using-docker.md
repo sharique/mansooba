@@ -56,10 +56,10 @@ The simplest path is **Docker Compose** with the bundled `compose.yml` — it st
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DB_DRIVER` | `sqlite` | `sqlite`, `postgres` / `postgresql`, `mysql` / `mariadb` |
-| `DB_DSN` | `./dev.db` | SQLite path **or** database connection string |
-| `DB_MAX_OPEN_CONNS` | `0` | Max open DB connections (`0` = unlimited; SQLite is always capped at 1) |
-| `DB_MAX_IDLE_CONNS` | `2` | Max idle DB connections |
+| `DB_DRIVER` | *(required)* | `postgres` / `postgresql` (preferred), `mysql` / `mariadb`. No default: the server stops at start-up if it is missing |
+| `DB_DSN` | *(required)* | Database connection string for that driver. No default |
+| `DB_MAX_OPEN_CONNS` | `25` | Max open DB connections (`0` = unlimited) |
+| `DB_MAX_IDLE_CONNS` | `5` | Max idle DB connections |
 | `DB_CONN_MAX_LIFETIME` | `0` | Max connection lifetime (e.g. `5m`; `0` = never expire) |
 
 ### Database idle auto-stop (AWS RDS only — no-op locally)
@@ -124,7 +124,8 @@ The `compose.yml` at the repo root starts the complete dev stack:
 
 | Service | What it does |
 |---------|-------------|
-| `backend` | Go API server, SQLite database, port 8080 |
+| `postgres` | PostgreSQL 18, the database; port 5432 (`POSTGRES_PORT` changes it). Also holds a `mansooba_test` database for the backend tests |
+| `backend` | Go API server, port 8080 |
 | `frontend` | Static Nuxt app served by nginx, port 3000 |
 | `localstack` | S3-compatible object store for issue attachments (community edition), port 4566 |
 | `localstack-init` | One-shot job that creates the `mansooba-attachments` bucket before the backend starts |
@@ -149,7 +150,7 @@ docker compose logs -f
 # Stop
 docker compose down
 
-# Stop and wipe all data (SQLite + LocalStack volumes)
+# Stop and wipe all data (PostgreSQL + LocalStack volumes)
 docker compose down -v
 ```
 
@@ -258,23 +259,15 @@ npx nuxi typecheck   # TypeScript
 
 ---
 
-## Option 2 — Docker Compose with PostgreSQL or MariaDB
+## Option 2 — MariaDB, MySQL, or a database of your own
 
-The default `compose.yml` uses SQLite. Swap in a real database by running a Docker container for it and pointing the backend at it. This is useful for testing migrations, replicating a staging/production schema, or if you simply prefer a server-based database locally.
+The default `compose.yml` runs PostgreSQL. To use MariaDB or MySQL, or a PostgreSQL that already exists, point the backend at it. This is useful for testing against the database your deployment uses.
+
+The versions the project tests are PostgreSQL 18, MariaDB 11 and MySQL 8.4.
 
 ### Quick database containers
 
-Spin up a database with a single `docker run` — no compose file needed:
-
-**PostgreSQL 18**
-```bash
-docker run --rm --name pg-local \
-  -e POSTGRES_USER=mansooba \
-  -e POSTGRES_PASSWORD=mansooba \
-  -e POSTGRES_DB=mansooba \
-  -p 5432:5432 \
-  postgres:18-alpine
-```
+Spin up a database with a single `docker run`. Stop the compose `postgres` service first if you want to reuse port 5432.
 
 **MariaDB 11**
 ```bash
@@ -287,21 +280,12 @@ docker run --rm --name mariadb-local \
   mariadb:11
 ```
 
-Then start the backend natively (or in Docker) with the matching env vars:
+For MySQL use `mysql:8.4` with the same variables.
+
+Then start the backend natively with the matching settings:
 
 ```bash
-# PostgreSQL
-cd backend
-DB_DRIVER=postgres \
-DB_DSN="host=localhost port=5432 user=mansooba password=mansooba dbname=mansooba sslmode=disable" \
-JWT_SECRET=dev-secret \
-STORAGE_ENDPOINT=http://localhost:4566 \
-STORAGE_ACCESS_KEY_ID=test \
-STORAGE_SECRET_ACCESS_KEY=test \
-STORAGE_USE_PATH_STYLE=true \
-go run ./cmd/server
-
-# MariaDB
+# MariaDB or MySQL
 cd backend
 DB_DRIVER=mysql \
 DB_DSN="mansooba:mansooba@tcp(localhost:3306)/mansooba?charset=utf8mb4&parseTime=True&loc=Local" \
@@ -311,50 +295,22 @@ STORAGE_ACCESS_KEY_ID=test \
 STORAGE_SECRET_ACCESS_KEY=test \
 STORAGE_USE_PATH_STYLE=true \
 go run ./cmd/server
+
+# Your own PostgreSQL: the same command with
+#   DB_DRIVER=postgres
+#   DB_DSN="host=localhost port=5432 user=mansooba password=mansooba dbname=mansooba sslmode=disable"
 ```
 
 > The backend starts fine without LocalStack running — it only needs storage connectivity when
 > an attachment is actually uploaded/downloaded/deleted. See the **Development mode** section for
 > how to run LocalStack alone from `compose.yml` if you're working on that feature.
 
-### Full compose override (Postgres + LocalStack)
+### Full compose override (MariaDB + the rest of the stack)
 
-If you want Docker Compose to manage the database too, create a `compose.override.yml` at `code/`:
+If you want Docker Compose to manage MariaDB too, create a `compose.override.yml` at `code/`:
 
 ```yaml
 services:
-  db:
-    image: postgres:18-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: mansooba
-      POSTGRES_PASSWORD: mansooba
-      POSTGRES_DB: mansooba
-    ports:
-      - "5432:5432"
-    volumes:
-      - pg_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U mansooba"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  backend:
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      DB_DRIVER: postgres
-      DB_DSN: "host=db port=5432 user=mansooba password=mansooba dbname=mansooba sslmode=disable"
-
-volumes:
-  pg_data:
-```
-
-For **MariaDB** instead, swap `db` to:
-
-```yaml
   db:
     image: mariadb:11
     restart: unless-stopped
@@ -373,8 +329,26 @@ For **MariaDB** instead, swap `db` to:
       timeout: 5s
       retries: 10
 
+  # The default PostgreSQL is not needed any more.
+  postgres:
+    profiles: ["unused"]
+
   backend:
-    depends_on:
+    depends_on: !override
+      db:
+        condition: service_healthy
+      backfill-usernames:
+        condition: service_completed_successfully
+      localstack-init:
+        condition: service_completed_successfully
+      loki-ready:
+        condition: service_healthy
+    environment:
+      DB_DRIVER: mysql
+      DB_DSN: "mansooba:mansooba@tcp(db:3306)/mansooba?charset=utf8mb4&parseTime=True&loc=Local"
+
+  backfill-usernames:
+    depends_on: !override
       db:
         condition: service_healthy
     environment:
@@ -391,16 +365,27 @@ Start with both files:
 docker compose -f compose.yml -f compose.override.yml up --build
 ```
 
-Docker Compose merges the two files — the override adds the `db` service and patches the backend's `DB_DRIVER` and `DB_DSN`.
+Docker Compose merges the two files — the override adds the `db` service, turns the default `postgres` service off, and points the backend and the username backfill at it. (`!override` needs Docker Compose 2.24 or newer.)
 
 ---
 
 ## Troubleshooting
 
 **`jwt: JWT_SECRET must not be empty` panic**  
-Set `JWT_SECRET` in the environment. The backend refuses to start without it — this is the only
-env var the backend requires at boot. It does *not* need working `STORAGE_*`/database connectivity
-to start; those are checked lazily, on the first request that actually needs them.
+Set `JWT_SECRET` in the environment. The backend refuses to start without it. It also needs
+`DB_DRIVER` and `DB_DSN` (there are no defaults) and a reachable database. It does *not* need
+working `STORAGE_*` connectivity to start; storage is checked lazily, on the first request that
+actually needs it.
+
+**`database: DB_DRIVER is not set` / `DB_DSN is not set` / `SQLite is no longer supported`**  
+The backend names the setting it is missing and exits straight away. The compose stack sets both;
+for a run from source copy them from `backend/.env.example`. For SQLite see
+[moving-off-sqlite.md](moving-off-sqlite.md).
+
+**`database: could not connect to postgres at host:port after 30s`**  
+The backend retries a database that is not reachable yet for 30 seconds, so a database that is
+still starting is fine. If it gives up, check that the database is running and that the host and
+port in `DB_DSN` are right. A wrong password or database name fails at once and is not retried.
 
 **Attachment upload/download/delete returns 502 "storage temporarily unavailable"**  
 The backend can't reach LocalStack (or, in production, real S3). If using `compose.yml`, verify

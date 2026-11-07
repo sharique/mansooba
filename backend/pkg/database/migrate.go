@@ -10,8 +10,8 @@ import (
 // Called once at server startup before the HTTP listener begins.
 func Migrate(db *gorm.DB) error {
 	// MySQL cannot index the longtext columns GORM picks for `uniqueIndex` strings;
-	// size them before anything is migrated (see sizeIndexedStrings).
-	if err := sizeIndexedStrings(db, migrationModels()...); err != nil {
+	// size them before anything is migrated (see SizeIndexedStrings).
+	if err := SizeIndexedStrings(db, migrationModels()...); err != nil {
 		return err
 	}
 	// Existing databases predate usernames: add the column first (nullable, so the

@@ -3,20 +3,19 @@ package repository_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/repository"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 func newNotificationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&domain.User{}, &domain.Project{}, &domain.ProjectMember{}, &domain.Issue{}, &domain.Notification{}))
+	db := testdb.New(t)
 	return db
 }
 
@@ -120,13 +119,28 @@ func TestNotificationRepo_LegacyRowReadsAsMention(t *testing.T) {
 	f := newNotifFixture(t)
 	ctx := context.Background()
 	// A row written before the kind and project_id columns existed.
-	require.NoError(t, f.db.Exec(
-		"INSERT INTO notifications (recipient_id, actor_id, issue_id, comment_id, read, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
-		f.bob.ID, f.actor.ID, f.issue.ID, 3, false).Error)
+	require.NoError(t, f.db.Table("notifications").Create(map[string]any{
+		"recipient_id": f.bob.ID, "actor_id": f.actor.ID, "issue_id": f.issue.ID,
+		"comment_id": 3, "read": false, "created_at": time.Now(),
+	}).Error)
 
 	got, err := f.repo.FindUnreadByRecipientID(ctx, f.bob.ID)
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	assert.Equal(t, domain.NotificationKindMention, got[0].Kind)
 	assert.Equal(t, "APOL", got[0].ProjectKey)
+}
+
+// Marking a notification that is already read is not an error. MySQL and MariaDB
+// count only changed rows, so an update that changes nothing must not be taken
+// for "no such notification".
+func TestNotificationRepo_MarkRead_AlreadyReadIsNotAnError(t *testing.T) {
+	f := newNotifFixture(t)
+	ctx := context.Background()
+	n := &domain.Notification{RecipientID: f.bob.ID, ActorID: f.actor.ID, Kind: domain.NotificationKindTaskAssigned, IssueID: f.issue.ID}
+	require.NoError(t, f.repo.Create(ctx, n))
+
+	require.NoError(t, f.repo.MarkRead(ctx, n.ID, f.bob.ID))
+	require.NoError(t, f.repo.MarkRead(ctx, n.ID, f.bob.ID), "marking it read a second time")
+	assert.ErrorIs(t, f.repo.MarkRead(ctx, n.ID+1000, f.bob.ID), domain.ErrNotFound, "a notification that does not exist is still not found")
 }

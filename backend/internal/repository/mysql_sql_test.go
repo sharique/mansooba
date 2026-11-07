@@ -27,7 +27,7 @@ func (r sqlRecorder) Trace(_ context.Context, _ time.Time, fc func() (string, in
 
 // mysqlDryRun is GORM with the MySQL dialect that never connects or runs anything: it only
 // writes the SQL it would send, which the test reads back. MySQL treats some everyday
-// words as reserved (`key`, for one), so SQL that is fine on SQLite and PostgreSQL can be a
+// words as reserved (`key`, for one), so SQL that is fine on PostgreSQL can be a
 // syntax error there.
 func mysqlDryRun(t *testing.T) (*gorm.DB, *[]string) {
 	t.Helper()

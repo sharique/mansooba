@@ -12,10 +12,10 @@ import (
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
+	"github.com/sharique/mansooba/internal/testdb"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -227,13 +227,7 @@ func newObservedService(userRepo domain.UserRepository, revokedRepo domain.Revok
 
 func openServiceTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open db: %v", err)
-	}
-	if err := db.AutoMigrate(&domain.User{}, &domain.RevokedToken{}); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	db := testdb.New(t)
 	return db
 }
 
@@ -338,7 +332,7 @@ func TestAuthService_Register_ResponseContainsRefreshToken(t *testing.T) {
 }
 
 func TestAuthService_Logout_StoresRevocationRecord(t *testing.T) {
-	// Use real SQLite — auth paths must not use mocks per Constitution Principle III.
+	// Use a real database — auth paths must not use mocks.
 	db := openServiceTestDB(t)
 	userRepo := repository.NewUserRepository(db)
 	revokedRepo := repository.NewRevokedTokenRepository(db)

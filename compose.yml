@@ -1,4 +1,4 @@
-# Dev compose stack — builds images locally, uses SQLite for zero-config startup.
+# Dev compose stack — builds images locally and runs on PostgreSQL.
 #
 # Usage:
 #   docker compose up --build
@@ -8,8 +8,8 @@
 
 x-backend-env: &backend-env
   SERVER_PORT: "8080"
-  DB_DRIVER: sqlite
-  DB_DSN: /data/dev.db
+  DB_DRIVER: postgres
+  DB_DSN: "host=postgres port=5432 user=${POSTGRES_USER:-mansooba} password=${POSTGRES_PASSWORD:-mansooba} dbname=${POSTGRES_DB:-mansooba} sslmode=disable"
   JWT_SECRET: dev-secret-change-me
   JWT_ACCESS_TTL: 15m
   JWT_REFRESH_TTL: 168h
@@ -51,9 +51,10 @@ services:
       - "8080:8080"
     environment: *backend-env
     volumes:
-      - sqlite_data:/data
       - ./loki/runtime-overrides.yaml:/etc/loki/runtime-overrides.yaml
     depends_on:
+      postgres:
+        condition: service_healthy
       # Usernames are assigned to existing accounts by this one-off process
       # (constitution VI.12, ADR-038), which must finish before the server starts.
       backfill-usernames:
@@ -70,15 +71,16 @@ services:
       start_period: 5s
 
   # One-off: migrates the schema and gives every account without a username a
-  # generated one, then exits (idempotent). Same image, settings and data
-  # volume as the backend. Run it by hand with:
+  # generated one, then exits (idempotent). Same image and settings
+  # as the backend. Run it by hand with:
   #   docker compose run --rm backfill-usernames
   backfill-usernames:
     build: ./backend
     command: ["./backfill-usernames"]
     environment: *backend-env
-    volumes:
-      - sqlite_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: "no"
 
   frontend:
@@ -91,6 +93,26 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+  # The development database. Tests use it too (a separate database, mansooba_test,
+  # created on first start); see CONTRIBUTING.md. Published on POSTGRES_PORT
+  # (default 5432) so the backend run from source and the tests can reach it.
+  postgres:
+    image: postgres:18-alpine
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mansooba}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mansooba}
+      POSTGRES_DB: ${POSTGRES_DB:-mansooba}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./scripts/postgres/init-test-database.sql:/docker-entrypoint-initdb.d/10-test-database.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mansooba} -d ${POSTGRES_DB:-mansooba}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   localstack:
     image: localstack/localstack:4.14.0
@@ -227,7 +249,7 @@ services:
         condition: service_healthy
 
 volumes:
-  sqlite_data:
+  postgres_data:
   localstack_data:
   loki_data:
   grafana_data:

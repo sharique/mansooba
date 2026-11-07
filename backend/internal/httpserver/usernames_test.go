@@ -1,7 +1,7 @@
 package httpserver_test
 
 // Usernames over HTTP (feature 018, story 2), against the real middleware stack
-// and real SQLite: creation paths, immutability, the admin-only availability
+// and a real database: creation paths, immutability, the admin-only availability
 // check, member listings and mentions by username.
 
 import (

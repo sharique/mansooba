@@ -230,6 +230,11 @@ func normalise(v any) any {
 	switch t := v.(type) {
 	case map[string]any:
 		for k, x := range t {
+			if k == "db_latency_ms" {
+				// A measurement, not a value: it varies between runs on a real database.
+				t[k] = "<ms>"
+				continue
+			}
 			t[k] = normalise(x)
 		}
 		return t

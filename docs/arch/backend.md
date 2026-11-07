@@ -22,7 +22,9 @@ One file per domain area: `issue_dto.go`, `attachment_dto.go`, `relation_dto.go`
 
 GORM implementations of every repository interface declared in `domain/`. Contains no business logic — only query construction and error wrapping.
 
-All repository tests (`*_repo_test.go`) run against a real in-memory SQLite database to catch query-level issues that mocks would hide.
+Inserts that belong to a project (task, sprint, label, member) take a shared lock on the project row first, and a project delete takes the exclusive one, so a delete can never run between a check and an insert and an insert never lands in a deleted project. Unique-constraint violations are recognised by driver error code and constraint name (`dberror.go`), not by the wording of the message.
+
+All repository tests (`*_repo_test.go`) run against a real PostgreSQL database (each test gets its own, from `internal/testdb`) to catch query-level issues that mocks would hide.
 
 ### `service/`
 
@@ -68,6 +70,10 @@ type Storage interface {
 `FakeStorage` (in-memory) is used in all unit tests. `s3Storage` is the production implementation. `Ping` calls `HeadBucket` and is used by the health endpoint to report storage reachability.
 
 ---
+
+### `pkg/database/`
+
+Opens the database (PostgreSQL, MySQL or MariaDB) and builds or upgrades its tables at start-up (`Migrate`). `DB_DRIVER` and `DB_DSN` are required: a missing or unsupported driver (SQLite included) is refused before anything connects (`config.ValidateDatabase`). A database that is not reachable yet is retried for up to 30 seconds; a wrong password or database name fails at once, and no message ever contains the password. The pool defaults to 25 open and 5 idle connections (`DB_MAX_OPEN_CONNS`, `DB_MAX_IDLE_CONNS`; `0` open connections means unlimited). The MySQL family is always opened with `clientFoundRows=true` so an update that changes nothing still counts as a match, as on PostgreSQL.
 
 ## Domain entities
 
@@ -159,7 +165,8 @@ Handlers call `apierror.HTTPErrorHandler` which maps these to HTTP status codes:
 
 ## Testing approach
 
-- **Repository tests**: real SQLite in-memory DB via `database.Open` in `main_test.go`; tests verify actual SQL behaviour
+- **Repository tests**: a real PostgreSQL database per test via `internal/testdb` (MariaDB and MySQL on demand); tests verify actual SQL behaviour
 - **Service tests**: mock repositories (stub structs implementing the interface); test business logic in isolation
 - **Handler tests**: Echo `httptest` with mock services; test HTTP binding, status codes, and response shape
 - All tests run with `-race` flag in CI to catch data races
+- Every test that needs a database gets its own, migrated with the real migration (`internal/testdb`); a missing database fails the test, it never skips. CI runs PostgreSQL only; MariaDB and MySQL run the same suite on demand and before each release (`TEST_DB_DRIVER`, or the manual "Database matrix" workflow)

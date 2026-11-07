@@ -3,7 +3,6 @@ package service_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -11,10 +10,9 @@ import (
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
+	"github.com/sharique/mansooba/internal/testdb"
 	"go.uber.org/zap"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 // stubProjectService satisfies service.ProjectService with controllable fns.
@@ -229,31 +227,11 @@ func TestSetupService_CreateProject_Returns_NotFound_WhenUserMissing(t *testing.
 	}
 }
 
-// --- SeedData integration tests (real SQLite) ---
-
-var setupSvcDBCounter int
+// --- SeedData integration tests (real database) ---
 
 func newSeedTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	setupSvcDBCounter++
-	dsn := fmt.Sprintf("file:setup_svc_test_%d?mode=memory&cache=shared", setupSvcDBCounter)
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Discard})
-	if err != nil {
-		t.Fatalf("open test db: %v", err)
-	}
-	if err := db.AutoMigrate(
-		&domain.User{},
-		&domain.Project{},
-		&domain.ProjectMember{},
-		&domain.Sprint{},
-		&domain.Issue{},
-		&domain.Label{},
-		&domain.IssueLabel{},
-		&domain.Comment{},
-	); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
-	return db
+	return testdb.New(t)
 }
 
 func newSetupSvcWithDB(db *gorm.DB) service.SetupService {

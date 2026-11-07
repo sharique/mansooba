@@ -3,11 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/sharique/mansooba/internal/repository"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/sharique/mansooba/pkg/config"
 	"github.com/sharique/mansooba/pkg/database"
 	"github.com/stretchr/testify/assert"
@@ -33,17 +33,29 @@ type legacyUser struct {
 
 func (legacyUser) TableName() string { return "users" }
 
-func legacyDatabase(t *testing.T, emails ...string) (dsn string) {
+// legacyDatabase creates an empty database holding only the old users table
+// (no username column) with the given accounts, and returns its settings.
+func legacyDatabase(t *testing.T, emails ...string) *config.Config {
 	t.Helper()
-	dsn = filepath.Join(t.TempDir(), "backfill.db")
-	db, err := database.Open(&config.Config{DBDriver: "sqlite", DBDSN: dsn})
+	cfg := testdb.ConfigEmpty(t)
+	db, err := database.Open(cfg)
 	require.NoError(t, err)
+	require.NoError(t, database.SizeIndexedStrings(db, &legacyUser{})) // MySQL cannot index unsized text
 	require.NoError(t, db.AutoMigrate(&legacyUser{}))
 	for _, e := range emails {
 		require.NoError(t, db.Create(&legacyUser{Name: e, Email: e, Password: "h", IsActive: true}).Error)
 	}
 	closeDB(t, db)
-	return dsn
+	return cfg
+}
+
+// useDatabase points the command at cfg the way an operator would: through the
+// environment.
+func useDatabase(t *testing.T, cfg *config.Config) {
+	t.Helper()
+	t.Setenv("DB_DRIVER", cfg.DBDriver)
+	t.Setenv("DB_DSN", cfg.DBDSN)
+	t.Setenv("JWT_SECRET", "test-secret")
 }
 
 func closeDB(t *testing.T, db *gorm.DB) {
@@ -54,10 +66,8 @@ func closeDB(t *testing.T, db *gorm.DB) {
 }
 
 func TestRun_UpgradesALegacyDatabaseAndIsIdempotent(t *testing.T) {
-	dsn := legacyDatabase(t, "sam@a.com", "sam@b.com")
-	t.Setenv("DB_DRIVER", "sqlite")
-	t.Setenv("DB_DSN", dsn)
-	t.Setenv("JWT_SECRET", "test-secret")
+	cfg := legacyDatabase(t, "sam@a.com", "sam@b.com")
+	useDatabase(t, cfg)
 
 	var out, errOut bytes.Buffer
 	assert.Equal(t, 0, run(&out, &errOut), errOut.String())
@@ -65,7 +75,7 @@ func TestRun_UpgradesALegacyDatabaseAndIsIdempotent(t *testing.T) {
 
 	// The database is now fully migrated: every account has a username and the
 	// server's own migration passes.
-	db, err := database.Open(&config.Config{DBDriver: "sqlite", DBDSN: dsn})
+	db, err := database.Open(cfg)
 	require.NoError(t, err)
 	require.NoError(t, database.Migrate(db))
 	users, err := repository.NewUserRepository(db).FindByEmail(context.Background(), "sam@b.com")
@@ -79,9 +89,7 @@ func TestRun_UpgradesALegacyDatabaseAndIsIdempotent(t *testing.T) {
 }
 
 func TestRun_OnAFreshDatabaseJustMigrates(t *testing.T) {
-	t.Setenv("DB_DRIVER", "sqlite")
-	t.Setenv("DB_DSN", filepath.Join(t.TempDir(), "fresh.db"))
-	t.Setenv("JWT_SECRET", "test-secret")
+	useDatabase(t, testdb.ConfigEmpty(t))
 	var out, errOut bytes.Buffer
 	assert.Equal(t, 0, run(&out, &errOut), errOut.String())
 	assert.Contains(t, out.String(), "0 accounts changed")

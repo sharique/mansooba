@@ -1,7 +1,7 @@
 package handler_test
 
 // T007: Integration tests verifying the refresh token cookie fix.
-// Uses a real SQLite DB, real authService, and real JWTs — no mocks for this path
+// Uses a real database, real authService, and real JWTs — no mocks for this path
 // (Constitution Principle III: security paths require real infrastructure).
 
 import (
@@ -18,21 +18,15 @@ import (
 	"github.com/sharique/mansooba/internal/handler"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/sharique/mansooba/pkg/logger"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 func openAuthTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("open test db: %v", err)
-	}
-	if err := db.AutoMigrate(&domain.User{}, &domain.RevokedToken{}); err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	db := testdb.New(t)
 	return db
 }
 

@@ -8,7 +8,7 @@
     },
     "body": {
       "db": "ok",
-      "db_latency_ms": 0,
+      "db_latency_ms": "\u003cms\u003e",
       "loki": "error",
       "status": "ok"
     }
@@ -106,7 +106,7 @@
     },
     "body": {
       "db": "ok",
-      "db_latency_ms": 0,
+      "db_latency_ms": "\u003cms\u003e",
       "loki": "error",
       "status": "ok"
     }

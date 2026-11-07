@@ -28,7 +28,7 @@ type Client struct {
 
 // New returns a Client for the given RDS instance identifier, using the
 // AWS SDK's default credential chain (the EC2 instance role in production;
-// this package is never exercised in local dev, which uses SQLite).
+// this package is never exercised in local dev, which has no RDS instance).
 func New(ctx context.Context, instanceID string) (*Client, error) {
 	cfg, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {

@@ -9,17 +9,14 @@ import (
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
-	"gorm.io/gorm"
 )
 
 func newSettingService(t *testing.T) service.SettingService {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&domain.GlobalSetting{}, &domain.User{}))
+	db := testdb.New(t)
 	return service.NewSettingService(repository.NewSettingRepository(db), repository.NewUserRepository(db), stubSystemLogService{})
 }
 
@@ -171,14 +168,12 @@ func TestSettingService_DemoBannerEnabled_AcceptsWithPriorNonEmptyMessage(t *tes
 }
 
 func TestSettingService_Patch_DemoBanner_WritesSystemLogEntries(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&domain.GlobalSetting{}, &domain.User{}))
+	db := testdb.New(t)
 
 	systemLogSvc := &recordingSystemLogService{}
 	svc := service.NewSettingService(repository.NewSettingRepository(db), repository.NewUserRepository(db), systemLogSvc)
 
-	_, err = svc.Patch(context.Background(), 1, dto.PatchSettingsRequest{
+	_, err := svc.Patch(context.Background(), 1, dto.PatchSettingsRequest{
 		DemoBannerEnabled: strPtr("true"),
 		DemoBannerMessage: strPtr("Custom text"),
 	})
@@ -196,9 +191,7 @@ func TestSettingService_Patch_DemoBanner_WritesSystemLogEntries(t *testing.T) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 func TestSettingService_Patch_RecordsOneEntryPerChangedKey(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&domain.GlobalSetting{}, &domain.User{}))
+	db := testdb.New(t)
 	userRepo := repository.NewUserRepository(db)
 	require.NoError(t, userRepo.Create(context.Background(), &domain.User{Name: "Admin", Email: "admin@example.com", Username: "admin2", IsActive: true}))
 	admin, err := userRepo.FindByEmail(context.Background(), "admin@example.com")
@@ -223,15 +216,13 @@ func TestSettingService_Patch_RecordsOneEntryPerChangedKey(t *testing.T) {
 }
 
 func TestSettingService_Patch_RecordsChangeToRetentionSettingItself(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&domain.GlobalSetting{}, &domain.User{}))
+	db := testdb.New(t)
 	userRepo := repository.NewUserRepository(db)
 
 	systemLogSvc := &recordingSystemLogService{}
 	svc := service.NewSettingService(repository.NewSettingRepository(db), userRepo, systemLogSvc)
 
-	_, err = svc.Patch(context.Background(), 1, dto.PatchSettingsRequest{SystemLogRetentionDays: strPtr("30")})
+	_, err := svc.Patch(context.Background(), 1, dto.PatchSettingsRequest{SystemLogRetentionDays: strPtr("30")})
 	require.NoError(t, err)
 
 	entries := systemLogSvc.all()
@@ -242,12 +233,10 @@ func TestSettingService_Patch_RecordsChangeToRetentionSettingItself(t *testing.T
 
 func TestSettingService_Patch_NoOpRequest_RecordsNothing(t *testing.T) {
 	systemLogSvc := &recordingSystemLogService{}
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&domain.GlobalSetting{}, &domain.User{}))
+	db := testdb.New(t)
 	svc := service.NewSettingService(repository.NewSettingRepository(db), repository.NewUserRepository(db), systemLogSvc)
 
-	_, err = svc.Patch(context.Background(), 1, dto.PatchSettingsRequest{})
+	_, err := svc.Patch(context.Background(), 1, dto.PatchSettingsRequest{})
 	require.NoError(t, err)
 	assert.Empty(t, systemLogSvc.all(), "a Patch with no fields set should record nothing")
 }

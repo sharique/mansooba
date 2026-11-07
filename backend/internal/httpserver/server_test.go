@@ -6,27 +6,28 @@ import (
 	"testing"
 
 	"github.com/sharique/mansooba/internal/httpserver"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/sharique/mansooba/pkg/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func testConfig() *config.Config {
-	return &config.Config{
-		DBDriver:       "sqlite",
-		DBDSN:          ":memory:",
-		JWTSecret:      "test-secret",
-		JWTAccessTTL:   "15m",
-		JWTRefreshTTL:  "168h",
-		CORSOrigins:    "http://localhost:3000",
-		BodySizeLimit:  "4M",
-		RequestTimeout: "30s",
-		AuthRateLimit:  1000,
-	}
+// testConfig points the server at its own fresh database (internal/testdb).
+func testConfig(t *testing.T) *config.Config {
+	t.Helper()
+	cfg := testdb.Config(t)
+	cfg.JWTSecret = "test-secret"
+	cfg.JWTAccessTTL = "15m"
+	cfg.JWTRefreshTTL = "168h"
+	cfg.CORSOrigins = "http://localhost:3000"
+	cfg.BodySizeLimit = "4M"
+	cfg.RequestTimeout = "30s"
+	cfg.AuthRateLimit = 1000
+	return cfg
 }
 
-func TestNewInMemory_ServesPublicHealthAndRefusesProtectedRoutes(t *testing.T) {
-	e, cleanup, err := httpserver.NewInMemory(testConfig())
+func TestNewTestServer_ServesPublicHealthAndRefusesProtectedRoutes(t *testing.T) {
+	e, cleanup, err := httpserver.NewTestServer(testConfig(t))
 	require.NoError(t, err)
 	t.Cleanup(cleanup)
 

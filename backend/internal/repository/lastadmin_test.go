@@ -1,9 +1,8 @@
 package repository_test
 
-// Simultaneous requests on a real PostgreSQL. SQLite cannot show these races (its
-// single connection already runs transactions one at a time), so the tests run
-// only when POSTGRES_TEST_DSN is set; CI sets REQUIRE_POSTGRES=1 so they cannot
-// be skipped there. See pgtest_test.go.
+// Simultaneous requests on a real database: two requests that each look safe
+// on their own must not together leave a project or the installation without an
+// administrator. Each test gets its own database from internal/testdb.
 
 import (
 	"context"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/repository"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -50,7 +50,7 @@ func activeProjectAdmins(t *testing.T, db *gorm.DB, projectID uint) int64 {
 }
 
 func TestLastAdmin_Project_TwoAdminsDemoteEachOtherAtOnce(t *testing.T) {
-	db := newPostgresTestDB(t)
+	db := testdb.New(t)
 	f := newRolesRepoFixture(t, db)
 	ctx := context.Background()
 	require.NoError(t, f.members.ChangeRole(ctx, f.project.ID, f.ben.ID, "admin")) // ada and ben are admins
@@ -76,7 +76,7 @@ func TestLastAdmin_Project_TwoAdminsDemoteEachOtherAtOnce(t *testing.T) {
 }
 
 func TestLastAdmin_Project_RemoveAndDemoteAtOnce(t *testing.T) {
-	db := newPostgresTestDB(t)
+	db := testdb.New(t)
 	f := newRolesRepoFixture(t, db)
 	ctx := context.Background()
 	for round := 0; round < raceRounds; round++ {
@@ -95,7 +95,7 @@ func TestLastAdmin_Project_RemoveAndDemoteAtOnce(t *testing.T) {
 // The control: the same change without the lock, forced to interleave. It must
 // leave the project with no admin, which shows the tests above would notice.
 func TestLastAdmin_Project_ControlWithoutTheLockLosesTheLastAdmin(t *testing.T) {
-	db := newPostgresTestDB(t)
+	db := testdb.New(t)
 	f := newRolesRepoFixture(t, db)
 	ctx := context.Background()
 	require.NoError(t, f.members.ChangeRole(ctx, f.project.ID, f.ben.ID, "admin"))
@@ -135,7 +135,7 @@ func activeSystemAdmins(t *testing.T, db *gorm.DB) int64 {
 }
 
 func TestLastAdmin_System_TwoAdministratorsDemoteEachOtherAtOnce(t *testing.T) {
-	db := newPostgresTestDB(t)
+	db := testdb.New(t)
 	ctx := context.Background()
 	users := repository.NewUserRepository(db)
 	a := createUser(t, users, "a@example.com", true, true)
@@ -165,7 +165,7 @@ func TestLastAdmin_System_TwoAdministratorsDemoteEachOtherAtOnce(t *testing.T) {
 }
 
 func TestLastAdmin_System_DisableAndDemoteAtOnce(t *testing.T) {
-	db := newPostgresTestDB(t)
+	db := testdb.New(t)
 	ctx := context.Background()
 	users := repository.NewUserRepository(db)
 	a := createUser(t, users, "a@example.com", true, true)
@@ -186,7 +186,7 @@ func TestLastAdmin_System_DisableAndDemoteAtOnce(t *testing.T) {
 }
 
 func TestLastAdmin_System_ControlWithoutTheLockLosesTheLastAdministrator(t *testing.T) {
-	db := newPostgresTestDB(t)
+	db := testdb.New(t)
 	ctx := context.Background()
 	users := repository.NewUserRepository(db)
 	a := createUser(t, users, "a@example.com", true, true)

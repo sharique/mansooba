@@ -19,7 +19,9 @@ func NewIssueRepository(db *gorm.DB) domain.IssueRepository {
 
 // Create inserts a new issue record and populates the ID field on success.
 func (r *issueRepo) Create(ctx context.Context, issue *domain.Issue) error {
-	return r.db.WithContext(ctx).Create(issue).Error
+	return createInProject(ctx, r.db, issue.ProjectID, func(tx *gorm.DB) error {
+		return tx.Create(issue).Error
+	})
 }
 
 // FindByID retrieves an issue by primary key.
@@ -98,12 +100,12 @@ func (r *issueRepo) FindIssueIDsByLabelID(ctx context.Context, labelID uint) ([]
 }
 
 // FindByAssignee returns all issues assigned to the given user, across all projects,
-// ordered by created_at descending (newest first).
+// ordered newest first (created_at descending, then id descending for ties).
 func (r *issueRepo) FindByAssignee(ctx context.Context, userID uint) ([]*domain.Issue, error) {
 	var issues []*domain.Issue
 	if err := r.db.WithContext(ctx).
 		Where("assignee_id = ?", userID).
-		Order("created_at DESC").
+		Order("created_at DESC, id DESC").
 		Find(&issues).Error; err != nil {
 		return nil, err
 	}

@@ -9,7 +9,7 @@ import (
 )
 
 func TestProjectMemberRepository_Create_Succeeds(t *testing.T) {
-	repo := repository.NewProjectMemberRepository(newTestDB(t))
+	repo := repository.NewProjectMemberRepository(newDBWithProjects(t))
 	m := &domain.ProjectMember{ProjectID: 1, UserID: 10, Role: "member"}
 	if err := repo.Create(context.Background(), m); err != nil {
 		t.Fatalf("Create: %v", err)
@@ -20,7 +20,7 @@ func TestProjectMemberRepository_Create_Succeeds(t *testing.T) {
 }
 
 func TestProjectMemberRepository_FindByProjectID(t *testing.T) {
-	repo := repository.NewProjectMemberRepository(newTestDB(t))
+	repo := repository.NewProjectMemberRepository(newDBWithProjects(t))
 	_ = repo.Create(context.Background(), &domain.ProjectMember{ProjectID: 5, UserID: 1, Role: "admin"})
 	_ = repo.Create(context.Background(), &domain.ProjectMember{ProjectID: 5, UserID: 2, Role: "member"})
 	_ = repo.Create(context.Background(), &domain.ProjectMember{ProjectID: 9, UserID: 3, Role: "member"})
@@ -35,7 +35,7 @@ func TestProjectMemberRepository_FindByProjectID(t *testing.T) {
 }
 
 func TestProjectMemberRepository_FindByProjectAndUser(t *testing.T) {
-	repo := repository.NewProjectMemberRepository(newTestDB(t))
+	repo := repository.NewProjectMemberRepository(newDBWithProjects(t))
 	_ = repo.Create(context.Background(), &domain.ProjectMember{ProjectID: 7, UserID: 20, Role: "admin"})
 
 	tests := []struct {
@@ -58,7 +58,7 @@ func TestProjectMemberRepository_FindByProjectAndUser(t *testing.T) {
 }
 
 func TestProjectMemberRepository_Delete(t *testing.T) {
-	repo := repository.NewProjectMemberRepository(newTestDB(t))
+	repo := repository.NewProjectMemberRepository(newDBWithProjects(t))
 	m := &domain.ProjectMember{ProjectID: 3, UserID: 5, Role: "viewer"}
 	_ = repo.Create(context.Background(), m)
 

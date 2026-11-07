@@ -1,7 +1,7 @@
 package service_test
 
 // Constitution III: the "members only" rule decides who can learn an issue key,
-// so these tests use real in-memory SQLite and the real repositories.
+// so these tests use a real database and the real repositories.
 // Only the "repo Create fails" case wraps the real repo.
 
 import (
@@ -12,10 +12,10 @@ import (
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -31,9 +31,7 @@ type notifEnv struct {
 
 func newNotifEnv(t *testing.T, wrap func(domain.NotificationRepository) domain.NotificationRepository) *notifEnv {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&domain.User{}, &domain.Project{}, &domain.ProjectMember{}, &domain.Issue{}, &domain.Notification{}))
+	db := testdb.New(t)
 
 	mk := func(name string) uint {
 		u := &domain.User{Name: name, Email: name + "@x.com", Username: name, Password: "h", IsActive: true}

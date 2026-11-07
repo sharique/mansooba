@@ -2,35 +2,28 @@ package repository_test
 
 import (
 	"context"
-	"os"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/stretchr/testify/assert"
-	"github.com/sharique/mansooba/pkg/config"
-	"github.com/sharique/mansooba/pkg/database"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
 
-// overviewTestDB is in-memory SQLite, or a throwaway PostgreSQL when
-// OVERVIEW_PG_DSN is set (for example a postgres:17 container on a spare port),
-// so the overview queries are also checked on the production database. The
-// tables the overview reads are dropped and recreated first.
+// overviewTestDB is a fresh migrated database; the overview queries run on the
+// production engine.
+//
+// Issues point at their sprint through a real foreign key, so the sprints the
+// tests refer to (ids 1 to 9, all in project 1) are created up front.
 func overviewTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	dsn := os.Getenv("OVERVIEW_PG_DSN")
-	if dsn == "" {
-		db := newTestDB(t)
-		require.NoError(t, db.AutoMigrate(&domain.ActivityEvent{}))
-		return db
+	db := newDBWithProjects(t)
+	for id := uint(1); id <= 9; id++ {
+		require.NoError(t, db.Create(&domain.Sprint{ID: id, ProjectID: 1, Name: fmt.Sprintf("Sprint %d", id)}).Error)
 	}
-	db, err := database.Open(&config.Config{DBDriver: "postgres", DBDSN: dsn})
-	require.NoError(t, err)
-	require.NoError(t, db.Migrator().DropTable(&domain.ActivityEvent{}, &domain.Issue{}))
-	require.NoError(t, db.AutoMigrate(&domain.Issue{}, &domain.ActivityEvent{}))
 	return db
 }
 

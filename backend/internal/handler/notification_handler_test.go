@@ -1,6 +1,6 @@
 package handler_test
 
-// Real SQLite and the real repository, no mocks: the list is scoped to the caller
+// A real database and the real repository, no mocks: the list is scoped to the caller
 // and mark-read must refuse another user's row (IDOR guard).
 
 import (
@@ -15,9 +15,9 @@ import (
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/handler"
 	"github.com/sharique/mansooba/internal/repository"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -32,9 +32,7 @@ type notifHandlerEnv struct {
 
 func newNotifHandlerEnv(t *testing.T) *notifHandlerEnv {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&domain.User{}, &domain.Project{}, &domain.Issue{}, &domain.Notification{}))
+	db := testdb.New(t)
 	alice := &domain.User{Name: "Alice", Email: "alice@x.com", Username: "alice", Password: "h", IsActive: true}
 	bob := &domain.User{Name: "Bob", Email: "bob@x.com", Username: "bob", Password: "h", IsActive: true}
 	require.NoError(t, db.Create(alice).Error)
@@ -113,4 +111,3 @@ func TestNotificationHandler_List_ProjectKeyIsLowerCasedLikeTheProjectAPI(t *tes
 	require.Len(t, got, 1)
 	assert.Equal(t, "demo", got[0].ProjectKey)
 }
-

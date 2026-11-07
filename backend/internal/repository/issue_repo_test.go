@@ -3,13 +3,16 @@ package repository_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/repository"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIssueRepository_Create_Succeeds(t *testing.T) {
-	repo := repository.NewIssueRepository(newTestDB(t))
+	repo := repository.NewIssueRepository(newDBWithProjects(t))
 	issue := &domain.Issue{
 		Key: "PROJ-1", ProjectID: 1, Title: "First issue",
 		Type: domain.IssueTypeTask, Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityMedium, ReporterID: 1,
@@ -23,7 +26,7 @@ func TestIssueRepository_Create_Succeeds(t *testing.T) {
 }
 
 func TestIssueRepository_FindByID(t *testing.T) {
-	repo := repository.NewIssueRepository(newTestDB(t))
+	repo := repository.NewIssueRepository(newDBWithProjects(t))
 	created := &domain.Issue{
 		Key: "PROJ-2", ProjectID: 1, Title: "Second",
 		Type: domain.IssueTypeBug, Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityHigh, ReporterID: 1,
@@ -49,19 +52,19 @@ func TestIssueRepository_FindByID(t *testing.T) {
 }
 
 func TestIssueRepository_FindByProjectID(t *testing.T) {
-	repo := repository.NewIssueRepository(newTestDB(t))
+	repo := repository.NewIssueRepository(newDBWithProjects(t))
 	for i, key := range []string{"P-1", "P-2"} {
 		_ = repo.Create(context.Background(), &domain.Issue{
-			Key: key, ProjectID: 10, Title: key,
+			Key: key, ProjectID: 4, Title: key,
 			Type: domain.IssueTypeTask, Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityLow, ReporterID: uint(i + 1),
 		})
 	}
 	_ = repo.Create(context.Background(), &domain.Issue{
-		Key: "Q-1", ProjectID: 99, Title: "Other",
+		Key: "Q-1", ProjectID: 5, Title: "Other",
 		Type: domain.IssueTypeTask, Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityLow, ReporterID: 1,
 	})
 
-	issues, err := repo.FindByProjectID(context.Background(), 10)
+	issues, err := repo.FindByProjectID(context.Background(), 4)
 	if err != nil {
 		t.Fatalf("FindByProjectID: %v", err)
 	}
@@ -71,7 +74,7 @@ func TestIssueRepository_FindByProjectID(t *testing.T) {
 }
 
 func TestIssueRepository_Update(t *testing.T) {
-	repo := repository.NewIssueRepository(newTestDB(t))
+	repo := repository.NewIssueRepository(newDBWithProjects(t))
 	issue := &domain.Issue{
 		Key: "UPD-1", ProjectID: 1, Title: "Original",
 		Type: domain.IssueTypeTask, Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityLow, ReporterID: 1,
@@ -90,7 +93,7 @@ func TestIssueRepository_Update(t *testing.T) {
 }
 
 func TestIssueRepository_Delete(t *testing.T) {
-	repo := repository.NewIssueRepository(newTestDB(t))
+	repo := repository.NewIssueRepository(newDBWithProjects(t))
 	issue := &domain.Issue{
 		Key: "DEL-1", ProjectID: 1, Title: "Delete Me",
 		Type: domain.IssueTypeTask, Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityLow, ReporterID: 1,
@@ -104,4 +107,29 @@ func TestIssueRepository_Delete(t *testing.T) {
 	if err != domain.ErrNotFound {
 		t.Fatalf("want ErrNotFound after delete, got %v", err)
 	}
+}
+
+// Newest first, and a stable order when several tasks were created in the same
+// instant: the database is free to return ties in any order (MariaDB stores
+// milliseconds, so tasks created together tie), and the list must not shuffle.
+func TestIssueRepository_FindByAssignee_TiesComeNewestFirst(t *testing.T) {
+	db := newDBWithProjects(t)
+	repo := repository.NewIssueRepository(db)
+	ctx := context.Background()
+	assignee := uint(3)
+	at := time.Date(2026, 11, 1, 10, 0, 0, 0, time.UTC)
+	for _, key := range []string{"T-1", "T-2", "T-3", "T-4"} {
+		require.NoError(t, db.Create(&domain.Issue{
+			Key: key, ProjectID: 1, Title: key, Type: domain.IssueTypeTask, Status: domain.IssueStatusTodo,
+			Priority: domain.IssuePriorityLow, ReporterID: 1, AssigneeID: &assignee, CreatedAt: at,
+		}).Error)
+	}
+
+	got, err := repo.FindByAssignee(ctx, assignee)
+	require.NoError(t, err)
+	keys := make([]string, 0, len(got))
+	for _, i := range got {
+		keys = append(keys, i.Key)
+	}
+	assert.Equal(t, []string{"T-4", "T-3", "T-2", "T-1"}, keys)
 }

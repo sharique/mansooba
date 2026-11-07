@@ -29,7 +29,7 @@ Only members of the project can see it; everyone else gets 403 (404 for an unkno
 ## Implementation details
 
 - Three endpoints, one per section: `GET /projects/:key/overview/sprint`, `/tasks` and `/activity?scope=all|sprint` (see the [API reference](../arch/api.md#project-overview)). Each section therefore has its own loading, empty and error state and a Retry button
-- Counts and ordering are computed in the database: one grouped query for the status counts, `CASE` expressions for the open-task ordering, and a join of the activity events to the project's issues for the activity list. The queries are portable SQL and are tested on SQLite and PostgreSQL
+- Counts and ordering are computed in the database: one grouped query for the status counts, `CASE` expressions for the open-task ordering, and a join of the activity events to the project's issues for the activity list. The queries are plain SQL and are tested on PostgreSQL
 - Recent activity reads the activity events the app records for every task (`status_changed`, `comment_added`, `issue_deleted`). One composite index on `(issue_id, created_at)` keeps the lookup fast. The row of a deleted task is gone, so its `issue_deleted` event also stores the task's project, sprint, key and title (the only event kind that does), and the activity query matches it on those instead of joining to the task
 - The "Current sprint" tab uses the task's sprint at the time you open the page, not the sprint it was in when the event happened
 - The page does not update live; reloading shows the latest

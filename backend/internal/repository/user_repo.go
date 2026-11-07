@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"errors"
-	"strings"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"gorm.io/gorm"
@@ -33,14 +32,10 @@ func (r *userRepo) Create(ctx context.Context, user *domain.User) error {
 }
 
 // translateUsernameConflict turns a unique-index violation on the username
-// column into domain.ErrUsernameTaken. The drivers word it differently
-// (SQLite "UNIQUE constraint failed: users.username", PostgreSQL "duplicate key
-// value violates unique constraint "idx_users_username"", MySQL "Duplicate
-// entry ... for key ... username"), so match on the words; every other error
-// is returned unchanged.
+// column into domain.ErrUsernameTaken. A violation of any other index (the
+// e-mail, say) and every other error is returned unchanged.
 func translateUsernameConflict(err error) error {
-	msg := strings.ToLower(err.Error())
-	if strings.Contains(msg, "username") && (strings.Contains(msg, "unique") || strings.Contains(msg, "duplicate")) {
+	if constraint, ok := uniqueViolation(err); ok && constraint == usernameIndex {
 		return domain.ErrUsernameTaken
 	}
 	return err

@@ -13,12 +13,13 @@ import (
 	"go.uber.org/zap"
 )
 
-// NewInMemory builds a complete server on a fresh database (cfg.DBDSN,
-// normally ":memory:") for tests and the parity replay. Object storage and
-// Loki point at addresses nothing listens on, so only code paths that really
-// need them fail, exactly as on a stack without LocalStack or Loki. It is
-// test support kept next to the code it exercises; production code uses New.
-func NewInMemory(cfg *config.Config) (*echo.Echo, func(), error) {
+// NewTestServer builds a complete server on the database cfg names (a fresh
+// database from internal/testdb) for tests and the parity replay. Object
+// storage and Loki point at addresses nothing listens on, so only code paths
+// that really need them fail, exactly as on a stack without LocalStack or Loki.
+// It is test support kept next to the code it exercises; production code uses
+// New.
+func NewTestServer(cfg *config.Config) (*echo.Echo, func(), error) {
 	// Some handlers and services log through the package-level logger, which
 	// main initialises at startup; do the same (quietly) when nothing has.
 	if logger.Logger == nil {
@@ -34,9 +35,13 @@ func NewInMemory(cfg *config.Config) (*echo.Echo, func(), error) {
 		return nil, nil, err
 	}
 	cleanup := func() { _ = sqlDB.Close() }
-	if err := database.Migrate(db); err != nil {
-		cleanup()
-		return nil, nil, err
+	// A database from internal/testdb is already migrated; running the migration
+	// again costs most of a second per test, so only an empty database gets it.
+	if !db.Migrator().HasTable("users") {
+		if err := database.Migrate(db); err != nil {
+			cleanup()
+			return nil, nil, err
+		}
 	}
 
 	storage, err := attachmentstorage.New(attachmentstorage.Config{

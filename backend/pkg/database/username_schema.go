@@ -19,7 +19,7 @@ func (e *UsernamesMissingError) Error() string {
 // PrepareUsernames gets a database that predates usernames ready to be
 // backfilled: when the users table exists without a username column it adds the
 // column, nullable (adding a NOT NULL column to a populated table fails on
-// PostgreSQL and SQLite), together with its unique index (NULLs do not collide).
+// PostgreSQL and MySQL alike), together with its unique index (NULLs do not collide).
 // It does nothing on a fresh database, where Migrate creates the final NOT NULL
 // column directly, and is safe to run repeatedly.
 func PrepareUsernames(db *gorm.DB) error {
@@ -51,9 +51,8 @@ func countMissingUsernames(db *gorm.DB) (int, error) {
 }
 
 // enforceUsernameNotNull makes sure the column is NOT NULL once every account
-// has a username. SQLite's AutoMigrate already rebuilds the table that way;
-// PostgreSQL and MySQL leave an existing nullable column alone, so tighten it
-// here. Idempotent, and a no-op on a fresh database.
+// has a username. GORM's AutoMigrate leaves an existing nullable column alone, so
+// tighten it here. Idempotent, and a no-op on a fresh database.
 func enforceUsernameNotNull(db *gorm.DB) error {
 	cols, err := db.Migrator().ColumnTypes(&domain.User{})
 	if err != nil {

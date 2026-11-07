@@ -20,7 +20,7 @@ func seedSprint(t *testing.T, repo domain.SprintRepository, projectID uint, name
 }
 
 func TestSprintRepository_Create_SetsID(t *testing.T) {
-	repo := repository.NewSprintRepository(newTestDB(t))
+	repo := repository.NewSprintRepository(newDBWithProjects(t))
 	s := &domain.Sprint{ProjectID: 1, Name: "Sprint 1", Status: domain.SprintStatusPlanning}
 	if err := repo.Create(context.Background(), s); err != nil {
 		t.Fatalf("Create: %v", err)
@@ -31,7 +31,7 @@ func TestSprintRepository_Create_SetsID(t *testing.T) {
 }
 
 func TestSprintRepository_FindByID_NotFound(t *testing.T) {
-	repo := repository.NewSprintRepository(newTestDB(t))
+	repo := repository.NewSprintRepository(newDBWithProjects(t))
 	_, err := repo.FindByID(context.Background(), 9999)
 	if err != domain.ErrNotFound {
 		t.Fatalf("want ErrNotFound, got %v", err)
@@ -39,7 +39,7 @@ func TestSprintRepository_FindByID_NotFound(t *testing.T) {
 }
 
 func TestSprintRepository_FindByProject_ReturnsOrdered(t *testing.T) {
-	repo := repository.NewSprintRepository(newTestDB(t))
+	repo := repository.NewSprintRepository(newDBWithProjects(t))
 	seedSprint(t, repo, 1, "Sprint 1", domain.SprintStatusPlanning)
 	seedSprint(t, repo, 1, "Sprint 2", domain.SprintStatusPlanning)
 
@@ -56,7 +56,7 @@ func TestSprintRepository_FindByProject_ReturnsOrdered(t *testing.T) {
 }
 
 func TestSprintRepository_FindActiveByProject_NilWhenNone(t *testing.T) {
-	repo := repository.NewSprintRepository(newTestDB(t))
+	repo := repository.NewSprintRepository(newDBWithProjects(t))
 	active, err := repo.FindActiveByProject(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("FindActiveByProject: %v", err)
@@ -67,7 +67,7 @@ func TestSprintRepository_FindActiveByProject_NilWhenNone(t *testing.T) {
 }
 
 func TestSprintRepository_FindActiveByProject_ReturnsActive(t *testing.T) {
-	repo := repository.NewSprintRepository(newTestDB(t))
+	repo := repository.NewSprintRepository(newDBWithProjects(t))
 	s := seedSprint(t, repo, 1, "Sprint 1", domain.SprintStatusActive)
 
 	active, err := repo.FindActiveByProject(context.Background(), 1)
@@ -80,7 +80,7 @@ func TestSprintRepository_FindActiveByProject_ReturnsActive(t *testing.T) {
 }
 
 func TestSprintRepository_Delete_RemovesRow(t *testing.T) {
-	repo := repository.NewSprintRepository(newTestDB(t))
+	repo := repository.NewSprintRepository(newDBWithProjects(t))
 	s := seedSprint(t, repo, 1, "Sprint 1", domain.SprintStatusPlanning)
 
 	if err := repo.Delete(context.Background(), s.ID); err != nil {
@@ -93,7 +93,7 @@ func TestSprintRepository_Delete_RemovesRow(t *testing.T) {
 }
 
 func TestSprintRepository_CompleteWithMigration_MovesToBacklog(t *testing.T) {
-	db := newTestDB(t)
+	db := newDBWithProjects(t)
 	sprintRepo := repository.NewSprintRepository(db)
 	issueRepo := repository.NewIssueRepository(db)
 	ctx := context.Background()
@@ -135,7 +135,7 @@ func TestSprintRepository_CompleteWithMigration_MovesToBacklog(t *testing.T) {
 }
 
 func TestIssueRepository_FindBacklog_SortsByPriority(t *testing.T) {
-	repo := repository.NewIssueRepository(newTestDB(t))
+	repo := repository.NewIssueRepository(newDBWithProjects(t))
 	ctx := context.Background()
 
 	// Create issues in reverse priority order.

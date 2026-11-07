@@ -17,7 +17,9 @@ func NewLabelRepository(db *gorm.DB) domain.LabelRepository {
 }
 
 func (r *labelRepo) Create(ctx context.Context, l *domain.Label) error {
-	return r.db.WithContext(ctx).Create(l).Error
+	return createInProject(ctx, r.db, l.ProjectID, func(tx *gorm.DB) error {
+		return tx.Create(l).Error
+	})
 }
 
 func (r *labelRepo) FindByProjectID(ctx context.Context, projectID uint) ([]*domain.Label, error) {

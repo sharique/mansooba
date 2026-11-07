@@ -2,27 +2,27 @@ package service_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/sharique/mansooba/internal/domain"
 	"github.com/sharique/mansooba/internal/dto"
 	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/service"
-	"github.com/sharique/mansooba/pkg/config"
-	"github.com/sharique/mansooba/pkg/database"
+	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 // Relations expose the other issue's key, title and status, and creating or
 // deleting them changes the project's data, so every operation is limited to
 // members of the issue's project (feature 018, access fix). Real repositories
-// on in-memory SQLite: this guards information disclosure.
+// on a real database: this guards information disclosure.
 func TestIssueRelationService_OnlyProjectMembersMayUseRelations(t *testing.T) {
 	ctx := context.Background()
-	db, err := database.Open(&config.Config{DBDriver: "sqlite", DBDSN: ":memory:"})
-	require.NoError(t, err)
-	require.NoError(t, database.Migrate(db))
+	db := testdb.New(t)
+	seedProjects(t, db, 1, 2)
 
 	issueRepo := repository.NewIssueRepository(db)
 	memberRepo := repository.NewProjectMemberRepository(db)
@@ -84,9 +84,8 @@ func TestIssueRelationService_OnlyProjectMembersMayUseRelations(t *testing.T) {
 // exist; only a person who can see both is told it is a cross-project link.
 func TestIssueRelationService_CrossProjectTargetIsNotFoundToOutsiders(t *testing.T) {
 	ctx := context.Background()
-	db, err := database.Open(&config.Config{DBDriver: "sqlite", DBDSN: ":memory:"})
-	require.NoError(t, err)
-	require.NoError(t, database.Migrate(db))
+	db := testdb.New(t)
+	seedProjects(t, db, 1, 2)
 	issueRepo := repository.NewIssueRepository(db)
 	memberRepo := repository.NewProjectMemberRepository(db)
 	svc := service.NewIssueRelationService(repository.NewIssueRelationRepository(db), issueRepo, memberRepo)
@@ -102,8 +101,17 @@ func TestIssueRelationService_CrossProjectTargetIsNotFoundToOutsiders(t *testing
 	a, b := mk(1, "A-1"), mk(2, "B-1")
 
 	req := dto.CreateRelationRequest{TargetIssueID: b.ID, RelationType: domain.RelationTypeRelatesTo}
-	_, err = svc.Create(ctx, a.ID, 10, req)
+	_, err := svc.Create(ctx, a.ID, 10, req)
 	assert.ErrorIs(t, err, domain.ErrNotFound, "10 cannot see project 2")
 	_, err = svc.Create(ctx, a.ID, 20, req)
 	assert.ErrorIs(t, err, service.ErrCrossProjectRelation, "20 is in both projects")
+}
+
+// seedProjects creates projects with the given ids. Tasks and members can only be
+// added to a project that exists.
+func seedProjects(t *testing.T, db *gorm.DB, ids ...uint) {
+	t.Helper()
+	for _, id := range ids {
+		require.NoError(t, db.Create(&domain.Project{ID: id, Key: fmt.Sprintf("P%d", id), Name: fmt.Sprintf("Project %d", id), OwnerID: 1}).Error)
+	}
 }
