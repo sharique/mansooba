@@ -68,6 +68,38 @@ func (r *stubAdminUserRepo) CountActiveAdmins(_ context.Context) (int64, error) 
 	}
 	return 0, nil
 }
+
+// UpdateAdminFieldsGuarded mirrors the repository's rule for the tests: a change
+// that removes the last active administrator is refused with ErrLastAdmin, and
+// only the named fields change.
+func (r *stubAdminUserRepo) UpdateAdminFieldsGuarded(ctx context.Context, id uint, change domain.AdminChange) error {
+	for _, existing := range r.users {
+		if existing.ID != id {
+			continue
+		}
+		removes := existing.IsAdmin && existing.IsActive &&
+			((change.IsAdmin != nil && !*change.IsAdmin) || (change.IsActive != nil && !*change.IsActive))
+		if removes {
+			n, err := r.CountActiveAdmins(ctx)
+			if err != nil {
+				return err
+			}
+			if n <= 1 {
+				return domain.ErrLastAdmin
+			}
+		}
+		updated := *existing
+		if change.IsAdmin != nil {
+			updated.IsAdmin = *change.IsAdmin
+		}
+		if change.IsActive != nil {
+			updated.IsActive = *change.IsActive
+		}
+		return r.UpdateAdminFields(ctx, &updated)
+	}
+	return domain.ErrNotFound
+}
+
 func (r *stubAdminUserRepo) UpdateAdminFields(_ context.Context, u *domain.User) error {
 	if r.updateAdminFn != nil {
 		return r.updateAdminFn(u)

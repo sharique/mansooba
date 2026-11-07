@@ -186,25 +186,58 @@ func TestIssueService_Update_RejectsInvalidStatus(t *testing.T) {
 }
 
 func TestIssueService_Update_AssignsIssueToSprint(t *testing.T) {
-	svc, projectRepo, memberRepo, issueRepo := newIssueService()
+	projectRepo, memberRepo, issueRepo, sprintRepo := newStubProjectRepo(), newStubProjectMemberRepo(), newStubIssueRepo(), newStubSprintRepo()
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, &stubActivitySvc{}, newStubUserRepo(), sprintRepo)
 	ctx := context.Background()
-	seedProject(ctx, projectRepo, memberRepo)
+	project := seedProject(ctx, projectRepo, memberRepo)
+	sprint := &domain.Sprint{ProjectID: project.ID, Name: "S1"}
+	require.NoError(t, sprintRepo.Create(ctx, sprint))
 
 	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
 
-	sprintID := uint(5)
+	sprintID := sprint.ID
 	updated, err := svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{SprintID: &sprintID})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if updated.SprintID == nil || *updated.SprintID != 5 {
-		t.Errorf("expected SprintID=5, got %v", updated.SprintID)
-	}
-	// Verify persisted value matches
+	require.NoError(t, err)
+	require.NotNil(t, updated.SprintID)
+	assert.Equal(t, sprintID, *updated.SprintID)
 	stored, _ := issueRepo.FindByID(ctx, resp.ID)
-	if stored.SprintID == nil || *stored.SprintID != 5 {
-		t.Errorf("stored SprintID expected 5, got %v", stored.SprintID)
-	}
+	require.NotNil(t, stored.SprintID)
+	assert.Equal(t, sprintID, *stored.SprintID)
+}
+
+// A sprint of another project cannot be reached by guessing its id (it would put
+// the task into that project's sprint and reveal the sprint's name in this
+// project's activity).
+func TestIssueService_Update_RefusesASprintOfAnotherProject(t *testing.T) {
+	projectRepo, memberRepo, issueRepo, sprintRepo := newStubProjectRepo(), newStubProjectMemberRepo(), newStubIssueRepo(), newStubSprintRepo()
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, &stubActivitySvc{}, newStubUserRepo(), sprintRepo)
+	ctx := context.Background()
+	project := seedProject(ctx, projectRepo, memberRepo)
+	foreign := &domain.Sprint{ProjectID: project.ID + 50, Name: "Secret sprint"}
+	require.NoError(t, sprintRepo.Create(ctx, foreign))
+	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
+
+	_, err := svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{SprintID: &foreign.ID})
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+	stored, _ := issueRepo.FindByID(ctx, resp.ID)
+	assert.Nil(t, stored.SprintID)
+}
+
+// Only a member of the project can be given a task (a viewer can: any role counts).
+func TestIssueService_RefusesAnAssigneeWhoIsNotAMember(t *testing.T) {
+	svc, projectRepo, memberRepo, _ := newIssueService()
+	ctx := context.Background()
+	project := seedProject(ctx, projectRepo, memberRepo)
+	seedRoles(ctx, memberRepo, project.ID) // 2 member, 3 viewer
+	stranger, viewer := uint(99), uint(3)
+
+	_, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &stranger})
+	assert.ErrorIs(t, err, domain.ErrInvalidInput)
+	resp, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &viewer})
+	require.NoError(t, err)
+
+	_, err = svc.Update(ctx, "PROJ", resp.ID, 1, dto.UpdateIssueRequest{AssigneeID: &stranger})
+	assert.ErrorIs(t, err, domain.ErrInvalidInput)
 }
 
 func TestIssueService_Update_ClearsSprintID(t *testing.T) {
@@ -437,6 +470,7 @@ func TestIssueService_Update_RecordsAssigneeChangeActivity(t *testing.T) {
 	})
 
 	aliceID := uint(10)
+	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 1, UserID: aliceID, Role: "member"})
 	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo, newStubSprintRepo())
 	_, err := svc.Update(context.Background(), "PROJ", 1, 1, dto.UpdateIssueRequest{AssigneeID: &aliceID})
 	require.NoError(t, err)
@@ -560,7 +594,9 @@ func TestIssueService_GetMyIssues_returns_assigned_issues(t *testing.T) {
 		{ID: 3, Key: "A-3", Title: "Unassigned", AssigneeID: nil, Status: domain.IssueStatusTodo},
 	}
 
-	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo())
+	members := newStubProjectMemberRepo()
+	_ = members.Create(context.Background(), &domain.ProjectMember{ProjectID: 0, UserID: uid, Role: "member"})
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), members, &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo())
 
 	result, err := svc.GetMyIssues(context.Background(), uid, dto.IssueListQuery{})
 	require.NoError(t, err)
@@ -576,7 +612,9 @@ func TestIssueService_GetMyIssues_filters_by_status(t *testing.T) {
 		{ID: 2, Key: "B-2", Title: "Done", AssigneeID: &uid, Status: domain.IssueStatusDone},
 	}
 
-	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo())
+	members := newStubProjectMemberRepo()
+	_ = members.Create(context.Background(), &domain.ProjectMember{ProjectID: 0, UserID: uid, Role: "member"})
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), members, &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo())
 
 	result, err := svc.GetMyIssues(context.Background(), uid, dto.IssueListQuery{Status: domain.IssueStatusInProgress})
 	require.NoError(t, err)
@@ -591,7 +629,9 @@ func TestIssueService_GetMyIssues_empty_when_none_assigned(t *testing.T) {
 		{ID: 1, Key: "C-1", AssigneeID: &other, Status: domain.IssueStatusTodo},
 	}
 
-	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo())
+	members := newStubProjectMemberRepo()
+	_ = members.Create(context.Background(), &domain.ProjectMember{ProjectID: 0, UserID: uint(999), Role: "member"})
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), members, &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo())
 
 	result, err := svc.GetMyIssues(context.Background(), 999, dto.IssueListQuery{})
 	require.NoError(t, err)
@@ -618,7 +658,9 @@ func TestIssueService_GetMyIssues_AssigneeAvatarURLPopulated(t *testing.T) {
 	issueRepo.issues = []*domain.Issue{
 		{ID: 1, Key: "P-1", Title: "Issue", AssigneeID: &assigneeID, Status: domain.IssueStatusTodo},
 	}
-	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, userRepo, newStubSprintRepo())
+	members := newStubProjectMemberRepo()
+	_ = members.Create(context.Background(), &domain.ProjectMember{ProjectID: 0, UserID: assigneeID, Role: "member"})
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), members, &stubActivitySvc{}, userRepo, newStubSprintRepo())
 
 	result, err := svc.GetMyIssues(context.Background(), assigneeID, dto.IssueListQuery{})
 	require.NoError(t, err)
@@ -638,7 +680,9 @@ func TestIssueService_GetMyIssues_AssigneeAvatarURLNilWhenNoAvatar(t *testing.T)
 	issueRepo.issues = []*domain.Issue{
 		{ID: 1, Key: "P-1", Title: "Issue", AssigneeID: &assigneeID, Status: domain.IssueStatusTodo},
 	}
-	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, userRepo, newStubSprintRepo())
+	members := newStubProjectMemberRepo()
+	_ = members.Create(context.Background(), &domain.ProjectMember{ProjectID: 0, UserID: assigneeID, Role: "member"})
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), members, &stubActivitySvc{}, userRepo, newStubSprintRepo())
 
 	result, err := svc.GetMyIssues(context.Background(), assigneeID, dto.IssueListQuery{})
 	require.NoError(t, err)
@@ -651,7 +695,9 @@ func TestIssueService_GetMyIssues_AssigneeNilWhenUnassigned(t *testing.T) {
 	issueRepo.issues = []*domain.Issue{
 		{ID: 1, Key: "P-1", Title: "Unassigned", AssigneeID: nil, Status: domain.IssueStatusTodo},
 	}
-	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), newStubProjectMemberRepo(), &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo())
+	members := newStubProjectMemberRepo()
+	_ = members.Create(context.Background(), &domain.ProjectMember{ProjectID: 0, UserID: uint(99), Role: "member"})
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), members, &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo())
 
 	result, err := svc.GetMyIssues(context.Background(), 99, dto.IssueListQuery{})
 	require.NoError(t, err)
@@ -689,7 +735,7 @@ func TestSprintActivityName_UsesSprintName(t *testing.T) {
 	userRepo := newStubUserRepo()
 	sprintRepo := newStubSprintRepo()
 	ctx := context.Background()
-	_ = sprintRepo.Create(ctx, &domain.Sprint{Name: "Sprint Alpha"}) // gets ID 1
+	_ = sprintRepo.Create(ctx, &domain.Sprint{ProjectID: 1, Name: "Sprint Alpha"}) // gets ID 1
 
 	projectRepo.projects["PROJ"] = &domain.Project{ID: 1, Key: "PROJ"}
 	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 1, UserID: 1, Role: "member"})
@@ -754,36 +800,18 @@ func TestSprintActivityName_NilSprintReturnsBacklog(t *testing.T) {
 	assert.Equal(t, "backlog", sprintEvent.NewValue)
 }
 
-func TestSprintActivityName_UnknownSprintFallsBackToID(t *testing.T) {
+func TestIssueService_Update_UnknownSprintIsNotFound(t *testing.T) {
 	issueRepo := newStubIssueRepo()
 	projectRepo := newStubProjectRepo()
 	memberRepo := newStubProjectMemberRepo()
-	activitySvc := &stubActivitySvc{}
-	userRepo := newStubUserRepo()
-	sprintRepo := newStubSprintRepo() // empty — sprint 99 does not exist
-
 	projectRepo.projects["PROJ"] = &domain.Project{ID: 1, Key: "PROJ"}
 	memberRepo.members = append(memberRepo.members, &domain.ProjectMember{ProjectID: 1, UserID: 1, Role: "member"})
-	issueRepo.issues = append(issueRepo.issues, &domain.Issue{
-		ID: 1, ProjectID: 1, Key: "PROJ-1",
-		Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityMedium,
-		ReporterID: 1,
-	})
+	issueRepo.issues = append(issueRepo.issues, &domain.Issue{ID: 1, ProjectID: 1, Key: "PROJ-1", Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityMedium, ReporterID: 1})
+	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo())
 
 	sprintID := uint(99)
-	svc := service.NewIssueService(issueRepo, projectRepo, memberRepo, activitySvc, userRepo, sprintRepo)
 	_, err := svc.Update(context.Background(), "PROJ", 1, 1, dto.UpdateIssueRequest{SprintID: &sprintID})
-	require.NoError(t, err)
-
-	var sprintEvent *domain.ActivityEvent
-	for _, e := range activitySvc.recorded {
-		if e.Kind == domain.ActivitySprintChanged {
-			sprintEvent = e
-			break
-		}
-	}
-	require.NotNil(t, sprintEvent, "expected an ActivitySprintChanged event")
-	assert.Contains(t, sprintEvent.NewValue, "99", "fallback must contain the sprint ID")
+	assert.ErrorIs(t, err, domain.ErrNotFound)
 }
 
 // ── clearing the assignee (feature 017, ADR-036) ──────────────────────────────
@@ -803,6 +831,7 @@ func TestIssueService_Update_AssigneeZeroClearsAssignee(t *testing.T) {
 	ctx := context.Background()
 	seedProject(ctx, projectRepo, memberRepo)
 	mustCreateUser(t, userRepo, 2, "priya")
+	_ = memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: 1, UserID: 2, Role: "member"})
 	assignee := uint(2)
 	resp, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &assignee})
 	require.NoError(t, err)
@@ -828,6 +857,7 @@ func TestIssueService_Update_AssigneeNilLeavesAssigneeUnchanged(t *testing.T) {
 	svc, projectRepo, memberRepo, issueRepo, activitySvc, userRepo := newIssueServiceWithActivity()
 	ctx := context.Background()
 	seedProject(ctx, projectRepo, memberRepo)
+	seedMembers(ctx, memberRepo, 2, 3, 4)
 	mustCreateUser(t, userRepo, 2, "priya")
 	assignee := uint(2)
 	resp, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &assignee})
@@ -857,7 +887,8 @@ func TestIssueService_Create_AssigneeZeroMeansUnassigned(t *testing.T) {
 	assert.Nil(t, stored.AssigneeID)
 }
 
-// FR-003a regression: only project members may change an issue's sprint.
+// FR-003a regression: only project members may change an issue's sprint. A
+// non-member now gets "not found", the same as for a project that is not there.
 func TestIssueService_Update_NonMemberCannotSetSprint(t *testing.T) {
 	svc, projectRepo, memberRepo, issueRepo := newIssueService()
 	ctx := context.Background()
@@ -866,7 +897,7 @@ func TestIssueService_Update_NonMemberCannotSetSprint(t *testing.T) {
 
 	sprintID := uint(5)
 	_, err := svc.Update(ctx, "PROJ", resp.ID, 99, dto.UpdateIssueRequest{SprintID: &sprintID})
-	assert.ErrorIs(t, err, domain.ErrForbidden)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
 	stored, _ := issueRepo.FindByID(ctx, resp.ID)
 	assert.Nil(t, stored.SprintID)
 }
@@ -881,6 +912,8 @@ type assignCall struct {
 type recordingNotifier struct {
 	assigns     []assignCall
 	memberships []membershipCall
+	roleChanges []membershipCall
+	claims      []membershipCall
 }
 
 type membershipCall struct {
@@ -896,6 +929,14 @@ func (r *recordingNotifier) NotifyMembershipChange(_ context.Context, projectID,
 	r.memberships = append(r.memberships, membershipCall{projectID, actorID, targetID, added})
 }
 
+func (r *recordingNotifier) NotifyRoleChange(_ context.Context, projectID, actorID, targetID uint) {
+	r.roleChanges = append(r.roleChanges, membershipCall{projectID, actorID, targetID, false})
+}
+
+func (r *recordingNotifier) NotifyAdminClaimed(_ context.Context, projectID, actorID uint) {
+	r.claims = append(r.claims, membershipCall{projectID, actorID, 0, false})
+}
+
 func newNotifyingIssueService() (service.IssueService, *recordingNotifier, *stubProjectRepo, *stubProjectMemberRepo) {
 	projectRepo := newStubProjectRepo()
 	memberRepo := newStubProjectMemberRepo()
@@ -909,6 +950,7 @@ func TestIssueService_Create_NotifiesAssignee(t *testing.T) {
 	svc, rec, projectRepo, memberRepo := newNotifyingIssueService()
 	ctx := context.Background()
 	project := seedProject(ctx, projectRepo, memberRepo)
+	seedMembers(ctx, memberRepo, 2, 3, 4)
 	assignee := uint(2)
 
 	resp, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &assignee})
@@ -936,6 +978,7 @@ func TestIssueService_Update_AssigneeChangeNotifiesWithOldAndNew(t *testing.T) {
 	svc, rec, projectRepo, memberRepo := newNotifyingIssueService()
 	ctx := context.Background()
 	seedProject(ctx, projectRepo, memberRepo)
+	seedMembers(ctx, memberRepo, 2, 3, 4)
 	first := uint(2)
 	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &first})
 	rec.assigns = nil
@@ -960,6 +1003,7 @@ func TestIssueService_Update_WithoutAssigneeChangeDoesNotNotify(t *testing.T) {
 	svc, rec, projectRepo, memberRepo := newNotifyingIssueService()
 	ctx := context.Background()
 	seedProject(ctx, projectRepo, memberRepo)
+	seedMembers(ctx, memberRepo, 2, 3, 4)
 	first := uint(2)
 	resp, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &first})
 	rec.assigns = nil
@@ -977,6 +1021,7 @@ func TestIssueService_NilNotifierIsTolerated(t *testing.T) {
 	svc, projectRepo, memberRepo, _ := newIssueService()
 	ctx := context.Background()
 	seedProject(ctx, projectRepo, memberRepo)
+	seedMembers(ctx, memberRepo, 2, 3)
 	assignee := uint(2)
 	resp, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &assignee})
 	require.NoError(t, err)
@@ -1096,4 +1141,156 @@ func TestIssueService_Delete_RecordsNothingWhenItIsRefused(t *testing.T) {
 	if _, err := issueRepo.FindByID(ctx, issue.ID); err != nil {
 		t.Errorf("the task must still exist: %v", err)
 	}
+}
+
+// ── project roles (viewer / member / admin) ───────────────────────────────────
+
+// seedMembers makes the given users members of project 1 (the one seedProject creates).
+func seedMembers(ctx context.Context, memberRepo *stubProjectMemberRepo, ids ...uint) {
+	for _, id := range ids {
+		_ = memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: 1, UserID: id, Role: domain.RoleMember})
+	}
+}
+
+// roleUsers: 1 admin (seedProject), 2 member, 3 viewer, 99 outsider.
+func seedRoles(ctx context.Context, memberRepo *stubProjectMemberRepo, projectID uint) {
+	_ = memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: projectID, UserID: 2, Role: domain.RoleMember})
+	_ = memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: projectID, UserID: 3, Role: domain.RoleViewer})
+}
+
+func TestIssueService_ViewerCannotWriteButCanRead(t *testing.T) {
+	svc, projectRepo, memberRepo, _ := newIssueService()
+	ctx := context.Background()
+	p := seedProject(ctx, projectRepo, memberRepo)
+	seedRoles(ctx, memberRepo, p.ID)
+	resp, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
+	require.NoError(t, err)
+
+	_, err = svc.Create(ctx, "PROJ", 3, dto.CreateIssueRequest{Title: "x", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
+	assert.ErrorIs(t, err, domain.ErrForbidden)
+	var denied *domain.AccessDeniedError
+	require.ErrorAs(t, err, &denied)
+	assert.Equal(t, "Viewers can't edit tasks", denied.Reason())
+
+	title := "changed"
+	_, err = svc.Update(ctx, "PROJ", resp.ID, 3, dto.UpdateIssueRequest{Title: &title})
+	assert.ErrorIs(t, err, domain.ErrForbidden)
+	status := domain.IssueStatusDone
+	_, err = svc.Update(ctx, "PROJ", resp.ID, 3, dto.UpdateIssueRequest{Status: &status})
+	assert.ErrorIs(t, err, domain.ErrForbidden)
+
+	_, err = svc.FindByID(ctx, "PROJ", resp.ID, 3)
+	assert.NoError(t, err)
+	_, err = svc.ListByProject(ctx, "PROJ", 3, dto.IssueListQuery{})
+	assert.NoError(t, err)
+}
+
+func TestIssueService_DeleteRules(t *testing.T) {
+	svc, projectRepo, memberRepo, _ := newIssueService()
+	ctx := context.Background()
+	p := seedProject(ctx, projectRepo, memberRepo)
+	seedRoles(ctx, memberRepo, p.ID)
+	mk := func(by uint) uint {
+		r, err := svc.Create(ctx, "PROJ", by, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
+		require.NoError(t, err)
+		return r.ID
+	}
+
+	// a member deletes their own, not another's
+	own, other := mk(2), mk(1)
+	assert.NoError(t, svc.Delete(ctx, "PROJ", own, 2))
+	assert.ErrorIs(t, svc.Delete(ctx, "PROJ", other, 2), domain.ErrForbidden)
+	// an admin deletes anyone's
+	assert.NoError(t, svc.Delete(ctx, "PROJ", other, 1))
+	// a viewer cannot delete a task, not even one they reported before being demoted
+	demoted := mk(2)
+	for _, m := range memberRepo.members {
+		if m.UserID == 2 {
+			m.Role = domain.RoleViewer
+		}
+	}
+	assert.ErrorIs(t, svc.Delete(ctx, "PROJ", demoted, 2), domain.ErrForbidden)
+	// an outsider learns nothing
+	assert.ErrorIs(t, svc.Delete(ctx, "PROJ", demoted, 99), domain.ErrNotFound)
+}
+
+// A viewer is a project member and so can be the assignee; making the
+// assignment takes permission to edit tasks.
+func TestIssueService_ViewerCanBeAssigned(t *testing.T) {
+	svc, projectRepo, memberRepo, _ := newIssueService()
+	ctx := context.Background()
+	p := seedProject(ctx, projectRepo, memberRepo)
+	seedRoles(ctx, memberRepo, p.ID)
+	viewer := uint(3)
+	resp, err := svc.Create(ctx, "PROJ", 2, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, AssigneeID: &viewer})
+	require.NoError(t, err)
+	require.NotNil(t, resp.AssigneeID)
+	assert.Equal(t, viewer, *resp.AssigneeID)
+}
+
+func TestIssueService_GetMyIssues_HidesProjectsThePersonLeft(t *testing.T) {
+	uid := uint(42)
+	issueRepo := newStubIssueRepo()
+	issueRepo.issues = []*domain.Issue{
+		{ID: 1, ProjectID: 10, Key: "A-1", Title: "in my project", AssigneeID: &uid, Status: domain.IssueStatusTodo},
+		{ID: 2, ProjectID: 20, Key: "B-1", Title: "in a project I was removed from", AssigneeID: &uid, Status: domain.IssueStatusTodo},
+	}
+	members := newStubProjectMemberRepo()
+	_ = members.Create(context.Background(), &domain.ProjectMember{ProjectID: 10, UserID: uid, Role: "viewer"})
+	svc := service.NewIssueService(issueRepo, newStubProjectRepo(), members, &stubActivitySvc{}, newStubUserRepo(), newStubSprintRepo())
+
+	result, err := svc.GetMyIssues(context.Background(), uid, dto.IssueListQuery{})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "A-1", result[0].Key, "a viewer still sees the tasks assigned to them; a removed member does not")
+}
+
+// ── choosing a sprint when creating a task ───────────────────────────────────
+
+func newSprintCreateEnv(t *testing.T) (service.IssueService, *stubSprintRepo, *domain.Project) {
+	t.Helper()
+	projectRepo, memberRepo, sprintRepo := newStubProjectRepo(), newStubProjectMemberRepo(), newStubSprintRepo()
+	svc := service.NewIssueService(newStubIssueRepo(), projectRepo, memberRepo, &stubActivitySvc{}, newStubUserRepo(), sprintRepo)
+	return svc, sprintRepo, seedProject(context.Background(), projectRepo, memberRepo)
+}
+
+func TestIssueService_Create_CanPutTheTaskStraightIntoAPlanningOrActiveSprint(t *testing.T) {
+	svc, sprints, project := newSprintCreateEnv(t)
+	ctx := context.Background()
+	for _, status := range []string{domain.SprintStatusPlanning, domain.SprintStatusActive} {
+		sp := &domain.Sprint{ProjectID: project.ID, Name: status, Status: status}
+		require.NoError(t, sprints.Create(ctx, sp))
+		resp, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, SprintID: &sp.ID})
+		require.NoError(t, err, status)
+		require.NotNil(t, resp.SprintID, status)
+		assert.Equal(t, sp.ID, *resp.SprintID)
+	}
+}
+
+func TestIssueService_Create_WithoutASprintGoesToTheBacklog(t *testing.T) {
+	svc, _, _ := newSprintCreateEnv(t)
+	resp, err := svc.Create(context.Background(), "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
+	require.NoError(t, err)
+	assert.Nil(t, resp.SprintID)
+	zero := uint(0)
+	resp, err = svc.Create(context.Background(), "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, SprintID: &zero})
+	require.NoError(t, err)
+	assert.Nil(t, resp.SprintID, "0 means no sprint")
+}
+
+func TestIssueService_Create_RefusesACompletedOrForeignSprint(t *testing.T) {
+	svc, sprints, project := newSprintCreateEnv(t)
+	ctx := context.Background()
+	done := &domain.Sprint{ProjectID: project.ID, Name: "done", Status: domain.SprintStatusCompleted}
+	foreign := &domain.Sprint{ProjectID: project.ID + 50, Name: "theirs", Status: domain.SprintStatusPlanning}
+	require.NoError(t, sprints.Create(ctx, done))
+	require.NoError(t, sprints.Create(ctx, foreign))
+
+	_, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, SprintID: &done.ID})
+	assert.ErrorIs(t, err, domain.ErrInvalidInput, "a finished sprint cannot take new work")
+	_, err = svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, SprintID: &foreign.ID})
+	assert.ErrorIs(t, err, domain.ErrNotFound, "another project's sprint does not exist here")
+	missing := uint(999)
+	_, err = svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "T", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow, SprintID: &missing})
+	assert.ErrorIs(t, err, domain.ErrNotFound)
 }

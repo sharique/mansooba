@@ -2,6 +2,7 @@ package httpserver_test
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"testing"
@@ -98,4 +99,37 @@ func TestServe_ReportsShutdownTimeout(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("Serve did not return after the graceful timeout")
 	}
+}
+
+// A client that opens a connection and never finishes its request headers must
+// be cut off (slow-header attack), while normal requests keep working.
+func TestServe_CutsOffAClientThatNeverFinishesItsHeaders(t *testing.T) {
+	old := httpserver.ReadHeaderTimeout
+	httpserver.ReadHeaderTimeout = 300 * time.Millisecond
+	t.Cleanup(func() { httpserver.ReadHeaderTimeout = old })
+
+	e := echo.New()
+	e.GET("/ok", func(c *echo.Context) error { return c.String(http.StatusOK, "ok") })
+	addr, cancel, done := startServe(t, e, time.Second)
+	t.Cleanup(func() { cancel(); <-done })
+
+	conn, err := net.Dial("tcp", addr)
+	require.NoError(t, err)
+	defer conn.Close()
+	_, err = conn.Write([]byte("GET /ok HTTP/1.1\r\nHost: x\r\nX-Slow: a")) // headers never end
+	require.NoError(t, err)
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(3*time.Second)))
+	buf := make([]byte, 512)
+	_, err = conn.Read(buf) // the server answers 408 or just closes; either way it ends
+	if err != nil {
+		var ne net.Error
+		if errors.As(err, &ne) && ne.Timeout() {
+			t.Fatal("the server kept waiting for headers that never came")
+		}
+	}
+
+	resp, err := http.Get("http://" + addr + "/ok")
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }

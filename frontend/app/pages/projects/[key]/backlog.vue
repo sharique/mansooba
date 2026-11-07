@@ -3,9 +3,19 @@
     <!-- Page header -->
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold">Backlog</h1>
-      <NuxtLink :to="`/projects/${key}/board`" class="btn btn-sm btn-ghost">
-        ← Sprint board
-      </NuxtLink>
+      <div class="flex items-center gap-2">
+        <NuxtLink :to="`/projects/${key}/board`" class="btn btn-sm btn-ghost">
+          ← Sprint board
+        </NuxtLink>
+        <button
+          class="btn btn-primary btn-sm"
+          :disabled="!can('task.write')"
+          :title="can('task.write') ? undefined : reason('task.write')"
+          @click="modalOpen = true"
+        >
+          Create Issue
+        </button>
+      </div>
     </div>
 
     <!-- Error state -->
@@ -59,6 +69,15 @@
         />
       </section>
     </template>
+
+    <IssuesCreateIssueModal
+      :project-key="key"
+      default-status=""
+      :sprints="sprintsStore.sprints"
+      :open="modalOpen"
+      @created="onIssueCreated"
+      @close="modalOpen = false"
+    />
   </div>
 </template>
 
@@ -75,7 +94,10 @@ const projectsStore = useProjectsStore()
 const sprintsStore = useSprintsStore()
 const issuesStore = useIssuesStore()
 
+const { can, reason } = useProjectPermissions()
+
 const issues = ref<Issue[]>([])
+const modalOpen = ref(false)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const searchActive = ref(false)
@@ -115,6 +137,18 @@ async function onSearch(filters: IssueFilters) {
   }
   finally {
     loading.value = false
+  }
+}
+
+async function onIssueCreated(_issue: Issue) {
+  modalOpen.value = false
+  showSuccess('Issue created')
+  try {
+    // A new issue belongs to no sprint, so it appears in the backlog.
+    issues.value = await backlogService.getBacklog(key)
+  }
+  catch {
+    showError('Created, but the backlog could not be refreshed')
   }
 }
 

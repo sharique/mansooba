@@ -57,6 +57,7 @@ type Handlers struct {
 	Setting        *handler.SettingHandler
 	IssueRelation  *handler.IssueRelationHandler
 	AdminUser      *handler.AdminUserHandler
+	AdminProject   *handler.AdminProjectHandler
 	PasswordReset  *handler.PasswordResetHandler
 	PasswordChange *handler.PasswordChangeHandler
 	Username       *handler.UsernameHandler
@@ -81,22 +82,24 @@ func NewHandlers(in Inputs) Handlers {
 	issueRelationRepo := repository.NewIssueRelationRepository(db)
 	passwordResetRepo := repository.NewPasswordResetRepository(db)
 	attachmentRepo := repository.NewAttachmentRepository(db)
+	labelRepo := repository.NewLabelRepository(db)
 
 	// Services
 	authSvc := service.NewAuthService(userRepo, revokedTokenRepo, in.SystemLogSvc, log, cfg.JWTSecret, cfg.JWTAccessTTL, cfg.JWTRefreshTTL)
 	userSvc := service.NewUserService(userRepo, in.AvatarStorage)
 	notifSvc := service.NewNotificationService(notifRepo, projectMemberRepo, log)
-	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo, notifSvc)
+	projectSvc := service.NewProjectService(projectRepo, projectMemberRepo, userRepo, issueRepo, notifSvc).
+		WithSystemLog(in.SystemLogSvc)
 	activitySvc := service.NewActivityService(activityRepo, userRepo, issueRepo, projectMemberRepo)
 	issueSvc := service.NewIssueService(issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, sprintRepo).
 		WithAttachments(attachmentRepo, in.AttachmentStorage).
 		WithNotifier(notifSvc)
-	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo, sprintRepo)
+	boardSvc := service.NewBoardService(issueRepo, projectRepo, projectMemberRepo, sprintRepo, userRepo)
 	sprintSvc := service.NewSprintService(sprintRepo, issueRepo, projectRepo, projectMemberRepo)
 	overviewSvc := service.NewOverviewService(projectRepo, projectMemberRepo, sprintRepo, issueRepo, activityRepo, userRepo)
 	commentSvc := service.NewCommentService(commentRepo, issueRepo, projectMemberRepo, activitySvc, notifRepo, userRepo)
 	attachmentSvc := service.NewAttachmentService(attachmentRepo, issueRepo, projectRepo, projectMemberRepo, activitySvc, userRepo, in.AttachmentStorage)
-	labelSvc := service.NewLabelService(repository.NewLabelRepository(db), issueRepo, projectRepo, projectMemberRepo, activitySvc)
+	labelSvc := service.NewLabelService(labelRepo, issueRepo, projectRepo, projectMemberRepo, activitySvc)
 	settingSvc := service.NewSettingService(settingRepo, userRepo, in.SystemLogSvc)
 	issueRelationSvc := service.NewIssueRelationService(issueRelationRepo, issueRepo, projectMemberRepo)
 	var emailSender domain.EmailSender
@@ -143,6 +146,7 @@ func NewHandlers(in Inputs) Handlers {
 		Setting:        handler.NewSettingHandler(settingSvc, userSvc),
 		IssueRelation:  handler.NewIssueRelationHandler(issueRelationSvc),
 		AdminUser:      handler.NewAdminUserHandler(adminUserSvc, userSvc),
+		AdminProject:   handler.NewAdminProjectHandler(projectSvc),
 		PasswordReset:  handler.NewPasswordResetHandler(passwordResetSvc),
 		PasswordChange: handler.NewPasswordChangeHandler(passwordChangeSvc, authSvc),
 		Username:       handler.NewUsernameHandler(service.NewUsernameService(userRepo), userSvc),

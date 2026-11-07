@@ -3,6 +3,9 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive } from 'vue'
 import MembersPage from './members.vue'
+import { stubPermissions, ADMIN, MEMBER } from '../../../../test-helpers/permissions'
+
+const perms = stubPermissions(ADMIN, 'admin')
 
 const projects = reactive({
   current: { id: 1, key: 'scr', name: 'Scratch', description: 'A scratch project', ownerId: 9 } as Record<string, unknown> | null,
@@ -16,7 +19,8 @@ vi.stubGlobal('useToast', () => toast)
 vi.stubGlobal('ref', (await import('vue')).ref)
 vi.stubGlobal('onMounted', (await import('vue')).onMounted)
 
-const MemberListStub = { props: ['projectKey', 'ownerId'], template: '<div data-member-list>{{ projectKey }}/{{ ownerId }}</div>' }
+const MemberListStub = { props: ['projectKey'], template: '<div data-member-list>{{ projectKey }}</div>' }
+const RoleSummaryStub = { template: '<div data-role-summary />' }
 const FormStub = { props: ['project'], emits: ['saved', 'cancel'], template: '<div data-project-form />' }
 const NuxtLinkStub = { props: ['to'], template: '<a :href="to"><slot /></a>' }
 
@@ -24,13 +28,15 @@ const mountIt = () =>
   mount(MembersPage, {
     global: {
       stubs: { NuxtLink: NuxtLinkStub },
-      components: { ProjectsMemberList: MemberListStub, ProjectsProjectForm: FormStub },
+      components: { ProjectsMemberList: MemberListStub, ProjectsRoleSummary: RoleSummaryStub, ProjectsProjectForm: FormStub },
     },
   })
 
 describe('members page', () => {
   beforeEach(() => {
     projects.current = { id: 1, key: 'scr', name: 'Scratch', description: 'A scratch project', ownerId: 9 }
+    perms.permissions = ADMIN
+    perms.myRole = 'admin'
     projects.fetchOne.mockClear()
     toast.showSuccess.mockClear()
     toast.showError.mockClear()
@@ -47,7 +53,7 @@ describe('members page', () => {
     expect(crumbs).toContain('scr')
     expect(crumbs).toContain('Members')
     expect(w.find('a[href="/projects/scr"]').exists()).toBe(true)
-    expect(w.find('[data-member-list]').text()).toBe('scr/9')
+    expect(w.find('[data-member-list]').text()).toBe('scr')
   })
 
   it('keeps the Edit button and the edit dialog with the project form', async () => {
@@ -56,6 +62,22 @@ describe('members page', () => {
     const edit = w.findAll('button').find(b => b.text() === 'Edit')
     expect(edit).toBeTruthy()
     expect(w.find('dialog [data-project-form]').exists()).toBe(true)
+  })
+
+  it('shows the role summary above the member list', async () => {
+    const w = mountIt()
+    await flushPromises()
+    const html = w.html()
+    expect(html.indexOf('data-role-summary')).toBeGreaterThan(-1)
+    expect(html.indexOf('data-role-summary')).toBeLessThan(html.indexOf('data-member-list'))
+  })
+
+  it('hides the Edit button from someone without project.edit', async () => {
+    perms.permissions = MEMBER
+    perms.myRole = 'member'
+    const w = mountIt()
+    await flushPromises()
+    expect(w.findAll('button').some(b => b.text() === 'Edit')).toBe(false)
   })
 
   it('saving the project form closes the dialog and confirms', async () => {

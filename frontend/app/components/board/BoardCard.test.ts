@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 import BoardCard from './BoardCard.vue'
 import { markDragEnd } from '~/utils/dragGuard'
 import type { Issue } from '~/types/domain.types'
+import { stubPermissions, MEMBER, VIEWER } from '../../../test-helpers/permissions'
+
+const perms = stubPermissions(MEMBER, 'member')
 
 const navigate = vi.fn()
 vi.stubGlobal('navigateTo', navigate)
@@ -22,6 +25,8 @@ const mountCard = (overrides: Partial<Issue> = {}) =>
 
 describe('BoardCard', () => {
   beforeEach(() => {
+    perms.permissions = MEMBER
+    perms.myRole = 'member'
     navigate.mockClear()
     markDragEnd(0)
   })
@@ -142,6 +147,39 @@ describe('BoardCard', () => {
       expect(w.find('ul').exists()).toBe(false)
       expect(w.emitted('move')).toBeUndefined()
       w.unmount()
+    })
+  })
+
+  describe('roles', () => {
+    test('a viewer cannot drag the card and the move control is disabled with a reason', async () => {
+      perms.permissions = VIEWER
+      perms.myRole = 'viewer'
+      const wrapper = mountCard()
+      expect(wrapper.classes()).toContain('no-drag')
+      const toggle = wrapper.find('button[aria-label^="Move"]')
+      expect(toggle.attributes('aria-disabled')).toBe('true')
+      expect(toggle.attributes('title')).toBe('denied:task.write')
+      await toggle.trigger('click')
+      expect(wrapper.find('ul').exists()).toBe(false)
+    })
+
+    test('a viewer can still open the task', async () => {
+      perms.permissions = VIEWER
+      perms.myRole = 'viewer'
+      await mountCard().trigger('click')
+      expect(navigate).toHaveBeenCalledWith('/projects/PROJ/issues/3')
+    })
+
+    test('a member can drag and use the move control', async () => {
+      const wrapper = mountCard()
+      expect(wrapper.classes()).not.toContain('no-drag')
+      await wrapper.find('button[aria-label^="Move"]').trigger('click')
+      expect(wrapper.find('ul').exists()).toBe(true)
+    })
+
+    test('a completed sprint keeps its own reason even for a member', () => {
+      const wrapper = mountCard({ locked: true })
+      expect(wrapper.find('button[aria-label^="Move"]').attributes('title')).toBe('Sprint completed')
     })
   })
 })

@@ -11,6 +11,9 @@ type CreateIssueRequest struct {
 	Priority    string `json:"priority"    validate:"required,oneof=low medium high critical"`
 	AssigneeID  *uint  `json:"assignee_id"`
 	StoryPoints *int   `json:"story_points"`
+	// SprintID puts the new task straight into a planning or active sprint of the
+	// project. Omitted (or 0) means the backlog.
+	SprintID *uint `json:"sprint_id"`
 }
 
 type UpdateIssueRequest struct {

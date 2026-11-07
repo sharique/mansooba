@@ -6,6 +6,7 @@
       <IssuesIssueForm
         :project-key="props.projectKey"
         :default-status="props.defaultStatus ?? 'backlog'"
+        :sprints="props.sprints"
         @saved="onSaved"
         @cancelled="$emit('close')"
       />
@@ -15,11 +16,13 @@
 </template>
 
 <script setup lang="ts">
-import type { Issue } from '~/types/domain.types'
+import type { Issue, Sprint } from '~/types/domain.types'
 
 const props = defineProps<{
   projectKey: string
   defaultStatus?: string
+  /** When given, the form offers the current and upcoming ones to put the new issue in. */
+  sprints?: Sprint[]
   open: boolean
 }>()
 const emit = defineEmits<{ created: [issue: Issue]; close: [] }>()

@@ -9,6 +9,9 @@ type RegisterRequest struct {
 	// Username is optional; when empty one is generated from the email.
 	// Validated by the service (rules, reserved names, uniqueness).
 	Username string `json:"username"`
+	// IsAdmin makes the new account a system administrator. Only a system
+	// administrator can call this endpoint, so no one can use it to gain rights.
+	IsAdmin bool `json:"is_admin"`
 }
 
 type LoginRequest struct {

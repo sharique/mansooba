@@ -177,6 +177,13 @@ func (s *stubAuthUserService) GetProfile(ctx context.Context, userID uint) (*dto
 	}
 	return &dto.UserProfileResponse{ID: userID, IsAdmin: false}, nil
 }
+func (s *stubAuthUserService) RequireSystem(ctx context.Context, userID uint, _ domain.SystemCapability) error {
+	p, err := s.GetProfile(ctx, userID)
+	if err != nil || !p.IsAdmin {
+		return domain.ErrForbidden
+	}
+	return nil
+}
 func (s *stubAuthUserService) UpdateProfile(_ context.Context, _ uint, _ dto.UpdateProfileRequest) (*dto.UserProfileResponse, error) {
 	return nil, nil
 }

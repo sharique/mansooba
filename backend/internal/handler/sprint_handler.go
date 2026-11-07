@@ -349,7 +349,7 @@ func mapSprintError(err error) error {
 	case errors.Is(err, domain.ErrNotFound):
 		return echo.NewHTTPError(http.StatusNotFound, "not found")
 	case errors.Is(err, domain.ErrForbidden):
-		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
+		return forbiddenError(err)
 	case errors.Is(err, domain.ErrSprintAlreadyActive):
 		return echo.NewHTTPError(http.StatusConflict, err.Error())
 	case errors.Is(err, domain.ErrSprintNotDeletable):

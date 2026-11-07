@@ -20,7 +20,7 @@
           <tr>
             <th>Name</th>
             <th>Email</th>
-            <th>Role</th>
+            <th>Account role</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -32,9 +32,9 @@
             <td>
               <span
                 :class="user.is_admin ? 'badge badge-primary' : 'badge badge-ghost'"
-                :aria-label="user.is_admin ? 'Role: Admin' : 'Role: Member'"
+                :aria-label="user.is_admin ? 'Account role: System administrator' : 'Account role: User'"
               >
-                {{ user.is_admin ? 'Admin' : 'Member' }}
+                {{ user.is_admin ? 'System administrator' : 'User' }}
               </span>
             </td>
             <td>
@@ -48,11 +48,11 @@
             <td class="flex gap-2">
               <button
                 class="btn btn-xs btn-outline"
-                :aria-label="user.is_admin ? `Remove admin from ${user.name}` : `Make ${user.name} admin`"
+                :aria-label="user.is_admin ? `Remove system administrator access from ${user.name}` : `Make ${user.name} a system administrator`"
                 :disabled="actionLoading === user.id"
                 @click="handleRoleToggle(user)"
               >
-                {{ user.is_admin ? 'Demote' : 'Promote' }}
+                {{ user.is_admin ? 'Remove system administrator' : 'Make system administrator' }}
               </button>
               <button
                 class="btn btn-xs"
@@ -91,7 +91,7 @@
         <p v-if="confirmError" class="text-error text-sm mt-1">{{ confirmError }}</p>
         <div class="modal-action">
           <button class="btn" @click="closeDialog">Cancel</button>
-          <button class="btn btn-error" :disabled="confirmLoading" @click="confirmAction">
+          <button class="btn btn-error" :disabled="confirmLoading || !!confirmError" @click="confirmAction">
             {{ confirmLabel }}
           </button>
         </div>
@@ -139,14 +139,14 @@ async function handleRoleToggle(user: AdminUser) {
     // Destructive — show confirmation
     openDialog(
       user,
-      'Remove admin access?',
+      'Remove system administrator access?',
       'Remove',
       async () => {
-        await applyPatch(user, { is_admin: false })
+        if (!(await applyPatch(user, { is_admin: false }))) throw new Error('refused')
       }
     )
   } else {
-    // Promote — no confirmation needed
+    // Making someone a system administrator needs no confirmation
     await applyPatch(user, { is_admin: true })
   }
 }
@@ -158,7 +158,7 @@ async function handleActiveToggle(user: AdminUser) {
       'Disable account?',
       'Disable',
       async () => {
-        await applyPatch(user, { is_active: false })
+        if (!(await applyPatch(user, { is_active: false }))) throw new Error('refused')
       }
     )
   } else {
@@ -166,7 +166,17 @@ async function handleActiveToggle(user: AdminUser) {
   }
 }
 
-async function applyPatch(user: AdminUser, patch: { is_admin?: boolean; is_active?: boolean }) {
+// The server's own sentence (for example why the last administrator cannot go),
+// never the generic "[PATCH] url: 409 Conflict" text.
+function reasonFrom(e: unknown): string {
+  const data = (e as { data?: { message?: string } } | null)?.data
+  if (data?.message) return data.message
+  return e instanceof Error ? e.message : 'An error occurred'
+}
+
+// Returns false when the change was refused; the reason is shown in the dialog
+// when one is open, otherwise in the banner.
+async function applyPatch(user: AdminUser, patch: { is_admin?: boolean; is_active?: boolean }): Promise<boolean> {
   const prevAdmin = user.is_admin
   const prevActive = user.is_active
 
@@ -179,17 +189,15 @@ async function applyPatch(user: AdminUser, patch: { is_admin?: boolean; is_activ
     const updated = await patchUser(user.id, patch)
     user.is_admin = updated.is_admin
     user.is_active = updated.is_active
+    return true
   } catch (e: unknown) {
     // Revert on error
     user.is_admin = prevAdmin
     user.is_active = prevActive
 
-    const msg = e instanceof Error ? e.message : 'An error occurred'
-    if (msg.includes('LAST_ADMIN') || msg.includes('last active admin')) {
-      confirmError.value = 'Cannot remove the last active admin.'
-    } else {
-      error.value = msg
-    }
+    if (pendingAction) confirmError.value = reasonFrom(e)
+    else error.value = reasonFrom(e)
+    return false
   } finally {
     actionLoading.value = null
   }
@@ -221,7 +229,7 @@ async function confirmAction() {
     await pendingAction()
     closeDialog()
   } catch {
-    // error handled in applyPatch
+    // refused: the reason is already shown in the dialog, which stays open
   } finally {
     confirmLoading.value = false
   }

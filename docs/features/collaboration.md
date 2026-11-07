@@ -12,7 +12,9 @@ they belong to.
 
 - Comment text is scanned for `@username` patterns on save
 - Each mentioned username is resolved to a user ID; a notification record is created for
-  each resolved user
+  each resolved user **who is a member of the project** (any role, a viewer included). A
+  notification names the task and the project, so mentioning someone outside the project
+  creates none
 - Unresolved @mentions (unknown usernames) are silently ignored
 - An `@` starts a mention only when the character before it is not a letter, digit, underscore, dot or another `@`, so `(@sam)` and `**@sam**` notify but `a@b.com` does not
 

@@ -47,6 +47,8 @@ onMounted(async () => {
   try {
     await Promise.all([
       issuesStore.fetchOne(key, Number(id)),
+      // The project carries what the signed-in user may do on this task.
+      projectsStore.fetchOne(key).catch(() => {}),
       // One members fetch feeds the assignee picker and @mention names (it never throws).
       projectsStore.fetchMembers(key),
       sprintsStore.fetchSprints(key).catch(() => {}),

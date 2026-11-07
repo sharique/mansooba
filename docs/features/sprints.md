@@ -7,6 +7,11 @@ optional goal, start date, end date, and a lifecycle status. The sprint board sh
 project's tasks grouped by status column (tasks with the Backlog status are not on it). The backlog holds all issues not
 yet assigned to a sprint.
 
+The backlog page has a **Create Issue** button (people who cannot edit tasks see it disabled
+with the reason). A new issue goes to the backlog by default; the dialog's **Sprint** choice
+can put it straight into the current or an upcoming sprint (completed sprints are not offered,
+and the server refuses them).
+
 ## Implementation details
 
 ### Sprint lifecycle

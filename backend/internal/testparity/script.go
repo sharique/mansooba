@@ -225,8 +225,12 @@ func Script() []Step {
 		// ---- deletes ----
 		{Name: "issue_delete", Method: "DELETE", Path: "/api/v1/projects/{project_key}/issues/{issue2_id}", Auth: "admin_token"},
 		{Name: "issue_delete_missing", Method: "DELETE", Path: "/api/v1/projects/{project_key}/issues/{issue2_id}", Auth: "admin_token"},
-		{Name: "project_delete_by_non_owner", Method: "DELETE", Path: "/api/v1/projects/{project_key}", Auth: "demo_token"},
-		{Name: "project_delete", Method: "DELETE", Path: "/api/v1/projects/{project_key}", Auth: "admin_token"},
+		{Name: "project_delete_by_non_admin", Method: "DELETE", Path: "/api/v1/projects/{project_key}", Auth: "demo_token", Body: m{"confirm_name": "Alpha Renamed"}},
+		// a project can only be deleted once it has no tasks, and only with its name typed
+		{Name: "project_delete_with_tasks", Method: "DELETE", Path: "/api/v1/projects/{project_key}", Auth: "admin_token", Body: m{"confirm_name": "Alpha Renamed"}},
+		{Name: "issue_delete_last", Method: "DELETE", Path: "/api/v1/projects/{project_key}/issues/{issue1_id}", Auth: "admin_token"},
+		{Name: "project_delete_wrong_name", Method: "DELETE", Path: "/api/v1/projects/{project_key}", Auth: "admin_token", Body: m{"confirm_name": "alpha"}},
+		{Name: "project_delete", Method: "DELETE", Path: "/api/v1/projects/{project_key}", Auth: "admin_token", Body: m{"confirm_name": "Alpha Renamed"}},
 		{Name: "project_get_deleted", Method: "GET", Path: "/api/v1/projects/{project_key}", Auth: "admin_token"},
 	}
 	return s

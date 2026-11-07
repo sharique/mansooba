@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"sort"
 
 	"github.com/sharique/mansooba/internal/domain"
@@ -19,6 +18,8 @@ type boardService struct {
 	projectRepo domain.ProjectRepository
 	memberRepo  domain.ProjectMemberRepository
 	sprintRepo  domain.SprintRepository
+	userRepo    domain.UserRepository
+	access      Access
 }
 
 // NewBoardService returns a BoardService backed by the given repositories.
@@ -27,12 +28,15 @@ func NewBoardService(
 	projectRepo domain.ProjectRepository,
 	memberRepo domain.ProjectMemberRepository,
 	sprintRepo domain.SprintRepository,
+	userRepo domain.UserRepository,
 ) BoardService {
 	return &boardService{
 		issueRepo:   issueRepo,
 		projectRepo: projectRepo,
 		memberRepo:  memberRepo,
 		sprintRepo:  sprintRepo,
+		userRepo:    userRepo,
+		access:      NewAccess(projectRepo, memberRepo, nil),
 	}
 }
 
@@ -46,11 +50,8 @@ var boardColumnOrder = []string{
 }
 
 func (s *boardService) GetBoard(ctx context.Context, projectKey string, callerID uint) (*dto.BoardResponse, error) {
-	project, err := s.projectRepo.FindByKey(ctx, projectKey)
+	project, _, err := s.access.RequireProjectByKey(ctx, projectKey, callerID, domain.CapProjectView)
 	if err != nil {
-		return nil, err
-	}
-	if err := s.requireBoardMember(ctx, project.ID, callerID); err != nil {
 		return nil, err
 	}
 
@@ -73,6 +74,23 @@ func (s *boardService) GetBoard(ctx context.Context, projectKey string, callerID
 		}
 	}
 
+	// Each assignee is looked up once, however many cards they have.
+	type person struct {
+		name   string
+		avatar string
+	}
+	people := map[uint]*person{}
+	assignee := func(id uint) *person {
+		p, seen := people[id]
+		if !seen {
+			if u, err := s.userRepo.FindByID(ctx, id); err == nil {
+				p = &person{name: u.Name, avatar: u.AvatarURL}
+			}
+			people[id] = p
+		}
+		return p
+	}
+
 	// Group non-backlog issues by status in a single pass.
 	grouped := make(map[string][]dto.BoardIssue, len(boardColumnOrder))
 	for _, status := range boardColumnOrder {
@@ -83,7 +101,18 @@ func (s *boardService) GetBoard(ctx context.Context, projectKey string, callerID
 			continue // skip backlog and any unknown status
 		}
 		locked := issue.SprintID != nil && completed[*issue.SprintID]
-		grouped[issue.Status] = append(grouped[issue.Status], dto.BoardIssue{IssueResponse: *toIssueResponse(issue), Locked: locked})
+		card := toIssueResponse(issue)
+		if issue.AssigneeID != nil {
+			if p := assignee(*issue.AssigneeID); p != nil {
+				name := p.name
+				card.AssigneeName = &name
+				if p.avatar != "" {
+					avatar := p.avatar
+					card.AssigneeAvatarURL = &avatar
+				}
+			}
+		}
+		grouped[issue.Status] = append(grouped[issue.Status], dto.BoardIssue{IssueResponse: *card, Locked: locked})
 	}
 
 	// Assemble columns in the fixed order — empty slices marshal to [] not null.
@@ -93,16 +122,6 @@ func (s *boardService) GetBoard(ctx context.Context, projectKey string, callerID
 	}
 
 	return &dto.BoardResponse{Columns: columns}, nil
-}
-
-func (s *boardService) requireBoardMember(ctx context.Context, projectID, userID uint) error {
-	if _, err := s.memberRepo.FindByProjectAndUser(ctx, projectID, userID); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return domain.ErrForbidden
-		}
-		return err
-	}
-	return nil
 }
 
 // boardPriorityRank orders priorities for the board: critical first, anything

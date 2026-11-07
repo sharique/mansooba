@@ -35,9 +35,8 @@ func NewAuthHandler(svc service.AuthService, userSvc service.UserService) *AuthH
 // @Router       /auth/register [post]
 func (h *AuthHandler) Register(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
-	profile, err := h.userSvc.GetProfile(c.Request().Context(), callerID)
-	if err != nil || !profile.IsAdmin {
-		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
+	if err := requireSystem(c, h.userSvc, callerID, domain.SysUsers); err != nil {
+		return err
 	}
 
 	var req dto.RegisterRequest
@@ -75,6 +74,9 @@ func (h *AuthHandler) Login(c *echo.Context) error {
 	var req dto.LoginRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.ErrBadRequest
+	}
+	if err := validateRequest(c, &req); err != nil {
+		return err
 	}
 
 	resp, err := h.svc.Login(c.Request().Context(), req)

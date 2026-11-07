@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"regexp"
 	"strings"
 
@@ -20,8 +19,10 @@ var mentionRe = regexp.MustCompile(`(?:^|[^A-Za-z0-9_.@])@([A-Za-z0-9_]+)`)
 type CommentService interface {
 	Create(ctx context.Context, issueID, callerID uint, req dto.CreateCommentRequest) (*dto.CommentResponse, error)
 	List(ctx context.Context, issueID, callerID uint) ([]*dto.CommentResponse, error)
-	Update(ctx context.Context, commentID, callerID uint, req dto.UpdateCommentRequest) (*dto.CommentResponse, error)
-	Delete(ctx context.Context, commentID, callerID uint) error
+	// Update and Delete address a comment through its own task: a comment that
+	// belongs to a different task than issueID is ErrNotFound.
+	Update(ctx context.Context, issueID, commentID, callerID uint, req dto.UpdateCommentRequest) (*dto.CommentResponse, error)
+	Delete(ctx context.Context, issueID, commentID, callerID uint) error
 }
 
 type commentService struct {
@@ -31,6 +32,7 @@ type commentService struct {
 	activitySvc ActivityService
 	notifRepo   domain.NotificationRepository
 	userRepo    domain.UserRepository
+	access      Access
 }
 
 func NewCommentService(
@@ -48,6 +50,7 @@ func NewCommentService(
 		activitySvc: activitySvc,
 		notifRepo:   notifRepo,
 		userRepo:    userRepo,
+		access:      NewAccess(nil, memberRepo, userRepo),
 	}
 }
 
@@ -56,7 +59,7 @@ func (s *commentService) Create(ctx context.Context, issueID, callerID uint, req
 	if err != nil {
 		return nil, err
 	}
-	if err := s.requireMemberOfProject(ctx, issue.ProjectID, callerID); err != nil {
+	if _, err := s.access.RequireProject(ctx, issue.ProjectID, callerID, domain.CapCommentWrite); err != nil {
 		return nil, err
 	}
 
@@ -75,7 +78,7 @@ func (s *commentService) Create(ctx context.Context, issueID, callerID uint, req
 		Kind:    domain.ActivityCommentAdded,
 	})
 
-	s.sendMentionNotifications(ctx, comment)
+	s.sendMentionNotifications(ctx, comment, issue.ProjectID)
 
 	return toCommentResponse(comment), nil
 }
@@ -85,7 +88,7 @@ func (s *commentService) List(ctx context.Context, issueID, callerID uint) ([]*d
 	if err != nil {
 		return nil, err
 	}
-	if err := s.requireMemberOfProject(ctx, issue.ProjectID, callerID); err != nil {
+	if _, err := s.access.RequireProject(ctx, issue.ProjectID, callerID, domain.CapProjectView); err != nil {
 		return nil, err
 	}
 
@@ -118,13 +121,24 @@ func (s *commentService) List(ctx context.Context, issueID, callerID uint) ([]*d
 	return result, nil
 }
 
-func (s *commentService) Update(ctx context.Context, commentID, callerID uint, req dto.UpdateCommentRequest) (*dto.CommentResponse, error) {
+func (s *commentService) Update(ctx context.Context, issueID, commentID, callerID uint, req dto.UpdateCommentRequest) (*dto.CommentResponse, error) {
 	comment, err := s.commentRepo.FindByID(ctx, commentID)
 	if err != nil {
 		return nil, err
 	}
+	if comment.IssueID != issueID {
+		return nil, domain.ErrNotFound
+	}
+	issue, err := s.issueRepo.FindByID(ctx, comment.IssueID)
+	if err != nil {
+		return nil, err
+	}
+	// Editing needs permission to comment, and only the author may edit.
+	if _, err := s.access.RequireProject(ctx, issue.ProjectID, callerID, domain.CapCommentWrite); err != nil {
+		return nil, err
+	}
 	if comment.AuthorID != callerID {
-		return nil, domain.ErrForbidden
+		return nil, &domain.ForbiddenError{Reason: "Only the author can edit a comment"}
 	}
 	comment.Body = req.Body
 	if err := s.commentRepo.Update(ctx, comment); err != nil {
@@ -133,41 +147,34 @@ func (s *commentService) Update(ctx context.Context, commentID, callerID uint, r
 	return toCommentResponse(comment), nil
 }
 
-func (s *commentService) Delete(ctx context.Context, commentID, callerID uint) error {
+func (s *commentService) Delete(ctx context.Context, issueID, commentID, callerID uint) error {
 	comment, err := s.commentRepo.FindByID(ctx, commentID)
 	if err != nil {
 		return err
 	}
-	if comment.AuthorID != callerID {
-		issue, err := s.issueRepo.FindByID(ctx, comment.IssueID)
-		if err != nil {
-			return err
-		}
-		membership, err := s.memberRepo.FindByProjectAndUser(ctx, issue.ProjectID, callerID)
-		if err != nil {
-			if errors.Is(err, domain.ErrNotFound) {
-				return domain.ErrForbidden
-			}
-			return err
-		}
-		if membership.Role != "admin" && membership.Role != "owner" {
-			return domain.ErrForbidden
-		}
+	if comment.IssueID != issueID {
+		return domain.ErrNotFound
+	}
+	issue, err := s.issueRepo.FindByID(ctx, comment.IssueID)
+	if err != nil {
+		return err
+	}
+	// The author may delete their own comment while they can still comment (a
+	// viewer cannot); deleting anyone else's takes the delete-any capability.
+	need := domain.CapCommentDeleteAny
+	if comment.AuthorID == callerID {
+		need = domain.CapCommentWrite
+	}
+	if _, err := s.access.RequireProject(ctx, issue.ProjectID, callerID, need); err != nil {
+		return err
 	}
 	return s.commentRepo.Delete(ctx, commentID)
 }
 
-func (s *commentService) requireMemberOfProject(ctx context.Context, projectID, userID uint) error {
-	if _, err := s.memberRepo.FindByProjectAndUser(ctx, projectID, userID); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return domain.ErrForbidden
-		}
-		return err
-	}
-	return nil
-}
-
-func (s *commentService) sendMentionNotifications(ctx context.Context, comment *domain.Comment) {
+// sendMentionNotifications tells mentioned people about a comment, but only those
+// who belong to the project: a notification names the task and project, so
+// mentioning an outsider must not reveal either.
+func (s *commentService) sendMentionNotifications(ctx context.Context, comment *domain.Comment, projectID uint) {
 	matches := mentionRe.FindAllStringSubmatch(comment.Body, -1)
 	seen := make(map[uint]bool)
 	for _, m := range matches {
@@ -180,6 +187,9 @@ func (s *commentService) sendMentionNotifications(ctx context.Context, comment *
 			continue
 		}
 		seen[user.ID] = true
+		if _, err := s.access.RequireProject(ctx, projectID, user.ID, domain.CapProjectView); err != nil {
+			continue
+		}
 		_ = s.notifRepo.Create(ctx, &domain.Notification{
 			RecipientID: user.ID,
 			ActorID:     comment.AuthorID,

@@ -42,9 +42,8 @@ func NewAdminUserHandler(svc service.AdminUserService, userSvc service.UserServi
 // @Router       /admin/users [get]
 func (h *AdminUserHandler) ListUsers(c *echo.Context) error {
 	callerID := c.Get("userID").(uint)
-	profile, err := h.userSvc.GetProfile(c.Request().Context(), callerID)
-	if err != nil || !profile.IsAdmin {
-		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
+	if err := requireSystem(c, h.userSvc, callerID, domain.SysUsers); err != nil {
+		return err
 	}
 
 	page, size, err := parsePagination(c)
@@ -77,9 +76,8 @@ func (h *AdminUserHandler) ListUsers(c *echo.Context) error {
 func (h *AdminUserHandler) PatchUser(c *echo.Context) error {
 	// Step 1: caller must be admin.
 	callerID := c.Get("userID").(uint)
-	profile, err := h.userSvc.GetProfile(c.Request().Context(), callerID)
-	if err != nil || !profile.IsAdmin {
-		return echo.NewHTTPError(http.StatusForbidden, "forbidden")
+	if err := requireSystem(c, h.userSvc, callerID, domain.SysUsers); err != nil {
+		return err
 	}
 
 	// Step 2: parse target ID.

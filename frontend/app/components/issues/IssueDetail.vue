@@ -15,8 +15,10 @@
         />
         <h2
           v-else
-          class="text-xl font-bold cursor-pointer hover:bg-base-200 rounded px-1 -mx-1"
-          @click="startEdit('title')"
+          class="text-xl font-bold rounded px-1 -mx-1"
+          :class="canWrite ? 'cursor-pointer hover:bg-base-200' : ''"
+          :title="canWrite ? undefined : reason('task.write')"
+          @click="canWrite && startEdit('title')"
         >
           {{ issue.title }}
         </h2>
@@ -35,11 +37,13 @@
         />
         <div
           v-else
-          class="cursor-pointer hover:bg-base-200 rounded p-1 -mx-1 min-h-12"
-          @click="startEdit('description')"
+          class="rounded p-1 -mx-1 min-h-12"
+          :class="canWrite ? 'cursor-pointer hover:bg-base-200' : ''"
+          :title="canWrite ? undefined : reason('task.write')"
+          @click="canWrite && startEdit('description')"
         >
           <div v-if="issue.description" class="prose prose-sm max-w-none" v-html="renderedDescription" />
-          <span v-else class="text-base-content/40">Click to add description…</span>
+          <span v-else class="text-base-content/60">{{ canWrite ? 'Click to add description…' : 'No description.' }}</span>
         </div>
       </div>
 
@@ -63,11 +67,14 @@
 
     <!-- Sidebar -->
     <div class="space-y-4">
+      <p v-if="!canWrite" class="text-xs text-base-content/70" data-testid="read-only-note">{{ reason('task.write') }}</p>
       <!-- Status -->
       <div class="form-control">
         <label class="label py-1"><span class="label-text font-medium">Status</span></label>
         <select
           :value="issue.status"
+          :disabled="!canWrite"
+          :title="canWrite ? undefined : reason('task.write')"
           class="select select-bordered select-sm w-full"
           @change="onFieldChange('status', ($event.target as HTMLSelectElement).value)"
         >
@@ -90,6 +97,8 @@
         <label class="label py-1"><span class="label-text font-medium">Priority</span></label>
         <select
           :value="issue.priority"
+          :disabled="!canWrite"
+          :title="canWrite ? undefined : reason('task.write')"
           class="select select-bordered select-sm w-full"
           @change="onFieldChange('priority', ($event.target as HTMLSelectElement).value)"
         >
@@ -105,6 +114,8 @@
         <label class="label py-1"><span class="label-text font-medium">Assignee</span></label>
         <select
           :value="issue.assignee_id ?? ''"
+          :disabled="!canWrite"
+          :title="canWrite ? undefined : reason('task.write')"
           class="select select-bordered select-sm w-full"
           @change="onFieldChange('assignee_id', ($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : 0)"
         >
@@ -118,6 +129,8 @@
         <label class="label py-1"><span class="label-text font-medium">Story Points</span></label>
         <input
           :value="issue.story_points ?? ''"
+          :disabled="!canWrite"
+          :title="canWrite ? undefined : reason('task.write')"
           type="number"
           min="0"
           max="100"
@@ -194,7 +207,11 @@ const authStore = useAuthStore()
 const commentsStore = useCommentsStore()
 const { showError } = useToast()
 
-const canDelete = computed(() => authStore.user?.id === props.issue.reporter_id)
+const { can, reason } = useProjectPermissions()
+const canWrite = computed(() => can('task.write'))
+// Own task needs task.write; someone else's needs task.delete_any.
+const canDelete = computed(() =>
+  (canWrite.value && authStore.user?.id === props.issue.reporter_id) || can('task.delete_any'))
 // currentUserId: use the authenticated user's id if available, otherwise 0 as a placeholder
 const currentUserId = computed(() => authStore.user?.id ?? 0)
 

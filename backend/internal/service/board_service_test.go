@@ -12,6 +12,8 @@ import (
 	"github.com/sharique/mansooba/internal/service"
 )
 
+var boardTestUsers = newStubUserRepo()
+
 func newBoardService() (service.BoardService, *stubProjectRepo, *stubProjectMemberRepo, *stubIssueRepo) {
 	svc, projectRepo, memberRepo, issueRepo, _ := newBoardServiceWithSprints()
 	return svc, projectRepo, memberRepo, issueRepo
@@ -22,7 +24,7 @@ func newBoardServiceWithSprints() (service.BoardService, *stubProjectRepo, *stub
 	memberRepo := newStubProjectMemberRepo()
 	issueRepo := newStubIssueRepo()
 	sprintRepo := newStubSprintRepo()
-	svc := service.NewBoardService(issueRepo, projectRepo, memberRepo, sprintRepo)
+	svc := service.NewBoardService(issueRepo, projectRepo, memberRepo, sprintRepo, boardTestUsers)
 	return svc, projectRepo, memberRepo, issueRepo, sprintRepo
 }
 
@@ -286,5 +288,32 @@ func TestBoardService_GetBoard_LocksCardsOfCompletedSprintsOnly(t *testing.T) {
 	}
 	if sprintRepo.findByProjectCalls != 1 {
 		t.Errorf("sprints looked up %d times, want exactly 1 for the whole board", sprintRepo.findByProjectCalls)
+	}
+}
+
+func TestBoardService_GetBoard_CardsCarryAssigneeNameAndAvatar(t *testing.T) {
+	svc, projectRepo, memberRepo, issueRepo := newBoardService()
+	ctx := context.Background()
+
+	u := &domain.User{Email: "ada@example.com", Name: "Ada Lovelace", AvatarURL: "/avatars/ada.png"}
+	_ = boardTestUsers.Create(ctx, u)
+	project := &domain.Project{Key: "ASG", Name: "Test", OwnerID: u.ID}
+	_ = projectRepo.Create(ctx, project)
+	_ = memberRepo.Create(ctx, &domain.ProjectMember{ProjectID: project.ID, UserID: u.ID, Role: "admin"})
+	_ = issueRepo.Create(ctx, &domain.Issue{
+		Key: "ASG-1", ProjectID: project.ID, Title: "Assigned", Type: domain.IssueTypeTask,
+		Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityHigh, ReporterID: u.ID, AssigneeID: &u.ID,
+	})
+
+	resp, err := svc.GetBoard(ctx, "ASG", u.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	card := resp.Columns[0].Issues[0]
+	if card.AssigneeName == nil || *card.AssigneeName != "Ada Lovelace" {
+		t.Errorf("assignee name = %v, want Ada Lovelace", card.AssigneeName)
+	}
+	if card.AssigneeAvatarURL == nil || *card.AssigneeAvatarURL != "/avatars/ada.png" {
+		t.Errorf("assignee avatar = %v, want /avatars/ada.png", card.AssigneeAvatarURL)
 	}
 }

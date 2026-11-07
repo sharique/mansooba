@@ -39,6 +39,103 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/projects/without-admin": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Key, name and number of members only; nothing about the project's contents.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "List projects that have no active admin (system administrators only)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.AbandonedProjectResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/projects/{key}/claim-admin": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "summary": "Take over a project that has no active admin (system administrators only)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.MemberResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "409": {
+                        "description": "The project still has an active admin",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/system-logs": {
             "get": {
                 "security": [
@@ -1991,10 +2088,14 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Needs the project's exact name in the body and a project with no tasks left.",
+                "consumes": [
+                    "application/json"
+                ],
                 "tags": [
                     "projects"
                 ],
-                "summary": "Delete a project",
+                "summary": "Delete an empty project",
                 "parameters": [
                     {
                         "type": "string",
@@ -2002,11 +2103,26 @@ const docTemplate = `{
                         "name": "key",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "description": "Confirmation",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.DeleteProjectRequest"
+                        }
                     }
                 ],
                 "responses": {
                     "204": {
                         "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Name missing or wrong",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
                     },
                     "401": {
                         "description": "Unauthorized",
@@ -2022,6 +2138,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "409": {
+                        "description": "Project still has tasks (task_count)",
                         "schema": {
                             "$ref": "#/definitions/apierror.APIError"
                         }
@@ -2818,6 +2940,86 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "projects"
+                ],
+                "summary": "Change a member's role",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project key",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "userId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New role",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ChangeRoleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.MemberResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "schema": {
+                            "$ref": "#/definitions/apierror.APIError"
+                        }
+                    },
+                    "409": {
+                        "description": "Would leave the project without an active admin",
                         "schema": {
                             "$ref": "#/definitions/apierror.APIError"
                         }
@@ -3897,6 +4099,27 @@ const docTemplate = `{
                 },
                 "message": {
                     "type": "string"
+                },
+                "task_count": {
+                    "description": "TaskCount is set only when a project could not be deleted because tasks remain.",
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.AbandonedProjectResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "member_count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },
@@ -4266,6 +4489,22 @@ const docTemplate = `{
                 }
             }
         },
+        "dto.ChangeRoleRequest": {
+            "type": "object",
+            "required": [
+                "role"
+            ],
+            "properties": {
+                "role": {
+                    "type": "string",
+                    "enum": [
+                        "admin",
+                        "member",
+                        "viewer"
+                    ]
+                }
+            }
+        },
         "dto.CommentResponse": {
             "type": "object",
             "properties": {
@@ -4336,6 +4575,10 @@ const docTemplate = `{
                         "high",
                         "critical"
                     ]
+                },
+                "sprint_id": {
+                    "description": "SprintID puts the new task straight into a planning or active sprint of the\nproject. Omitted (or 0) means the backlog.",
+                    "type": "integer"
                 },
                 "story_points": {
                     "type": "integer"
@@ -4415,6 +4658,14 @@ const docTemplate = `{
                     "minLength": 1
                 },
                 "start_date": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.DeleteProjectRequest": {
+            "type": "object",
+            "properties": {
+                "confirm_name": {
                     "type": "string"
                 }
             }
@@ -4714,11 +4965,22 @@ const docTemplate = `{
                 "key": {
                     "type": "string"
                 },
+                "my_role": {
+                    "description": "MyRole and Permissions describe what the caller may do in this project.\nThey are set when a single project is fetched, created or updated, not in\nthe project list. The interface reads Permissions instead of keeping its\nown copy of the role table.",
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
                 "owner_id": {
+                    "description": "OwnerID records who created the project; it carries no rights.",
                     "type": "integer"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -4766,6 +5028,10 @@ const docTemplate = `{
                 },
                 "full_name": {
                     "type": "string"
+                },
+                "is_admin": {
+                    "description": "IsAdmin makes the new account a system administrator. Only a system\nadministrator can call this endpoint, so no one can use it to gain rights.",
+                    "type": "boolean"
                 },
                 "password": {
                     "type": "string"

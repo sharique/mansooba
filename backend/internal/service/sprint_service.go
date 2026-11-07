@@ -31,6 +31,7 @@ type sprintService struct {
 	issueRepo   domain.IssueRepository
 	projectRepo domain.ProjectRepository
 	memberRepo  domain.ProjectMemberRepository
+	access      Access
 }
 
 // NewSprintService constructs a SprintService backed by the given repositories.
@@ -45,6 +46,7 @@ func NewSprintService(
 		issueRepo:   issueRepo,
 		projectRepo: projectRepo,
 		memberRepo:  memberRepo,
+		access:      NewAccess(projectRepo, memberRepo, nil),
 	}
 }
 
@@ -58,22 +60,17 @@ func (s *sprintService) resolveProject(ctx context.Context, key string) (*domain
 	return p, nil
 }
 
+// requireMember checks that the caller may read the project's sprints and backlog.
 func (s *sprintService) requireMember(ctx context.Context, projectID, callerID uint) error {
-	if _, err := s.memberRepo.FindByProjectAndUser(ctx, projectID, callerID); err != nil {
-		return domain.ErrForbidden
-	}
-	return nil
+	_, err := s.access.RequireProject(ctx, projectID, callerID, domain.CapProjectView)
+	return err
 }
 
-func (s *sprintService) requireAdminOrOwner(ctx context.Context, project *domain.Project, callerID uint) error {
-	membership, err := s.memberRepo.FindByProjectAndUser(ctx, project.ID, callerID)
-	if err != nil {
-		return domain.ErrForbidden
-	}
-	if membership.Role != "admin" && project.OwnerID != callerID {
-		return domain.ErrForbidden
-	}
-	return nil
+// requireSprintManager checks that the caller may create, change, start,
+// complete or delete sprints.
+func (s *sprintService) requireSprintManager(ctx context.Context, project *domain.Project, callerID uint) error {
+	_, err := s.access.RequireProject(ctx, project.ID, callerID, domain.CapSprintManage)
+	return err
 }
 
 func (s *sprintService) resolveSprint(ctx context.Context, id, projectID uint) (*domain.Sprint, error) {
@@ -108,7 +105,7 @@ func (s *sprintService) Create(ctx context.Context, projectKey string, callerID 
 	if err != nil {
 		return nil, err
 	}
-	if err := s.requireAdminOrOwner(ctx, p, callerID); err != nil {
+	if err := s.requireSprintManager(ctx, p, callerID); err != nil {
 		return nil, err
 	}
 	if err := validateSprintLength(req.StartDate, req.EndDate); err != nil {
@@ -179,7 +176,7 @@ func (s *sprintService) Update(ctx context.Context, projectKey string, id uint, 
 	if err != nil {
 		return nil, err
 	}
-	if err := s.requireAdminOrOwner(ctx, p, callerID); err != nil {
+	if err := s.requireSprintManager(ctx, p, callerID); err != nil {
 		return nil, err
 	}
 	sprint, err := s.resolveSprint(ctx, id, p.ID)
@@ -254,7 +251,7 @@ func (s *sprintService) Delete(ctx context.Context, projectKey string, id uint, 
 	if err != nil {
 		return err
 	}
-	if err := s.requireAdminOrOwner(ctx, p, callerID); err != nil {
+	if err := s.requireSprintManager(ctx, p, callerID); err != nil {
 		return err
 	}
 	sprint, err := s.resolveSprint(ctx, id, p.ID)
@@ -277,7 +274,7 @@ func (s *sprintService) Start(ctx context.Context, projectKey string, id uint, c
 	if err != nil {
 		return nil, err
 	}
-	if err := s.requireAdminOrOwner(ctx, p, callerID); err != nil {
+	if err := s.requireSprintManager(ctx, p, callerID); err != nil {
 		return nil, err
 	}
 	sprint, err := s.resolveSprint(ctx, id, p.ID)
@@ -320,7 +317,7 @@ func (s *sprintService) Complete(ctx context.Context, projectKey string, id uint
 	if err != nil {
 		return nil, err
 	}
-	if err := s.requireAdminOrOwner(ctx, p, callerID); err != nil {
+	if err := s.requireSprintManager(ctx, p, callerID); err != nil {
 		return nil, err
 	}
 

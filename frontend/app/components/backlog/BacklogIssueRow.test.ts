@@ -3,6 +3,9 @@ import { mount } from '@vue/test-utils'
 import { describe, expect, test, vi } from 'vitest'
 import BacklogIssueRow from './BacklogIssueRow.vue'
 import type { Issue, Sprint } from '~/types/domain.types'
+import { stubPermissions, MEMBER, VIEWER } from '../../../test-helpers/permissions'
+
+const perms = stubPermissions(MEMBER, 'member')
 
 vi.stubGlobal('navigateTo', vi.fn())
 
@@ -64,5 +67,22 @@ describe('BacklogIssueRow sprint assignment', () => {
     await select.setValue('7')
     expect(wrapper.emitted('sprint-assign')).toBeTruthy()
     expect(wrapper.emitted('sprint-assign')![0]).toEqual([{ issueId: 42, sprintId: 7 }])
+  })
+})
+
+describe('BacklogIssueRow roles', () => {
+  const sprints = [makeSprint(1, 'Sprint 1')]
+  test('a viewer sees no sprint select (it would only fail after the click)', () => {
+    perms.permissions = VIEWER
+    perms.myRole = 'viewer'
+    const wrapper = mount(BacklogIssueRow, { props: { issue: makeIssue(), projectKey: 'PROJ', sprints } })
+    expect(wrapper.find('select').exists()).toBe(false)
+    perms.permissions = MEMBER
+    perms.myRole = 'member'
+  })
+
+  test('a member sees the sprint select', () => {
+    const wrapper = mount(BacklogIssueRow, { props: { issue: makeIssue(), projectKey: 'PROJ', sprints } })
+    expect(wrapper.find('select').exists()).toBe(true)
   })
 })

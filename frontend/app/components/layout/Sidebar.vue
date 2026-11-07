@@ -44,6 +44,35 @@ export function projectNavLinks(key: string): NavLink[] {
         },
     ];
 }
+export function systemNavLinks(): NavLink[] {
+    return [
+        {
+            label: "System Settings",
+            to: "/system/settings",
+            icon: "mdi:cog-outline",
+        },
+        {
+            label: "User Management",
+            to: "/system/users",
+            icon: "mdi:account-group-outline",
+        },
+        {
+            label: "Create User",
+            to: "/system/createuser",
+            icon: "mdi:account-plus-outline",
+        },
+        {
+            label: "System Logs",
+            to: "/system/logs",
+            icon: "mdi:text-box-search-outline",
+        },
+        {
+            label: "Projects without an admin",
+            to: "/system/projects",
+            icon: "mdi:folder-alert-outline",
+        },
+    ];
+}
 </script>
 
 <script setup lang="ts">
@@ -60,28 +89,7 @@ const primary: NavLink[] = [
     { label: "Reports", to: "/reports", icon: "mdi:chart-box-outline" },
 ];
 
-const systemLinks: NavLink[] = [
-    {
-        label: "System Settings",
-        to: "/system/settings",
-        icon: "mdi:cog-outline",
-    },
-    {
-        label: "User Management",
-        to: "/system/users",
-        icon: "mdi:account-group-outline",
-    },
-    {
-        label: "Create User",
-        to: "/system/createuser",
-        icon: "mdi:account-plus-outline",
-    },
-    {
-        label: "System Logs",
-        to: "/system/logs",
-        icon: "mdi:text-box-search-outline",
-    },
-];
+const systemLinks = systemNavLinks();
 
 const currentKey = computed(() =>
     typeof route.params.key === "string" ? route.params.key : null,

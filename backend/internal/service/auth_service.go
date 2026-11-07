@@ -87,7 +87,7 @@ func (s *authService) Register(ctx context.Context, req dto.RegisterRequest, cal
 		return nil, err
 	}
 
-	user := &domain.User{Name: req.FullName, Email: req.Email, Username: username, Password: string(hash), IsActive: true}
+	user := &domain.User{Name: req.FullName, Email: req.Email, Username: username, Password: string(hash), IsActive: true, IsAdmin: req.IsAdmin}
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, err
 	}
@@ -95,6 +95,10 @@ func (s *authService) Register(ctx context.Context, req dto.RegisterRequest, cal
 	// Register is always invoked via the admin-only create-user flow
 	// (AuthHandler.Register requires an admin caller) — every successful
 	// call here is an auditable admin action (FR-002).
+	detail := ""
+	if req.IsAdmin {
+		detail = "created as a system administrator"
+	}
 	s.systemLogSvc.Record(ctx, domain.SystemLogEntry{
 		Category: domain.SystemLogCategoryAdminAction,
 		Action:   "account_created",
@@ -103,6 +107,7 @@ func (s *authService) Register(ctx context.Context, req dto.RegisterRequest, cal
 		ActorID:  callerID,
 		Target:   user.Email,
 		TargetID: user.ID,
+		Detail:   detail,
 	})
 
 	return s.buildResponse(ctx, user)

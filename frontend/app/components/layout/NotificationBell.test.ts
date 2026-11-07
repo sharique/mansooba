@@ -41,6 +41,8 @@ describe('NotificationBell text', () => {
     ['task_unassigned', 'Priya unassigned you from APOL-12'],
     ['project_member_added', 'Priya added you to Apollo'],
     ['project_member_removed', 'Priya removed you from Apollo'],
+    ['project_role_changed', 'Priya changed your role in Apollo'],
+    ['project_admin_claimed', 'Priya took over as admin of Apollo'],
   ])('%s reads "%s"', (kind, text) => {
     expect(show({ kind }).text()).toContain(text)
   })
@@ -78,6 +80,13 @@ describe('NotificationBell routing', () => {
   it('project_member_added opens the project', async () => {
     await click({ kind: 'project_member_added', issue_id: 0, issue_key: '' })
     expect(push).toHaveBeenCalledWith('/projects/apol')
+  })
+
+  it('project_role_changed and project_admin_claimed open the project', async () => {
+    await click({ kind: 'project_role_changed', issue_id: 0, issue_key: '' })
+    expect(push).toHaveBeenLastCalledWith('/projects/apol')
+    await click({ kind: 'project_admin_claimed', issue_id: 0, issue_key: '' })
+    expect(push).toHaveBeenLastCalledWith('/projects/apol')
   })
 
   it('project_member_removed always opens the project list', async () => {

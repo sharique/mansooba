@@ -1,7 +1,8 @@
 <template>
   <div>
     <h2 class="text-lg font-semibold mb-4">Labels</h2>
-    <div class="flex gap-2 items-end mb-6">
+    <p v-if="!canWrite" class="text-sm text-base-content/70 mb-4" data-testid="label-write-denied">{{ reason('label.write') }}</p>
+    <div v-else class="flex gap-2 items-end mb-6">
       <div class="form-control">
         <label class="label label-text">Name</label>
         <input v-model="form.name" type="text" class="input input-bordered input-sm" placeholder="e.g. bug" />
@@ -24,7 +25,7 @@
     <div class="space-y-2">
       <div v-for="label in store.projectLabels" :key="label.id" class="flex items-center justify-between">
         <IssuesLabelBadge :label="label" />
-        <button class="btn btn-xs btn-ghost text-error" @click="remove(label.id)">Delete</button>
+        <button v-if="canDelete" class="btn btn-xs btn-ghost text-error" @click="remove(label.id)">Delete</button>
       </div>
       <p v-if="store.projectLabels.length === 0" class="text-base-content/40 text-sm">No labels yet.</p>
     </div>
@@ -39,6 +40,9 @@ const props = defineProps<{ projectKey: string }>()
 const store = useLabelsStore()
 const palette = LabelPalette
 const form = reactive({ name: '', color: '' })
+const { can, reason } = useProjectPermissions()
+const canWrite = computed(() => can('label.write'))
+const canDelete = computed(() => can('label.delete'))
 
 onMounted(() => store.fetchProjectLabels(props.projectKey))
 

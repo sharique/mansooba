@@ -5,6 +5,9 @@ import { reactive } from 'vue'
 import CommentItem from './CommentItem.vue'
 import { useMarkdown } from '~/composables/useMarkdown'
 import type { Comment } from '~/types/domain.types'
+import { stubPermissions, MEMBER, VIEWER, ADMIN } from '../../../test-helpers/permissions'
+
+const perms = stubPermissions(MEMBER, 'member')
 
 const projects = reactive({ members: [] as { user_id: number; name: string; email: string; username: string; role: string; is_active: boolean }[] })
 
@@ -17,7 +20,7 @@ const comment = (body: string) => ({
 }) as unknown as Comment
 
 describe('CommentItem mentions', () => {
-  beforeEach(() => { projects.members = [] })
+  beforeEach(() => { projects.members = []; perms.permissions = MEMBER; perms.myRole = 'member' })
 
   it('renders a project member mention as their display name', () => {
     projects.members = [{ user_id: 5, name: 'Priya Nair', email: 'priya.nair@example.com', username: 'priya', role: 'member', is_active: true }]
@@ -44,5 +47,33 @@ describe('CommentItem mentions', () => {
     await w.find('[role="option"]').trigger('mousedown')
     await w.findAll('button').find(b => b.text() === 'Save')!.trigger('click')
     expect(w.emitted('update')![0]).toEqual([1, 'hi @priya '])
+  })
+})
+
+describe('CommentItem roles', () => {
+  const buttons = (w: ReturnType<typeof shallowMount>) => w.findAll('button').map(b => b.text())
+  const mine = { ...comment('mine'), author_id: 1 }
+  const theirs = comment('theirs')
+
+  beforeEach(() => { projects.members = []; perms.permissions = MEMBER; perms.myRole = 'member' })
+
+  it('a member can edit and delete their own comment', () => {
+    expect(buttons(shallowMount(CommentItem, { props: { comment: mine, currentUserId: 1 } }))).toEqual(['Edit', 'Delete'])
+  })
+
+  it('a member has no edit or delete on someone else\'s comment', () => {
+    expect(buttons(shallowMount(CommentItem, { props: { comment: theirs, currentUserId: 1 } }))).toEqual([])
+  })
+
+  it('a viewer has no edit or delete even on a comment they wrote earlier', () => {
+    perms.permissions = VIEWER
+    perms.myRole = 'viewer'
+    expect(buttons(shallowMount(CommentItem, { props: { comment: mine, currentUserId: 1 } }))).toEqual([])
+  })
+
+  it('an admin can delete but not edit someone else\'s comment', () => {
+    perms.permissions = ADMIN
+    perms.myRole = 'admin'
+    expect(buttons(shallowMount(CommentItem, { props: { comment: theirs, currentUserId: 1 } }))).toEqual(['Delete'])
   })
 })
