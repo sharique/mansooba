@@ -91,7 +91,7 @@
         <p v-if="confirmError" class="text-error text-sm mt-1">{{ confirmError }}</p>
         <div class="modal-action">
           <button class="btn" @click="closeDialog">Cancel</button>
-          <button class="btn btn-error" :disabled="confirmLoading" @click="confirmAction">
+          <button class="btn btn-error" :disabled="confirmLoading || !!confirmError" @click="confirmAction">
             {{ confirmLabel }}
           </button>
         </div>

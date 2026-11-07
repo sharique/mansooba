@@ -93,6 +93,7 @@ describe('system/users page: refused changes', () => {
     expect(dialog.text()).toContain('Cannot remove the last active admin. Promote another user first.')
     expect(dialog.text()).not.toContain('409 Conflict')
     expect(people.value[0]!.is_admin).toBe(true)
+    expect(w.find('dialog .btn-error').attributes('disabled')).toBeDefined()
   })
 
   it('shows the server reason, not the raw request text, when a change without a dialog is refused', async () => {
