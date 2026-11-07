@@ -192,17 +192,20 @@ func TestLastAdmin_System_ControlWithoutTheLockLosesTheLastAdministrator(t *test
 	a := createUser(t, users, "a@example.com", true, true)
 	b := createUser(t, users, "b@example.com", true, true)
 
-	var updated sync.WaitGroup
+	var updated, counted sync.WaitGroup
 	updated.Add(2)
+	counted.Add(2)
 	naive := func(id uint) error {
 		return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 			if err := tx.Exec(`UPDATE users SET is_admin = false WHERE id = ?`, id).Error; err != nil {
 				return err
 			}
 			updated.Done()
-			updated.Wait()
+			updated.Wait() // both have written, neither has committed
 			var n int64
 			tx.Raw(`SELECT COUNT(*) FROM users WHERE is_admin = true AND is_active = true`).Scan(&n)
+			counted.Done()
+			counted.Wait() // nobody commits before both have counted
 			if n == 0 {
 				return domain.ErrLastAdmin
 			}
