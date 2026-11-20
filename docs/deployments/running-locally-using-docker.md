@@ -130,6 +130,7 @@ The `compose.yml` at the repo root starts the complete dev stack:
 | `localstack` | S3-compatible object store for issue attachments (community edition), port 4566 |
 | `localstack-init` | One-shot job that creates the `mansooba-attachments` bucket before the backend starts |
 | `mailpit` | SMTP mail catcher — captures all outbound email; web inbox on port 8025 |
+| `adminer` | *Optional* database browser (profile `tools`, not started by default); port 8082 on this machine only |
 
 The frontend nginx proxies `/api/` to the backend, so the browser only needs to talk to one origin (`localhost:3000`).
 
@@ -165,6 +166,24 @@ docker compose --profile observability up -d grafana
 ```
 
 Then open **http://localhost:3001** (`admin` / `admin`) — Loki is pre-provisioned as a datasource, with a "System Logs" and a "Container Logs" dashboard ready to go.
+
+Adminer (an optional database browser, for looking at tables and running a query while you develop) isn't
+started by default either, and listens on this machine only:
+
+```bash
+docker compose --profile tools up -d postgres adminer
+```
+
+Open **http://localhost:8082** (`ADMINER_PORT` changes the port). Pick the database type on the login page:
+
+| Database | System | Server | Login |
+|---|---|---|---|
+| The stack's PostgreSQL | PostgreSQL | `postgres` (already filled in) | user, password and database all `mansooba` |
+| MariaDB or MySQL running on this machine (Option 2 below, or `docker run -p 3306:3306 ...`) | MySQL / MariaDB | `host.docker.internal:3306` (use your published port) | the user and password you gave the container |
+| A database in the compose override of Option 2 | MySQL / MariaDB | `db` | as set in the override |
+
+Adminer is a development tool: never publish it beyond this machine, and don't use it against a production
+database.
 
 Grafana Alloy (raw container stdout/stderr → Loki, `job="dockerlogs"` — see the
 same doc) runs by default, unlike Grafana; nothing to enable there.

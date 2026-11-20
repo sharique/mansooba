@@ -87,6 +87,8 @@ what `backend/.env.example` expects. If port 5432 is taken, start it on another 
 `POSTGRES_PORT=15432 docker compose up postgres -d` and change the port in `DB_DSN`. Data is kept in
 the `postgres_data` volume, so it survives a restart.
 
+**Want to look at the data?** Adminer, an optional database browser, runs from the same compose file: `docker compose --profile tools up -d adminer`, then open http://localhost:8082 (server `postgres`, or `host.docker.internal:<port>` for a MySQL or MariaDB on this machine). See the Docker guide for the login details.
+
 **No Docker, or your own database?** Point `DB_DSN` at any PostgreSQL 18 (or a supported MySQL or
 MariaDB, with `DB_DRIVER=mysql`) that has an empty database and a user who owns it. The tested
 versions are PostgreSQL 18, MariaDB 11 and MySQL 8.4.
