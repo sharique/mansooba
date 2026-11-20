@@ -8,11 +8,16 @@ import (
 // Project is a top-level container for issues (analogous to a Jira project).
 // Key is a short uppercase identifier, e.g. "PROJ", used to prefix issue keys.
 type Project struct {
-	ID          uint      `gorm:"primaryKey"`
-	Key         string    `gorm:"uniqueIndex;not null"`
-	Name        string    `gorm:"not null"`
+	ID          uint   `gorm:"primaryKey"`
+	Key         string `gorm:"uniqueIndex;not null"`
+	Name        string `gorm:"not null"`
 	Description string
-	OwnerID     uint      `gorm:"not null;index"`
+	OwnerID     uint `gorm:"not null;index"`
+	// TaskCounter is the last task number this project issued. It only ever
+	// increases, by one for each task created, and deleting a task never lowers
+	// it, so a number is issued once and never again. It starts at 0 (the first
+	// task is number 1) and is not exposed by the API.
+	TaskCounter uint `gorm:"not null;default:0"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
@@ -21,10 +26,10 @@ type Project struct {
 // Role is one of RoleAdmin, RoleMember, RoleViewer (see access.go); a person
 // has at most one membership per project, enforced by the unique index.
 type ProjectMember struct {
-	ID        uint      `gorm:"primaryKey"`
-	ProjectID uint      `gorm:"not null;uniqueIndex:idx_project_user"`
-	UserID    uint      `gorm:"not null;index;uniqueIndex:idx_project_user"`
-	Role      string    `gorm:"not null"`
+	ID        uint   `gorm:"primaryKey"`
+	ProjectID uint   `gorm:"not null;uniqueIndex:idx_project_user"`
+	UserID    uint   `gorm:"not null;index;uniqueIndex:idx_project_user"`
+	Role      string `gorm:"not null"`
 	CreatedAt time.Time
 }
 

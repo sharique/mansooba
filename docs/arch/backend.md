@@ -22,7 +22,9 @@ One file per domain area: `issue_dto.go`, `attachment_dto.go`, `relation_dto.go`
 
 GORM implementations of every repository interface declared in `domain/`. Contains no business logic — only query construction and error wrapping.
 
-Inserts that belong to a project (task, sprint, label, member) take a shared lock on the project row first, and a project delete takes the exclusive one, so a delete can never run between a check and an insert and an insert never lands in a deleted project. Unique-constraint violations are recognised by driver error code and constraint name (`dberror.go`), not by the wording of the message.
+A task's key number is issued by the repository, not the service: `IssueRepository.Create` raises the project's `task_counter` in the create transaction (the `UPDATE` takes the project row's exclusive lock, so simultaneous creates in one project queue and each reads its own number), builds `<project key>-<number>`, inserts the task and commits; a failed insert rolls the counter back. A caller that sets a key itself (test fixtures) is inserted as given and the counter does not move. The counter is read back with a `SELECT` rather than `RETURNING`, which MySQL and MariaDB lack on `UPDATE`.
+
+Inserts that belong to a project (sprint, label, member) take a shared lock on the project row first, and a project delete takes the exclusive one (creating a task takes the exclusive lock too, through the counter update, instead of the shared one), so a delete can never run between a check and an insert and an insert never lands in a deleted project. Unique-constraint violations are recognised by driver error code and constraint name (`dberror.go`), not by the wording of the message.
 
 All repository tests (`*_repo_test.go`) run against a real PostgreSQL database (each test gets its own, from `internal/testdb`) to catch query-level issues that mocks would hide.
 

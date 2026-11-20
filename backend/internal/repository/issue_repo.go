@@ -17,11 +17,30 @@ func NewIssueRepository(db *gorm.DB) domain.IssueRepository {
 	return &issueRepo{db: db}
 }
 
-// Create inserts a new issue record and populates the ID field on success.
+// Create inserts a new issue record and populates the ID field on success. With
+// an empty Key it also issues the project's next task number in the same
+// transaction and sets Key (see nextTaskKey); domain.ErrNotFound if the project
+// is gone.
 func (r *issueRepo) Create(ctx context.Context, issue *domain.Issue) error {
-	return createInProject(ctx, r.db, issue.ProjectID, func(tx *gorm.DB) error {
+	if issue.Key != "" {
+		// A key set by hand (a test fixture): inserted as given, the counter untouched.
+		return createInProject(ctx, r.db, issue.ProjectID, func(tx *gorm.DB) error {
+			return tx.Create(issue).Error
+		})
+	}
+	// The normal path: issue the next number and insert in one transaction.
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		key, err := nextTaskKey(tx, issue.ProjectID)
+		if err != nil {
+			return err
+		}
+		issue.Key = key
 		return tx.Create(issue).Error
 	})
+	if err != nil {
+		issue.Key = "" // the number was rolled back with the transaction; do not leave it on the task
+	}
+	return err
 }
 
 // FindByID retrieves an issue by primary key.

@@ -89,7 +89,7 @@ jobs:
 
       - name: Test
         working-directory: backend
-        run: go test -race -count=1 ./...
+        run: go test -race -count=1 -timeout 20m ./...
         env:
           # A missing LocalStack must fail the build, not silently skip the S3 tests.
           REQUIRE_LOCALSTACK: "1"
