@@ -6,21 +6,25 @@ import (
 )
 
 // Issue is a unit of work within a project (task, story, bug, or epic).
-// Key combines the project key and a sequential number, e.g. "PROJ-3".
+// Key combines the project key and a sequential number, e.g. "PROJ-3". The
+// number comes from the project's counter and is issued once: application code
+// leaves Key empty and IssueRepository.Create fills it in; a number is never
+// reused after a task is deleted. Only fixtures set a Key by hand, and such a
+// task is inserted as given without moving the counter.
 // AssigneeID is a pointer because an issue may be unassigned.
 type Issue struct {
-	ID          uint      `gorm:"primaryKey"`
-	Key         string    `gorm:"uniqueIndex;not null"`
-	ProjectID   uint      `gorm:"not null;index"`
-	Title       string    `gorm:"not null"`
+	ID          uint   `gorm:"primaryKey"`
+	Key         string `gorm:"uniqueIndex;not null"`
+	ProjectID   uint   `gorm:"not null;index"`
+	Title       string `gorm:"not null"`
 	Description string
-	Type        string    `gorm:"not null"` // task | story | bug | epic
-	Status      string    `gorm:"not null"` // backlog | todo | in_progress | in_review | done
-	Priority    string    `gorm:"not null"` // low | medium | high | critical
+	Type        string `gorm:"not null"` // task | story | bug | epic
+	Status      string `gorm:"not null"` // backlog | todo | in_progress | in_review | done
+	Priority    string `gorm:"not null"` // low | medium | high | critical
 	AssigneeID  *uint
-	ReporterID  uint      `gorm:"not null"`
+	ReporterID  uint `gorm:"not null"`
 	// SprintID is the sprint this issue belongs to. nil means the issue is in the backlog.
-	SprintID    *uint `gorm:"index"`
+	SprintID *uint `gorm:"index"`
 	// StoryPoints is the effort estimate for burndown calculations. nil if not estimated.
 	StoryPoints *int
 	// CompletedAt is set when Status transitions to "done" and cleared when it moves away.
@@ -57,7 +61,10 @@ const (
 
 // IssueRepository defines the persistence contract for Issue.
 type IssueRepository interface {
-	// Create persists a new issue and sets its ID on success.
+	// Create persists a new issue and sets its ID on success. When issue.Key is
+	// empty it also issues the project's next task number, in the same
+	// transaction, and sets Key to "<project key>-<number>"; ErrNotFound if the
+	// project no longer exists.
 	Create(ctx context.Context, issue *Issue) error
 	// FindByID returns an issue by primary key, or ErrNotFound if absent.
 	FindByID(ctx context.Context, id uint) (*Issue, error)

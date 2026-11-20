@@ -39,6 +39,11 @@ func Migrate(db *gorm.DB) error {
 		return err
 	}
 	logRolesStep(removed, created, raised)
+	counters, highest, err := runTaskCountersOnce(db)
+	if err != nil {
+		return err
+	}
+	logTaskCountersStep(counters, highest)
 	return enforceUsernameNotNull(db)
 }
 

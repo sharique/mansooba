@@ -3,6 +3,7 @@ package service_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/sharique/mansooba/internal/domain"
@@ -35,13 +36,29 @@ type stubIssueRepo struct {
 	issues            []*domain.Issue
 	nextID            uint
 	labelIDToIssueIDs map[uint][]uint
+
+	// Like the real repository, Create issues the project's next task number when
+	// the task arrives with no Key: "<projectKey>-<n>", n counting up per project.
+	// The stub does not know project keys, so every project is "PROJ".
+	projectKey string
+	counters   map[uint]uint
+	// keysReceived records the Key each Create was called with, and
+	// findByProjectCalls how often FindByProjectID was called, so tests can check
+	// what the service hands over and that it no longer loads tasks to count them.
+	keysReceived       []string
+	findByProjectCalls int
 }
 
 func newStubIssueRepo() *stubIssueRepo {
-	return &stubIssueRepo{nextID: 1}
+	return &stubIssueRepo{nextID: 1, projectKey: "PROJ", counters: map[uint]uint{}}
 }
 
 func (r *stubIssueRepo) Create(_ context.Context, issue *domain.Issue) error {
+	r.keysReceived = append(r.keysReceived, issue.Key)
+	if issue.Key == "" {
+		r.counters[issue.ProjectID]++
+		issue.Key = fmt.Sprintf("%s-%d", r.projectKey, r.counters[issue.ProjectID])
+	}
 	issue.ID = r.nextID
 	r.nextID++
 	r.issues = append(r.issues, issue)
@@ -58,6 +75,7 @@ func (r *stubIssueRepo) FindByID(_ context.Context, id uint) (*domain.Issue, err
 }
 
 func (r *stubIssueRepo) FindByProjectID(_ context.Context, projectID uint) ([]*domain.Issue, error) {
+	r.findByProjectCalls++
 	var result []*domain.Issue
 	for _, i := range r.issues {
 		if i.ProjectID == projectID {
@@ -168,6 +186,42 @@ func TestIssueService_Create_GeneratesSequentialKey(t *testing.T) {
 	r3, _ := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 3", Type: domain.IssueTypeBug, Priority: domain.IssuePriorityHigh})
 	if r3.Key != "PROJ-3" {
 		t.Errorf("expected PROJ-3, got %s", r3.Key)
+	}
+}
+
+// The service no longer works out the number: it hands the repository a task
+// with no key, and the repository issues the number in its own transaction.
+func TestIssueService_Create_LeavesTheKeyForTheRepositoryToIssue(t *testing.T) {
+	svc, projectRepo, memberRepo, issueRepo := newIssueService()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+
+	resp, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "Issue 1", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(issueRepo.keysReceived) != 1 || issueRepo.keysReceived[0] != "" {
+		t.Errorf("the repository must receive a task with no key, got %q", issueRepo.keysReceived)
+	}
+	if resp.Key != "PROJ-1" {
+		t.Errorf("the response must carry the key the repository issued, got %q", resp.Key)
+	}
+}
+
+// Counting the project's tasks to build a key was the bug; it also read every
+// task of the project on every create.
+func TestIssueService_Create_DoesNotLoadTheProjectsTasksToNumberTheNewOne(t *testing.T) {
+	svc, projectRepo, memberRepo, issueRepo := newIssueService()
+	ctx := context.Background()
+	seedProject(ctx, projectRepo, memberRepo)
+
+	for i := 0; i < 3; i++ {
+		if _, err := svc.Create(ctx, "PROJ", 1, dto.CreateIssueRequest{Title: "x", Type: domain.IssueTypeTask, Priority: domain.IssuePriorityLow}); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if issueRepo.findByProjectCalls != 0 {
+		t.Errorf("Create loaded the project's tasks %d times to count them", issueRepo.findByProjectCalls)
 	}
 }
 
