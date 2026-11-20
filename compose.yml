@@ -114,6 +114,24 @@ services:
       timeout: 5s
       retries: 20
 
+  # Optional database browser for local development. Not started by default:
+  #   docker compose --profile tools up -d postgres adminer
+  # then open http://localhost:8082 (ADMINER_PORT changes it; it listens on
+  # this machine only). It works with every supported database: pick
+  # "PostgreSQL" or "MySQL / MariaDB" as the system on the login page.
+  # Against the stack's PostgreSQL the server is `postgres` and the user,
+  # password and database are all `mansooba`. A MySQL or MariaDB on this
+  # machine is reachable as `host.docker.internal`. Development only.
+  adminer:
+    image: adminer:6.2.0
+    profiles: ["tools"]
+    ports:
+      - "127.0.0.1:${ADMINER_PORT:-8082}:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   localstack:
     image: localstack/localstack:4.14.0
     ports:
