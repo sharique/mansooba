@@ -1,6 +1,6 @@
 # Licensing
 
-Mansooba is licensed under the [GNU Affero General Public License v3.0](../../LICENSE) (`AGPL-3.0-only`). The owner keeps the option of offering a commercial licence later; none is offered today. The decision and its trade-offs are ADR-035 in the documentation repository.
+Mansooba is licensed under the [GNU Affero General Public License v3.0](../../LICENSE) (`AGPL-3.0-only`). The owner keeps the option of offering a commercial licence later; none is offered today.
 
 ## What the licence means for you
 

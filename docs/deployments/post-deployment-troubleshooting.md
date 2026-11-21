@@ -3,7 +3,7 @@
 This is a runbook for diagnosing unexpected behavior on an **already-running**
 AWS deployment — the app is up, but something about it looks wrong (a
 service restarting on its own, a feature that doesn't seem to be doing what
-its ADR says it should, etc). It's a different scope from the
+it should, etc). It's a different scope from the
 [Terraform guide's own Troubleshooting section](deploy-to-aws-terraform.md#troubleshooting)
 or the [beginner guide's](deploy-to-aws-beginner.md), which cover failures
 *during* `apply`/console setup — this doc starts from "deployment succeeded,
@@ -27,7 +27,7 @@ knowingly enabled anything that would do that.
 
 **Diagnosis — work outward from the app to AWS, not the other way round:**
 
-1. **Is the app's own idle-autostop feature (ADR-030) even enabled?** SSH in
+1. **Is the app's own idle-autostop feature even enabled?** SSH in
    and check the running container's config, not just the `.env` file on
    disk — a stale container can be running with an older `.env`:
 
@@ -108,8 +108,7 @@ docker compose -f compose.prod.yml logs backend | grep -i "db idle auto-stop"
 
 If instead the boot log in step 1 already said **enabled** and the instance
 is *still* behaving unexpectedly, that's a different, code-level bug report
-— check `docs/decisions/ADR-030-db-idle-autostop.md` for the design and
-compare against `internal/service/dbinstance_service.go`'s actual state
+— compare against `internal/service/dbinstance_service.go`'s actual state
 machine; two earlier live-deployment bugs in this exact feature (missing
 `RDS_INSTANCE_IDENTIFIER`/`AWS_REGION` wiring, and the tracker not seeding
 its boot state from a real `DescribeState` call) were found and fixed this

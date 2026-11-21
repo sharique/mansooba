@@ -41,7 +41,7 @@ returning the reset token directly in the API response instead — set
 `enable_ses = false` in `terraform.tfvars` and drop `smtp_from` (unused when
 disabled).
 
-RDS idle auto-stop/wake-on-hit (feature 010, ADR-030) is also configurable —
+RDS idle auto-stop/wake-on-hit (feature 010) is also configurable —
 `rds_autostop_enabled`, `rds_idle_timeout`, `rds_idle_check_interval`, and
 `rds_start_failure_bound` in `terraform.tfvars` — see `terraform.tfvars.example`
 for the defaults, which match the backend's own built-in behavior.

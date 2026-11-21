@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Usernames (feature 018, ADR-038): the unique, permanent name used in mentions.
+// Usernames (feature 018): the unique, permanent name used in mentions.
 const (
 	UsernameMinLen = 3
 	UsernameMaxLen = 30

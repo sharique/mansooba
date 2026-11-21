@@ -155,7 +155,7 @@ async function submit() {
   try {
     let result: Issue
     if (props.issue) {
-      // The server reads 0 as "clear"; an unset select would be ignored (ADR-036).
+      // The server reads 0 as "clear"; an unset select would be ignored.
       const payload = form.assignee_id === undefined && props.issue.assignee_id
         ? { ...form, assignee_id: 0 }
         : form

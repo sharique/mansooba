@@ -15,7 +15,7 @@ type DBPinger interface {
 }
 
 // LokiPinger is the subset of lokiclient.Client required by HealthHandler
-// (011-system-logs, ADR-031). Loki is this feature's first new long-running
+// (011-system-logs). Loki is this feature's first new long-running
 // service (Constitution V requires a health check for every one); nil is a
 // valid value (e.g. in tests, or if System Logs is ever made optional) and
 // simply omits the loki field from the response rather than checking it.

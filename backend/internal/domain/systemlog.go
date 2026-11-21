@@ -21,7 +21,7 @@ const SystemLogActorSystem = "system"
 
 // SystemLogEntry is a single durable, immutable record of a security-relevant
 // or operational event (011-system-logs). Persisted to Grafana Loki
-// (ADR-031), not the application database — see SystemLogRepository. ID is
+// rather than the application database — see SystemLogRepository. ID is
 // populated only on read (synthesized by the repository); it is empty when
 // constructing an entry for Create.
 type SystemLogEntry struct {
@@ -58,7 +58,7 @@ type SystemLogListResult struct {
 }
 
 // SystemLogRepository defines the persistence contract for SystemLogEntry.
-// Implemented by a Grafana Loki-backed repository (ADR-031) — there is no
+// Implemented by a Grafana Loki-backed repository — there is no
 // GORM implementation; System Logs never writes to the application database.
 type SystemLogRepository interface {
 	// Create durably records entry. Callers needing best-effort semantics

@@ -477,7 +477,7 @@ const docTemplate = `{
         },
         "/auth/logout": {
             "post": {
-                "description": "Reads the refresh_token cookie. Missing or invalid tokens are ignored — logout is always idempotent (200). Rate-limited per ADR-021.",
+                "description": "Reads the refresh_token cookie. Missing or invalid tokens are ignored — logout is always idempotent (200). Rate-limited.",
                 "tags": [
                     "auth"
                 ],
@@ -919,7 +919,7 @@ const docTemplate = `{
         },
         "/avatars/{filename}": {
             "get": {
-                "description": "PUBLIC — intentionally unauthenticated, like the /uploads static route it replaces: browser \u003cimg\u003e tags cannot send an Authorization header, and avatars carry no per-viewer access restriction (ADR-033).",
+                "description": "PUBLIC — intentionally unauthenticated, like the /uploads static route it replaces: browser \u003cimg\u003e tags cannot send an Authorization header, and avatars carry no per-viewer access restriction.",
                 "produces": [
                     "image/jpeg",
                     "image/png",

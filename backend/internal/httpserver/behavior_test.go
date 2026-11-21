@@ -4,7 +4,7 @@ package httpserver_test
 // replay: limits, timeouts, panics, CORS and rate limiting. They were written
 // against the Echo v4 build and must keep passing, unchanged in meaning, on v5
 // (feature 018, FR-002 to FR-004). Where Echo v5 intentionally differs (forwarded
-// header trust), the difference is called out in the test and in ADR-037.
+// header trust), the difference is called out in the test.
 
 import (
 	"net/http"
@@ -60,7 +60,7 @@ func TestBehavior_RequestTimeoutReturns503(t *testing.T) {
 	assert.Empty(t, rec.Header().Get("Content-Type"))
 }
 
-// Known, accepted difference from Echo v4 (ADR-037): v4 abandoned a handler
+// Known, accepted difference from Echo v4: v4 abandoned a handler
 // that was still running when the timeout fired; v5 only sets a deadline on
 // the request context, so a handler that never looks at it runs to completion.
 func TestBehavior_RequestTimeout_HandlerIgnoringContextIsNotInterruptedUnderV5(t *testing.T) {
@@ -157,7 +157,7 @@ func TestBehavior_AuthRateLimit_IsPerClientBehindTrustedProxy(t *testing.T) {
 
 // Echo v4 honoured X-Forwarded-For from any peer, so a client connecting
 // directly could rotate the header to dodge the limit. With the forwarded-header
-// extractor (ADR-037) the header is only believed when it arrives through a
+// extractor the header is only believed when it arrives through a
 // private or loopback proxy; from a public peer it is ignored and the peer
 // itself is the bucket, so rotating the header no longer helps.
 func TestBehavior_AuthRateLimit_IgnoresForwardedHeaderFromPublicPeer(t *testing.T) {

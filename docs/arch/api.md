@@ -19,7 +19,7 @@ Swagger UI is available at `/swagger/index.html` when the server is running.
 | GET | `/auth/me/issues` | ✓ | Issues assigned to me across all projects |
 | POST | `/auth/me/avatar` | ✓ | Upload avatar image (multipart, max 2 MB) |
 | DELETE | `/auth/me/avatar` | ✓ | Remove avatar |
-| GET | `/avatars/:filename` | — | Avatar image streamed from S3 (`avatar-{userID}.{jpg\|png\|webp}`) — intentionally unauthenticated (ADR-033) |
+| GET | `/avatars/:filename` | — | Avatar image streamed from S3 (`avatar-{userID}.{jpg\|png\|webp}`) — intentionally unauthenticated |
 
 ---
 

@@ -106,7 +106,7 @@ The app uses two storage subsystems:
 | What | Where | Access pattern |
 |------|-------|---------------|
 | Attachments (files, images, docs) | S3-compatible (real AWS S3 in prod, LocalStack in local dev) | Pre-signed URLs (1 h TTL); never proxied through the backend |
-| User avatars | Same S3 bucket as attachments, under the `avatars/` prefix | Streamed by the backend at `/avatars/:filename` without auth — the bucket itself stays private (ADR-033) |
+| User avatars | Same S3 bucket as attachments, under the `avatars/` prefix | Streamed by the backend at `/avatars/:filename` without auth — the bucket itself stays private |
 
 Attachment keys follow the pattern:
 ```
@@ -115,7 +115,7 @@ Attachment keys follow the pattern:
 e.g. `PROJ/PROJ-3/a1b2c3d4-e5f6-7890-abcd-ef1234567890.png` — never the original filename
 (so two attachments on the same issue can share a display name without colliding), and
 never the numeric project/issue ID (matches how the rest of the app addresses issues).
-See ADR-029 and research.md Decision 1 in the file-attachments feature spec.
+See research.md Decision 1 in the file-attachments feature spec.
 
 ---
 

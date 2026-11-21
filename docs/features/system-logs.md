@@ -7,8 +7,7 @@ the sidebar, alongside Settings and Users. It shows a durable, searchable audit 
 of security-relevant and operational events — something that previously only existed
 as ephemeral process logs, if it was recorded at all.
 
-Backed by [Grafana Loki](https://grafana.com/oss/loki/), not the application database
-(ADR-031) — see the docs repo's ADR-031 for why.
+Backed by [Grafana Loki](https://grafana.com/oss/loki/), not the application database.
 
 ## Event categories
 
@@ -20,7 +19,7 @@ trail, not a general-purpose application error log:
 | `authentication` | `login_success`, `login_failed`, `refresh_rejected` | `AuthService.Login`, `AuthService.Refresh` |
 | `admin_action` | `account_created`, `role_changed`, `account_enabled`, `account_disabled` | `AuthService.Register`, `AdminUserService.SetRole`/`SetActive` |
 | `settings_change` | `setting_changed` (one entry per changed key) | `SettingService.Patch` |
-| `db_lifecycle` | `db_auto_stop`, `db_auto_start` | `LogDBLifecycleEvent` (spec 010's idle auto-stop/wake-on-hit, ADR-030) |
+| `db_lifecycle` | `db_auto_stop`, `db_auto_start` | `LogDBLifecycleEvent` (spec 010's idle auto-stop/wake-on-hit) |
 
 Every entry captures a timestamp, category, action, outcome (`success`/`failure`),
 actor, and (when applicable) a target and free-form detail. The actor is never
@@ -225,8 +224,8 @@ adds a `service_name` label to new streams automatically; the backend's
 ## Health check
 
 Since Loki is this project's first new long-running service (previously, every
-feature reused existing infrastructure — see ADR-030's and ADR-017's precedent of
-avoiding new deployable units), the existing `/health` endpoint was extended
+feature reused existing infrastructure, avoiding new
+deployable units), the existing `/health` endpoint was extended
 (`HealthHandler.WithLoki`) to also report Loki reachability. Unlike the database
 check, a Loki outage is reported (`loki: "error"`) but does **not** flip the overall
 health status to `503` — the application keeps operating normally without it,
@@ -257,12 +256,3 @@ AGPL-3.0 by their own maintainers. They run as their own containers
 alongside the backend and are not linked into it or distributed with it.
 Mansooba neither modifies them nor takes on their network-service
 obligations on their behalf; see `NOTICE` at the repository root.
-
-## Related decisions
-
-(In the docs repo, `sharique/mansooba-docs` — this is a separate git tree from
-`sharique/mansooba`, so these aren't relative links.)
-
-- ADR-031 — why Loki, not the application database
-- ADR-030 — the database auto-stop/wake-on-hit feature whose events this
-  feature now durably captures

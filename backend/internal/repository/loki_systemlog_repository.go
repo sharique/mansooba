@@ -57,7 +57,7 @@ type lokiSystemLogRepository struct {
 }
 
 // NewLokiSystemLogRepository returns a domain.SystemLogRepository backed by
-// Grafana Loki (ADR-031) — no GORM/database involvement at all.
+// Grafana Loki — no GORM/database involvement at all.
 func NewLokiSystemLogRepository(client *lokiclient.Client) domain.SystemLogRepository {
 	return &lokiSystemLogRepository{client: client}
 }

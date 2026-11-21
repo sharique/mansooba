@@ -8,7 +8,7 @@ import (
 )
 
 // NotificationService owns the rules for "who is told, and when" when an
-// assignment or a project membership changes (feature 017, ADR-036).
+// assignment or a project membership changes (feature 017).
 //
 // Rules: never notify the person who made the change; task notifications go to
 // current project members only (so an issue key is never disclosed to someone

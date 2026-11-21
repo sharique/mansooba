@@ -1330,7 +1330,7 @@ paths:
   /auth/logout:
     post:
       description: Reads the refresh_token cookie. Missing or invalid tokens are ignored
-        — logout is always idempotent (200). Rate-limited per ADR-021.
+        — logout is always idempotent (200). Rate-limited.
       responses:
         "200":
           description: Cookie cleared
@@ -1609,7 +1609,7 @@ paths:
     get:
       description: 'PUBLIC — intentionally unauthenticated, like the /uploads static
         route it replaces: browser <img> tags cannot send an Authorization header,
-        and avatars carry no per-viewer access restriction (ADR-033).'
+        and avatars carry no per-viewer access restriction.'
       parameters:
       - description: avatar-{userID}.{jpg|png|webp}
         in: path

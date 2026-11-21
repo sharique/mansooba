@@ -1,6 +1,6 @@
 // Backfill-usernames gives every account that has no username a generated one.
 // It is the one-off admin process for the username column (constitution
-// principle VI.12, ADR-038): it shares the application's packages and
+// principle VI.12): it shares the application's packages and
 // configuration, prepares and migrates the schema (like cmd/seed), is safe to
 // run repeatedly, and is run by the deploy before the server starts.
 // Usage: go run ./cmd/backfill-usernames (from the backend/ directory)
@@ -45,7 +45,7 @@ func run(out, errOut io.Writer) (code int) {
 	}
 	// Order matters on a database that predates usernames: add the column
 	// (nullable), give every account a username, and only then migrate, which
-	// makes the column NOT NULL (ADR-038). On a fresh database there is nothing
+	// makes the column NOT NULL. On a fresh database there is nothing
 	// to backfill and Migrate creates the final schema.
 	if err := database.PrepareUsernames(db); err != nil {
 		fmt.Fprintf(errOut, "backfill-usernames: prepare: %v\n", err)

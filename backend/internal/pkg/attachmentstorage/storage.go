@@ -1,7 +1,7 @@
 // Package attachmentstorage manages issue attachment files in S3-compatible
 // object storage. Real AWS S3 in production, LocalStack in local dev — the
 // same code path talks to both; only endpoint/credential configuration
-// differs (see docs/decisions/ADR-029 in the docs repo).
+// differs.
 package attachmentstorage
 
 import (
@@ -198,7 +198,7 @@ func (s *Storage) Client() *s3.Client {
 // ("<uuid>.<ext>") within it, so multiple attachments on the same issue,
 // even with identical original filenames, never collide (data-model.md).
 //
-// Validation happens entirely before the S3 write (ADR-029, research.md
+// Validation happens entirely before the S3 write (research.md
 // Decision 2 & 9): the object key is only returned — and only ever
 // persisted by the caller — once the write to S3 has succeeded.
 func (s *Storage) Save(ctx context.Context, keyPrefix string, _ string, data []byte, contentType string) (string, error) {

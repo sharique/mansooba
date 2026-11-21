@@ -63,7 +63,7 @@ func matchesRDSInstance(host, identifier string) bool {
 }
 
 // RDSAutoStopApplies reports whether the idle auto-stop/wake-on-hit feature
-// (spec 010, docs/decisions/ADR-030) should be active. All of the following
+// (spec 010) should be active. All of the following
 // must hold:
 //  1. DBDriver is a supported SQL driver (postgres/postgresql/mysql/mariadb)
 //  2. RDSAutoStopEnabled is not explicitly disabled (defaults true)

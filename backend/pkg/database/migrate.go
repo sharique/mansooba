@@ -16,7 +16,7 @@ func Migrate(db *gorm.DB) error {
 	}
 	// Existing databases predate usernames: add the column first (nullable, so the
 	// statement works on a populated table) and refuse to go on while accounts
-	// still lack one; cmd/backfill-usernames fills them in (ADR-038).
+	// still lack one; cmd/backfill-usernames fills them in.
 	if err := PrepareUsernames(db); err != nil {
 		return err
 	}

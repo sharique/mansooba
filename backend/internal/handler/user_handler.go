@@ -184,7 +184,7 @@ var avatarFilenamePattern = regexp.MustCompile(`^avatar-\d+\.(jpg|png|webp)$`)
 
 // ServeAvatar godoc
 // @Summary      Serve a user avatar image
-// @Description  PUBLIC — intentionally unauthenticated, like the /uploads static route it replaces: browser <img> tags cannot send an Authorization header, and avatars carry no per-viewer access restriction (ADR-033).
+// @Description  PUBLIC — intentionally unauthenticated, like the /uploads static route it replaces: browser <img> tags cannot send an Authorization header, and avatars carry no per-viewer access restriction.
 // @Tags         users
 // @Produce      image/jpeg,image/png,image/webp
 // @Param        filename path string true "avatar-{userID}.{jpg|png|webp}"

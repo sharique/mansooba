@@ -15,7 +15,7 @@ const maxUsernameAttempts = 10000
 
 // UsernameService owns the username rules that need the database: choosing a
 // free name, checking availability and backfilling legacy accounts
-// (feature 018, ADR-038). The pure rules live in domain.
+// (feature 018). The pure rules live in domain.
 type UsernameService interface {
 	// Resolve returns the username to store for a new account: the supplied one
 	// (validated, normalised, must be free) or, when none is supplied, one

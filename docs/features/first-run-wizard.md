@@ -23,9 +23,10 @@ When the admin chooses **Import example data**, the backend endpoint `POST /api/
 |--------|-------|---------|
 | Project | 1 | Key: `DEMO`, Name: `Mansooba Demo` |
 | Sprints | 3 | `Sprint 1` completed, `Sprint 2` active, `Sprint 3` planned; dates are relative to the day of the import |
-| Issues | 20 | Mix of task/story/bug with story points: 6 in the completed sprint (all done), 7 in the active sprint (spread over every board column), 5 in the planned sprint, 2 in the backlog |
+| Issues | 20 | Mix of task/story/bug with story points and lorem ipsum descriptions (stories get acceptance criteria, bugs get steps to reproduce): 6 in the completed sprint (all done), 7 in the active sprint (spread over every board column), 5 in the planned sprint, 2 in the backlog |
 | Labels | 2 | `bug` (#e11d48), `feature` (#3b82f6) |
-| Comments | 2 | On the login-bug and Kanban-story issues |
+| Comments | 81 | Every issue has at least one; the Kanban story (14), user registration story (12), login bug (11) and slow-search bug (10) have long threads to show the comment list at length. The two hand-written comments open the login-bug and Kanban threads, the rest are lorem ipsum |
+| Links | 13 rows | Nine links between related issues: four "blocks" (each stored as a pair with its "is blocked by"), four "relates to" and one "duplicates" |
 
 Done issues carry completion dates, so the Reports page has a burndown for the active sprint and the completed one, and a velocity bar for the completed sprint. Some issues are assigned to the admin, so My Desk and the overview show tasks.
 
@@ -64,7 +65,7 @@ go run ./cmd/seed
 Seed data created:
   Project:  Mansooba Demo [DEMO]
   Sprints:  3 (1 completed, 1 active, 1 planned)
-  Issues: 20  Labels: 2  Comments: 2
+  Issues: 20  Labels: 2  Comments: 81  Links: 13
 ```
 
 **Already present (idempotent):**

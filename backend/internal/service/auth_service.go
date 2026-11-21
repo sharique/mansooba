@@ -32,7 +32,7 @@ type AuthService interface {
 	// If the token is invalid or already expired, Logout returns nil (idempotent).
 	Logout(ctx context.Context, refreshToken string) error
 	// IssueTokens mints a fresh access/refresh token pair for an already-verified
-	// caller (no password check) — used by PasswordChangeHandler (ADR-032) to
+	// caller (no password check) — used by PasswordChangeHandler to
 	// keep the session that performed a password change active: since
 	// TokenValidAfter invalidates every refresh token issued before the
 	// change, including the one the acting session already holds, that

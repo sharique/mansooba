@@ -43,7 +43,7 @@ func Serve(ctx context.Context, e *echo.Echo, addr string, gracefulTimeout time.
 		},
 		// Echo v5 sets a 30 s ReadTimeout by default; v4 had none. Uploads of
 		// up to 25 MB over a slow link must keep working, so keep v4's
-		// behaviour (ADR-037).
+		// behaviour.
 		BeforeServeFunc: func(s *http.Server) error {
 			s.ReadTimeout = 0
 			s.ReadHeaderTimeout = ReadHeaderTimeout

@@ -1,5 +1,5 @@
 # ── Terraform Configuration ───────────────────────────────────────────────────
-# Requires Terraform >= 1.15 (ADR-034: 1.14 and older are past end of life). The
+# Requires Terraform >= 1.15 (1.14 and older are past end of life). The
 # compute module's user_data argument uses the templatefile() built-in.
 # State is stored locally (terraform.tfstate). For team use, migrate to an
 # S3 backend with DynamoDB locking — see terraform/README.md.

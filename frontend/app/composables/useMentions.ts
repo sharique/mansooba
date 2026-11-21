@@ -1,6 +1,6 @@
 import type { MemberResponse } from '~/types/domain.types'
 
-// Same rule the server uses to find mentions (comment_service.go, ADR-038): "@"
+// Same rule the server uses to find mentions (comment_service.go): "@"
 // plus a username (letters, digits, underscore). The "@" must not follow a
 // letter, digit, underscore, dot or another "@", so "(@sam)", "**@sam**" and
 // "> @sam" are mentions while "a@b.com" and "a.b@c" are not. The character
@@ -26,8 +26,8 @@ function escapeHtml(s: string): string {
  * of anyone else, or of nobody, is left as typed. Stored text and who gets
  * notified are unchanged.
  *
- * The result goes through `useMarkdown`, whose DOMPurify pass still sanitizes it
- * (ADR-022); names are escaped here as well.
+ * The result goes through `useMarkdown`, whose DOMPurify pass still sanitizes it;
+ * names are escaped here as well.
  */
 export function renderMentions(body: string, members: MemberResponse[]): string {
   if (!members.length || !body.includes('@')) return body

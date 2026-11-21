@@ -8,7 +8,7 @@ import (
 )
 
 // UsernamesMissingError is returned by Migrate when accounts exist without a
-// username. Run the one-off backfill-usernames command (ADR-038), then start
+// username. Run the one-off backfill-usernames command, then start
 // the server.
 type UsernamesMissingError struct{ Count int }
 

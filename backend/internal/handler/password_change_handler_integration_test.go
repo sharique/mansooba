@@ -162,7 +162,7 @@ func TestPasswordChangeHandler_Integration_OtherSessionRevoked_ActingSessionSurv
 	// changes the password within the same test function, so without this
 	// sleep session B's login could truncate into the *same* second as the
 	// change and incorrectly appear to survive it (a real, accepted, narrow
-	// precision limitation of the design — see ADR-032 — not a test bug to
+	// precision limitation of the design — not a test bug to
 	// paper over by loosening the assertion below).
 	time.Sleep(1100 * time.Millisecond)
 
