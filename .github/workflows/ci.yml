@@ -62,7 +62,7 @@ jobs:
       - uses: actions/checkout@v7
 
       # Fails fast on floating image tags / runner labels and on version drift
-      # between places that must agree (ADR-034). Read-only, no network.
+      # between places that must agree. Read-only, no network.
       - name: Verify pinned versions
         run: scripts/verify-versions.sh
 

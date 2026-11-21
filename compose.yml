@@ -56,7 +56,7 @@ services:
       postgres:
         condition: service_healthy
       # Usernames are assigned to existing accounts by this one-off process
-      # (constitution VI.12, ADR-038), which must finish before the server starts.
+      # (constitution VI.12), which must finish before the server starts.
       backfill-usernames:
         condition: service_completed_successfully
       localstack-init:
@@ -172,7 +172,7 @@ services:
       - "8025:8025" # Web inbox — http://localhost:8025
     restart: unless-stopped
 
-  # System Logs backing store (011-system-logs, ADR-031). Monolithic mode,
+  # System Logs backing store (011-system-logs). Monolithic mode,
   # filesystem storage — matches production's single-instance topology.
   # -config.file is our own local-config.yaml (based on the image's bundled
   # default, +max_query_length — see that file's comment for why).
@@ -194,7 +194,7 @@ services:
   # not found" and marks Loki unhealthy, which would keep the backend from
   # starting). This tiny probe container polls Loki's /ready from outside
   # instead, and the services that must wait for a ready Loki (backend, Grafana,
-  # Alloy) depend on it. See ADR-034.
+  # Alloy) depend on it.
   loki-ready:
     image: alpine:3.24
     command: ["tail", "-f", "/dev/null"]

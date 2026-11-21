@@ -1,4 +1,4 @@
-// Username rules (feature 018, ADR-038). This is the TypeScript twin of
+// Username rules (feature 018). This is the TypeScript twin of
 // backend/internal/domain/username.go; both are tested against the same
 // vectors (backend/internal/domain/testdata/username_vectors.json), so the
 // create-user forms' live pre-fill and the server's validation cannot drift.

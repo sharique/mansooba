@@ -64,7 +64,7 @@ The simplest path is **Docker Compose** with the bundled `compose.yml` — it st
 
 ### Database idle auto-stop (AWS RDS only — no-op locally)
 
-Powers the demo deployment's cost-saving auto-stop/wake-on-hit behavior (spec 010, ADR-030). **You
+Powers the demo deployment's cost-saving auto-stop/wake-on-hit behavior (spec 010). **You
 never need to touch these vars for local development, including Option 2 below (local Postgres via
 docker-compose)** — the backend confirms `DB_DSN`'s hostname is the *specific* AWS RDS instance named
 by `RDS_INSTANCE_IDENTIFIER` (it must both end in `.rds.amazonaws.com` and start with
@@ -75,7 +75,7 @@ happen to be set, e.g. from a copied `.env` file.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `RDS_AUTOSTOP_ENABLED` | `true` | Database idle auto-stop/wake-on-hit (spec 010, ADR-030). Only takes effect when `DB_DSN`'s hostname is confirmed as the specific AWS RDS instance named by `RDS_INSTANCE_IDENTIFIER` — always a no-op otherwise (including local Postgres/MySQL/MariaDB). |
+| `RDS_AUTOSTOP_ENABLED` | `true` | Database idle auto-stop/wake-on-hit (spec 010). Only takes effect when `DB_DSN`'s hostname is confirmed as the specific AWS RDS instance named by `RDS_INSTANCE_IDENTIFIER` — always a no-op otherwise (including local Postgres/MySQL/MariaDB). |
 | `RDS_INSTANCE_IDENTIFIER` | *(unset)* | The RDS instance identifier to stop/start. Required, and its value MUST match the leading label of `DB_DSN`'s host (e.g. identifier `mansooba-db` requires a DSN host like `mansooba-db.<random>.<region>.rds.amazonaws.com`) — that match is what confirms the feature should actually engage. |
 | `RDS_IDLE_TIMEOUT` | `10m` | How long the database can sit idle before being stopped |
 | `RDS_IDLE_CHECK_INTERVAL` | `1m` | How often the idle/pending-start check runs |
@@ -92,7 +92,7 @@ it only touches `STORAGE_*` config when a file is actually uploaded, downloaded,
 | `STORAGE_ENDPOINT` | *(unset)* | S3-compatible endpoint URL; set to `http://localstack:4566` for the bundled LocalStack container, leave unset for real AWS S3 |
 | `STORAGE_PRESIGN_ENDPOINT` | *(unset, falls back to `STORAGE_ENDPOINT`)* | Overrides the host baked into presigned download URLs. Needed only when `STORAGE_ENDPOINT` is a Docker-internal hostname (like `localstack`) that a browser on the host can't resolve — set to `http://localhost:4566` in that case. Real AWS S3's hostname is reachable identically everywhere, so production never needs this. |
 | `STORAGE_BUCKET` | `mansooba-attachments` | Bucket name |
-| `STORAGE_ACCESS_KEY_ID` | *(unset)* | LocalStack only — use `test`; leave unset in production (the EC2 instance's IAM role is used instead, see ADR-029) |
+| `STORAGE_ACCESS_KEY_ID` | *(unset)* | LocalStack only — use `test`; leave unset in production (the EC2 instance's IAM role is used instead) |
 | `STORAGE_SECRET_ACCESS_KEY` | *(unset)* | LocalStack only — use `test` |
 | `STORAGE_REGION` | `eu-central-1` | AWS region (LocalStack ignores this; any string works) |
 | `STORAGE_PRESIGN_TTL` | `1h` | How long pre-signed download URLs remain valid |

@@ -111,10 +111,10 @@ func main() {
 	}
 
 	// Avatars share the attachments bucket (and its S3 client) under the
-	// avatars/ prefix — see ADR-033.
+	// avatars/ prefix.
 	avatarStorage := avatarstorage.New(attachmentStorage.Client(), cfg.StorageBucket)
 
-	// System Logs backing store (011-system-logs, ADR-031) — Grafana Loki,
+	// System Logs backing store (011-system-logs) — Grafana Loki,
 	// not the application database. Constructed unconditionally (unlike RDS
 	// auto-stop, this feature has no per-deployment opt-out): if Loki is
 	// unreachable in a given environment, Record calls simply fail
@@ -151,9 +151,8 @@ func main() {
 	}
 	startRevokedTokenCleanup(ctx, revokedTokenRepo, cleanupInterval, log)
 
-	// Database idle auto-stop / wake-on-hit (spec 010, db-idle-autostop; see
-	// docs/decisions/ADR-030 and docs/superpowers/specs/2026-07-20-rds-autostop-detection-design.md
-	// in the docs repo). Config.RDSAutoStopApplies() confirms DB_DSN's hostname
+	// Database idle auto-stop / wake-on-hit (spec 010, db-idle-autostop).
+	// Config.RDSAutoStopApplies() confirms DB_DSN's hostname
 	// is the *specific* AWS RDS instance named by RDS_INSTANCE_IDENTIFIER — not
 	// just "some database using a driver AWS RDS also happens to support."
 	// This matters because DB_DRIVER=postgres alone doesn't mean "this is the

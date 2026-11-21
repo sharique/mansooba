@@ -72,7 +72,7 @@ func New(d Deps) *echo.Echo {
 	// private proxies and returns the nearest untrusted address in
 	// X-Forwarded-For (reading from the right), so a client cannot choose its
 	// own bucket. Echo v5's default would use the proxy's address for everyone;
-	// Echo v4 trusted the left-most header from any peer (ADR-037).
+	// Echo v4 trusted the left-most header from any peer.
 	e.IPExtractor = echo.ExtractIPFromXFFHeader()
 
 	v := validator.New()
@@ -184,7 +184,7 @@ func New(d Deps) *echo.Echo {
 	// Public avatar serving, streamed from S3 (avatars/ prefix of the shared
 	// bucket). Intentionally unauthenticated — browser <img> tags fetch images
 	// as unauthenticated sub-resources and avatars carry no per-viewer access
-	// restriction. Rationale documented in ADR-033.
+	// restriction.
 	e.GET("/avatars/:filename", h.User.ServeAvatar)
 
 	projects := api.Group("/projects")
@@ -277,7 +277,7 @@ const requestTimeoutBody = "<html><head><title>Timeout</title></head><body><h1>T
 // response Echo v4 produced when a request exceeded REQUEST_TIMEOUT: status 503
 // with a small HTML body and no explicit Content-Type (net/http sniffs it).
 // Echo v5's own ContextTimeout would answer with JSON instead; keeping the
-// bytes identical keeps the behaviour unchanged for clients (ADR-037).
+// bytes identical keeps the behaviour unchanged for clients.
 func timeoutResponse(c *echo.Context, err error) error {
 	if err == nil || !errors.Is(err, context.DeadlineExceeded) {
 		return err

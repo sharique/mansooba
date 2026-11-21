@@ -14,7 +14,7 @@ type User struct {
 	ID    uint   `gorm:"primaryKey"`
 	Name  string `gorm:"not null"`
 	Email string `gorm:"uniqueIndex;not null"`
-	// Username is the unique, permanent, lower-case name used in mentions (ADR-038).
+	// Username is the unique, permanent, lower-case name used in mentions.
 	// NOT NULL: every creation path sets it, and the upgrade path (database.Migrate,
 	// cmd/backfill-usernames) gives existing accounts one before the constraint applies.
 	Username  string `gorm:"size:30;not null;uniqueIndex"`
@@ -26,7 +26,7 @@ type User struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	TokenValidAfter                  *time.Time // nil = no session-invalidation boundary (ADR-032)
+	TokenValidAfter                  *time.Time // nil = no session-invalidation boundary
 	ConsecutiveFailedPasswordChanges int        `gorm:"not null;default:0"`
 }
 

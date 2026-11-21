@@ -1,5 +1,5 @@
 // Package lokiclient is a thin, dependency-free HTTP client for Grafana
-// Loki's plain HTTP+JSON API (011-system-logs, ADR-031) — push, query_range,
+// Loki's plain HTTP+JSON API (011-system-logs) — push, query_range,
 // and a readiness check. No third-party Loki SDK is used, matching this
 // project's existing thin-wrapper convention for internal/pkg/rdsclient and
 // internal/pkg/attachmentstorage (research.md Decision 5).
@@ -150,7 +150,7 @@ func (c *Client) QueryRange(ctx context.Context, p QueryRangeParams) ([]LogEntry
 // Ready reports whether Loki is reachable and ready to accept traffic, via
 // its /ready endpoint. Used by the extended health check (Constitution V —
 // a health-check endpoint is required for every long-running service, and
-// Loki is this feature's first new one, ADR-031).
+// Loki is this feature's first new one).
 func (c *Client) Ready(ctx context.Context) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/ready", nil)
 	if err != nil {

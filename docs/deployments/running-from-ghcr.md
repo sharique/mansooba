@@ -412,7 +412,7 @@ services:
 | `STORAGE_ENDPOINT` | | *(unset — AWS default)* | Leave unset for real AWS S3; set to `http://localstack:4566` for LocalStack. Only checked when an attachment is actually uploaded/downloaded/deleted, not at startup. |
 | `STORAGE_PRESIGN_ENDPOINT` | | *(unset, falls back to `STORAGE_ENDPOINT`)* | Overrides the host baked into presigned download URLs — needed when `STORAGE_ENDPOINT` is a Docker-internal hostname the browser can't resolve |
 | `STORAGE_BUCKET` | | `mansooba-attachments` | S3/LocalStack bucket name |
-| `STORAGE_ACCESS_KEY_ID` / `STORAGE_SECRET_ACCESS_KEY` | | *(unset)* | LocalStack only (`test`/`test`); leave unset in production — the EC2 instance's IAM role is used instead (ADR-029) |
+| `STORAGE_ACCESS_KEY_ID` / `STORAGE_SECRET_ACCESS_KEY` | | *(unset)* | LocalStack only (`test`/`test`); leave unset in production — the EC2 instance's IAM role is used instead |
 | `STORAGE_REGION` | | `eu-central-1` | AWS region (LocalStack ignores this) |
 | `STORAGE_PRESIGN_TTL` | | `1h` | Pre-signed download URL expiry |
 | `STORAGE_USE_PATH_STYLE` | | `false` | Set `true` for LocalStack; `false` for AWS S3 |
@@ -426,7 +426,7 @@ services:
 | `LOKI_RUNTIME_OVERRIDES_PATH` | | — | Must match the path `compose.prod.yml` bind-mounts into both `backend` and `loki` (`/etc/loki/runtime-overrides.yaml`) — this is how retention-setting changes reach Loki without a restart. |
 | `LOKI_RETENTION_SYNC_INTERVAL` | | `1m` | How often the backend reconciles Loki's retention config with the `system_log_retention_days` setting |
 | `GF_SECURITY_ADMIN_USER` / `GF_SECURITY_ADMIN_PASSWORD` | | `admin` / `admin` | Grafana login — only relevant if the optional `grafana` service (Step 3) is started |
-| `RDS_AUTOSTOP_ENABLED` | | `true` | Database idle auto-stop/wake-on-hit (spec 010, ADR-030). Only takes effect when `DB_DSN`'s hostname is confirmed as the specific AWS RDS instance named by `RDS_INSTANCE_IDENTIFIER` — always a no-op otherwise (including local Postgres/MySQL/MariaDB). Any unrecognized value is treated as enabled; only an explicit `false`/`0`/`no` disables it. |
+| `RDS_AUTOSTOP_ENABLED` | | `true` | Database idle auto-stop/wake-on-hit (spec 010). Only takes effect when `DB_DSN`'s hostname is confirmed as the specific AWS RDS instance named by `RDS_INSTANCE_IDENTIFIER` — always a no-op otherwise (including local Postgres/MySQL/MariaDB). Any unrecognized value is treated as enabled; only an explicit `false`/`0`/`no` disables it. |
 | `RDS_INSTANCE_IDENTIFIER` | | *(unset)* | The RDS instance identifier to stop/start. Required, and its value MUST match the leading label of `DB_DSN`'s host (e.g. identifier `mansooba-db` requires a DSN host like `mansooba-db.<random>.<region>.rds.amazonaws.com`) — that match is what confirms the feature should actually engage. Also validated at startup: the app fails fast if the identifier can't be described via the AWS API. |
 | `RDS_IDLE_TIMEOUT` | | `10m` | How long the database can sit idle before being automatically stopped |
 | `RDS_IDLE_CHECK_INTERVAL` | | `1m` | How often the background check for idle/pending-start runs |

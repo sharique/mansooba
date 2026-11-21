@@ -37,7 +37,7 @@ display name, email, timezone, and an optional avatar photo.
 
 - Uploaded via `POST /api/v1/auth/me/avatar`
 - Stored in S3 under `avatars/avatar-{userID}.{ext}` in the attachments bucket (one avatar per user; replacing removes the old object, even if the format changes)
-- Served publicly at `/avatars/:filename` without auth, streamed by the backend (ADR-033)
+- Served publicly at `/avatars/:filename` without auth, streamed by the backend
 - Avatars uploaded before spec 014 (local disk) were not migrated; those users show initials until they re-upload
 - Falls back to OKLCH-coloured initials when no photo is set (see `UserAvatar` component)
 
@@ -55,8 +55,7 @@ display name, email, timezone, and an optional avatar photo.
 
 Distinct from the password-reset flow above — this is for an already-authenticated user
 changing their own password from Settings → Profile, not a forgotten-password recovery.
-See spec [012-change-password](../../../specs/012-change-password/spec.md) and
-[ADR-032](../../../docs/decisions/ADR-032-password-change-session-invalidation.md).
+See spec [012-change-password](../../../specs/012-change-password/spec.md).
 
 1. User submits their current password + a new one (meeting the same complexity policy
    as registration) at `PUT /api/v1/auth/me/password`
@@ -65,7 +64,7 @@ See spec [012-change-password](../../../specs/012-change-password/spec.md) and
 3. On success:
    - the new password is persisted
    - `TokenValidAfter` is set on the user record, which invalidates every other active
-     session's refresh token on its next use (ADR-032) — the acting session's own tokens
+     session's refresh token on its next use — the acting session's own tokens
      are reissued in the same response (a fresh `access_token` in the JSON body, a fresh
      `refresh_token` cookie) so it stays logged in
    - a confirmation email is sent (best-effort; delivery failure doesn't fail the request)
@@ -81,8 +80,7 @@ See spec [012-change-password](../../../specs/012-change-password/spec.md) and
 refresh token issued *before* the change — including the one the acting session already
 holds, since it was necessarily issued before this request. Without reissuing, the user
 who just changed their password would also get logged out the next time their own
-session tries to refresh. See ADR-032 for the full design rationale, including why the
-comparison is truncated to whole-second precision (matches `jwt.NewNumericDate`'s own
+session tries to refresh. The comparison is truncated to whole-second precision (matches `jwt.NewNumericDate`'s own
 truncation).
 
 ### First-run admin bootstrap (the one true self-service path)

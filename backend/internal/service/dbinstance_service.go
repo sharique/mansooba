@@ -1,6 +1,6 @@
 // Package service's DBLifecycleTracker implements the idle auto-stop and
 // wake-on-hit decision logic for the demo deployment's database (spec 010,
-// db-idle-autostop; see docs/decisions/ADR-030-db-idle-autostop.md). All
+// db-idle-autostop). All
 // lifecycle-decision state (activity timestamp, in-flight operation count,
 // start dedupe, and start-failure counting) lives here, behind one mutex, so
 // the handler/middleware layer never has to reason about concurrent state on
@@ -233,7 +233,7 @@ func (t *DBLifecycleTracker) CheckStartProgress(ctx context.Context, client doma
 
 // LogDBLifecycleEvent emits a structured audit log line for a single
 // automatic stop or start transition (FR-009, data-model.md's Stop/Start
-// Audit Entry), and — since 011-system-logs (ADR-031) — also durably
+// Audit Entry), and — since 011-system-logs — also durably
 // records it to System Logs (FR-013). Used by both cmd/server's idle-check
 // ticker (the stop path) and internal/middleware/dbwake.go (the start path)
 // so the two call sites can't drift out of sync in field naming — extracted

@@ -20,7 +20,7 @@ type PasswordChangeHandler struct {
 
 // NewPasswordChangeHandler returns a PasswordChangeHandler. authSvc is used
 // only to reissue a fresh token pair for the acting session on success (see
-// ChangePassword) — TokenValidAfter (ADR-032) invalidates every refresh
+// ChangePassword) — TokenValidAfter invalidates every refresh
 // token issued before the change, including the one the caller already
 // holds, so that session needs a replacement to stay logged in per FR-008's
 // "the session used to make the change remains active" requirement.

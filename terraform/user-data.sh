@@ -32,7 +32,7 @@ systemctl start docker
 # Install Docker Compose v2 plugin
 COMPOSE_DIR=/usr/local/lib/docker/cli-plugins
 mkdir -p $COMPOSE_DIR
-# Pinned (ADR-034). The instance ignores user_data changes (lifecycle.ignore_changes
+# Pinned. The instance ignores user_data changes (lifecycle.ignore_changes
 # in modules/compute), so this only affects instances created later.
 curl -fsSL "https://github.com/docker/compose/releases/download/v5.5.1/docker-compose-linux-x86_64" \
   -o "$COMPOSE_DIR/docker-compose"
@@ -45,7 +45,7 @@ usermod -aG docker ec2-user
 mkdir -p /opt/mansooba
 cd /opt/mansooba
 
-# ── System Logs (011-system-logs, ADR-031) ────────────────────────────────────
+# ── System Logs (011-system-logs) ────────────────────────────────────
 # Loki's -runtime-config.file must point at a file that exists before Loki
 # starts (an empty "overrides: {}" is a valid, inert starting point — the
 # backend's retention-sync reconciler rewrites it after boot). Bind-mounted
@@ -130,7 +130,7 @@ DB_CONN_MAX_LIFETIME=5m
 
 # ── Database idle auto-stop / wake-on-hit (feature 010) ───────────────────────
 # RDS_INSTANCE_IDENTIFIER must match the leading label of RDS_ENDPOINT's hostname
-# for Config.RDSAutoStopApplies() to engage — see ADR-030 and rds_hostname.go.
+# for Config.RDSAutoStopApplies() to engage (see rds_hostname.go).
 RDS_INSTANCE_IDENTIFIER=${rds_identifier}
 # AWS_REGION is required for the RDS SDK client (rdsclient.go) — aws-sdk-go-v2's
 # LoadDefaultConfig does NOT fall back to EC2 instance metadata for region (only
@@ -145,7 +145,7 @@ RDS_IDLE_TIMEOUT=${rds_idle_timeout}
 RDS_IDLE_CHECK_INTERVAL=${rds_idle_check_interval}
 RDS_START_FAILURE_BOUND=${rds_start_failure_bound}
 
-# ── System Logs (011-system-logs, ADR-031) ────────────────────────────────────
+# ── System Logs (011-system-logs) ────────────────────────────────────
 # LOKI_BASE_URL uses the compose service name, same pattern as local dev.
 # LOKI_RUNTIME_OVERRIDES_PATH must match the container-side path in
 # compose.prod.yml's volume mounts for both the backend and loki services.

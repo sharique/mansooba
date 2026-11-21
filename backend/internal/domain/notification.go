@@ -20,7 +20,7 @@ const (
 )
 
 // Notification tells one recipient about an event another user caused. IssueID,
-// CommentID and ProjectID use 0 for "not applicable to this kind" (ADR-036):
+// CommentID and ProjectID use 0 for "not applicable to this kind":
 // the first two columns are NOT NULL, and altering them is avoided.
 type Notification struct {
 	ID          uint      `gorm:"primaryKey"`

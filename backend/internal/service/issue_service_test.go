@@ -868,7 +868,7 @@ func TestIssueService_Update_UnknownSprintIsNotFound(t *testing.T) {
 	assert.ErrorIs(t, err, domain.ErrNotFound)
 }
 
-// ── clearing the assignee (feature 017, ADR-036) ──────────────────────────────
+// ── clearing the assignee (feature 017) ──────────────────────────────
 
 func newIssueServiceWithActivity() (service.IssueService, *stubProjectRepo, *stubProjectMemberRepo, *stubIssueRepo, *stubActivitySvc, *stubUserRepo) {
 	projectRepo := newStubProjectRepo()

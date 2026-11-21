@@ -39,7 +39,7 @@ variable "allowed_ssh_cidr" {
   default     = "0.0.0.0/0"
 }
 
-# ── Database idle auto-stop / wake-on-hit (feature 010, ADR-030) ──────────────
+# ── Database idle auto-stop / wake-on-hit (feature 010) ──────────────
 # Previously only configurable via the backend's own hardcoded defaults —
 # these were invisible from Terraform and undocumented for anyone deploying
 # from this code. Defaults here match the backend's own (pkg/config/config.go)

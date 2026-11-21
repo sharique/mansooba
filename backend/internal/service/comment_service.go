@@ -11,7 +11,7 @@ import (
 
 // A mention is "@" plus a username (letters, digits, underscore). The "@" must not
 // follow a letter, digit, underscore, dot or another "@", so "(@sam)", "**@sam**"
-// and "> @sam" are mentions while "a@b.com" and "a.b@c" are not (ADR-038). RE2 has
+// and "> @sam" are mentions while "a@b.com" and "a.b@c" are not. RE2 has
 // no lookbehind, so the preceding character is part of the match.
 var mentionRe = regexp.MustCompile(`(?:^|[^A-Za-z0-9_.@])@([A-Za-z0-9_]+)`)
 

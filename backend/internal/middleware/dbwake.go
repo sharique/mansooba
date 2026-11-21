@@ -24,8 +24,7 @@ type wakingUpBody struct {
 }
 
 // DBWake returns an Echo middleware implementing the wake-on-hit contract
-// (spec 010, db-idle-autostop; contracts/wake-response.md; see
-// docs/decisions/ADR-030-db-idle-autostop.md for the design rationale). When the tracked
+// (spec 010, db-idle-autostop; contracts/wake-response.md). When the tracked
 // database is not running, it responds immediately with the waking_up
 // signal instead of letting the request reach its handler, triggering
 // exactly one StartDBInstance call across any concurrent burst of requests

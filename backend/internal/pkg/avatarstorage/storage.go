@@ -1,7 +1,7 @@
 // Package avatarstorage manages user avatar images in the S3-compatible bucket
 // shared with issue attachments, under the avatars/ key prefix. Avatars are
 // served by the backend (GET /avatars/:filename), never via a public bucket
-// URL — see ADR-033.
+// URL.
 package avatarstorage
 
 import (

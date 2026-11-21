@@ -19,7 +19,7 @@ smtp_from      = "noreply@yourdomain.com"                  # verified SES sender
 # false, smtp_from above is ignored and can be left as-is or removed.
 # enable_ses = false
 
-# Optional: RDS idle auto-stop / wake-on-hit (feature 010, ADR-030) — defaults
+# Optional: RDS idle auto-stop / wake-on-hit (feature 010) — defaults
 # below match the backend's own built-in defaults, so leaving these commented
 # out changes nothing.
 # rds_autostop_enabled    = true

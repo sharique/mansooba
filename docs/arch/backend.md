@@ -45,11 +45,11 @@ Echo HTTP handlers that do three things only:
 ### `middleware/`
 
 - `JWTAuth` validates the `Authorization: Bearer` header and injects the caller's user ID into the Echo context. All protected route groups use it.
-- `DBActivity` / `DBWake` (spec 010, ADR-030) — only registered when the database idle auto-stop feature is active (AWS RDS demo deployment only; see [Database idle auto-stop](#database-idle-auto-stop) below). `DBActivity` records every request as activity and tracks it as an in-flight operation; `DBWake` intercepts requests while the database is stopped/starting and returns the `waking_up` signal instead of letting them reach a handler.
+- `DBActivity` / `DBWake` (spec 010) — only registered when the database idle auto-stop feature is active (AWS RDS demo deployment only; see [Database idle auto-stop](#database-idle-auto-stop) below). `DBActivity` records every request as activity and tracks it as an in-flight operation; `DBWake` intercepts requests while the database is stopped/starting and returns the `waking_up` signal instead of letting them reach a handler.
 
 ### `internal/pkg/avatarstorage/`
 
-S3-backed storage for avatar images (spec 014, ADR-033). Implements the `domain.AvatarStore` port that `UserService` depends on. Avatars live in the same bucket as attachments under the `avatars/` prefix (`avatars/avatar-{userID}.{ext}`, one object per user) and share `attachmentstorage`'s S3 client. They are served by the backend at `GET /avatars/:filename` — unauthenticated, streamed from S3 — rather than via pre-signed URLs, because avatar URLs must be stable and the bucket blocks public policies. Kept separate from `attachmentstorage` because the validation policy differs (2 MB, JPEG/PNG/WebP only).
+S3-backed storage for avatar images (spec 014). Implements the `domain.AvatarStore` port that `UserService` depends on. Avatars live in the same bucket as attachments under the `avatars/` prefix (`avatars/avatar-{userID}.{ext}`, one object per user) and share `attachmentstorage`'s S3 client. They are served by the backend at `GET /avatars/:filename` — unauthenticated, streamed from S3 — rather than via pre-signed URLs, because avatar URLs must be stable and the bucket blocks public policies. Kept separate from `attachmentstorage` because the validation policy differs (2 MB, JPEG/PNG/WebP only).
 
 ### `internal/pkg/rdsclient/`
 
@@ -128,7 +128,7 @@ Two goroutines run for the lifetime of the process, both started in `cmd/server/
 
 ## Database idle auto-stop
 
-Cost-saving feature for the AWS demo deployment (spec 010; full spec/plan/ADR in the docs repo's `specs/010-db-idle-autostop/` and `docs/decisions/ADR-030-db-idle-autostop.md`). Stops the RDS instance after 10 minutes of no application activity, and starts it again the moment a request needs it — no new cloud infrastructure, no change to local development.
+Cost-saving feature for the AWS demo deployment (spec 010). Stops the RDS instance after 10 minutes of no application activity, and starts it again the moment a request needs it — no new cloud infrastructure, no change to local development.
 
 - **`DBLifecycleTracker`** (`internal/service/dbinstance_service.go`) — the only place lifecycle state lives: last-activity timestamp, in-flight operation count, start dedupe flag, and start-failure count, all behind one mutex.
 - **Wake-on-hit**: a request hitting a stopped database gets an immediate `503 {"status":"waking_up",...}` instead of blocking (the `DBWake` middleware); the frontend (`app/plugins/api.ts`'s `fetchWithWakeRetry`) retries automatically with a loading indicator until it succeeds or 5 minutes elapse.

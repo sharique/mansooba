@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Guards two things between quarterly audits (ADR-034, specs/015-tech-stack-refresh):
+# Guards two things between quarterly audits:
 #
 #   A. No floating references: image tags, download URLs and CI runner labels
 #      must name a version. Image tags follow a release line (24, 1.30, 3.24),

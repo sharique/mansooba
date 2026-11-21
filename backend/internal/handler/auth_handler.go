@@ -118,7 +118,7 @@ func (h *AuthHandler) Refresh(c *echo.Context) error {
 
 // Logout godoc
 // @Summary      Revoke the refresh token and clear its cookie
-// @Description  Reads the refresh_token cookie. Missing or invalid tokens are ignored — logout is always idempotent (200). Rate-limited per ADR-021.
+// @Description  Reads the refresh_token cookie. Missing or invalid tokens are ignored — logout is always idempotent (200). Rate-limited.
 // @Tags         auth
 // @Success      200 "Cookie cleared"
 // @Failure      500 {object} apierror.APIError "Unexpected server error"

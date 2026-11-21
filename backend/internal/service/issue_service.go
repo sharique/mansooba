@@ -282,7 +282,7 @@ func (s *issueService) Update(ctx context.Context, projectKey string, id uint, c
 		if err := s.requireAssignable(ctx, project.ID, req.AssigneeID); err != nil {
 			return nil, err
 		}
-		// 0 means "clear" (ADR-036); JSON null is indistinguishable from absent.
+		// 0 means "clear"; JSON null is indistinguishable from absent.
 		issue.AssigneeID = assigneeOrNil(req.AssigneeID)
 	}
 	if req.StoryPoints != nil {

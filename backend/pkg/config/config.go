@@ -93,7 +93,7 @@ type Config struct {
 	// separate 5-minute retry bound (FR-013).
 	RDSStartFailureBound int `mapstructure:"RDS_START_FAILURE_BOUND"`
 
-	// System Logs (011-system-logs, ADR-031). LokiBaseURL points at the
+	// System Logs (011-system-logs). LokiBaseURL points at the
 	// Grafana Loki instance backing System Logs (e.g. "http://loki:3100" in
 	// docker-compose). LokiRuntimeOverridesPath MUST be the exact path Loki
 	// was started with via -runtime-config.file, or retention changes
