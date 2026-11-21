@@ -156,10 +156,9 @@ func Seed(ctx context.Context, db *gorm.DB, adminID uint) (*SeedResult, error) {
 		}
 
 		var issues []*domain.Issue
-		for i, f := range fixtures {
+		for _, f := range fixtures {
 			points := f.points
 			issue := &domain.Issue{
-				Key:         key + "-" + itoa(i+1),
 				ProjectID:   proj.ID,
 				Title:       f.title,
 				Type:        f.typ,
@@ -221,19 +220,4 @@ func Seed(ctx context.Context, db *gorm.DB, adminID uint) (*SeedResult, error) {
 		return nil, txErr
 	}
 	return result, nil
-}
-
-func itoa(n int) string {
-	if n < 0 {
-		return "-" + itoa(-n)
-	}
-	digits := []byte{}
-	if n == 0 {
-		return "0"
-	}
-	for n > 0 {
-		digits = append([]byte{byte('0' + n%10)}, digits...)
-		n /= 10
-	}
-	return string(digits)
 }

@@ -15,6 +15,7 @@ Use this guide when you want a tight Go + Node dev loop without building Docker 
 - [4. Frontend](#4-frontend)
 - [5. First run](#5-first-run)
 - [Running tests](#running-tests)
+- [Upgrading](#upgrading)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -221,6 +222,15 @@ recreate it:
 AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
   aws --endpoint-url http://localhost:4566 s3 mb s3://mansooba-attachments --region us-east-1
 ```
+
+## Upgrading
+
+Run one version of the server against a database at a time, and do not downgrade.
+The first start of this version sets each project's task counter from its existing
+tasks and from the deletions recorded in the activity history, and logs one line
+(`task counters set`) if it changed anything; later starts do nothing. Tasks that
+were deleted before deletions were recorded (before v0.4.1) cannot be protected, so
+the first task created afterwards can reuse such a number once. No task is renamed.
 
 ---
 

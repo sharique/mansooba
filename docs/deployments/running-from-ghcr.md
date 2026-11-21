@@ -22,6 +22,7 @@ Images are built and pushed automatically on every merge to `main` via GitHub Ac
   - [Stopping and cleanup](#stopping-and-cleanup)
 - [Option C — Pin to a specific image version](#option-c-pin-to-a-specific-image-version)
 - [Environment Variables Reference](#environment-variables-reference)
+- [Upgrading](#upgrading)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -443,6 +444,15 @@ host=<hostname> port=5432 user=<user> password=<pass> dbname=<db> sslmode=disabl
 ```
 
 ---
+
+## Upgrading
+
+Run one version of the server against a database at a time, and do not downgrade.
+The first start of this version sets each project's task counter from its existing
+tasks and from the deletions recorded in the activity history, and logs one line
+(`task counters set`) if it changed anything; later starts do nothing. Tasks that
+were deleted before deletions were recorded (before v0.4.1) cannot be protected, so
+the first task created afterwards can reuse such a number once. No task is renamed.
 
 ## Troubleshooting
 

@@ -90,7 +90,10 @@ func lockProject(tx *gorm.DB, projectID uint) error { return lockProjectWith(tx,
 // lockProjectShared takes a shared lock: any number of transactions hold it at
 // once, but none of them overlaps with an exclusive lock (a delete, a change of
 // who administers the project). GORM writes it as FOR SHARE on PostgreSQL and
-// LOCK IN SHARE MODE on MySQL and MariaDB.
+// LOCK IN SHARE MODE on MySQL and MariaDB. Sprint, label and member inserts take
+// it; creating a task takes the exclusive lock instead, through the UPDATE that
+// issues its number (nextTaskKey), because turning a shared lock into an
+// exclusive one inside one transaction would deadlock two simultaneous creators.
 func lockProjectShared(tx *gorm.DB, projectID uint) error {
 	return lockProjectWith(tx, projectID, "SHARE")
 }

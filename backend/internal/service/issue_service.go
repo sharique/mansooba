@@ -105,14 +105,10 @@ func (s *issueService) Create(ctx context.Context, projectKey string, callerID u
 		return nil, err
 	}
 
-	// Sequential key: count existing issues for this project.
-	existing, err := s.issueRepo.FindByProjectID(ctx, project.ID)
-	if err != nil {
-		return nil, err
-	}
-
+	// The key is left empty: the repository issues the project's next task number
+	// in the same transaction as the insert and sets it, so a number is issued
+	// once and never again.
 	issue := &domain.Issue{
-		Key:         fmt.Sprintf("%s-%d", project.Key, len(existing)+1),
 		ProjectID:   project.ID,
 		Title:       req.Title,
 		Description: req.Description,

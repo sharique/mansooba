@@ -9,6 +9,21 @@ relationship links between issues, and file attachments.
 
 ## Implementation details
 
+### Task keys
+
+A task's key is the project key and a number, such as `PROJ-12`. The number comes
+from a counter kept on the project: each new task takes the next number, a number
+is issued once and never again, and deleting a task never frees its number or
+changes another task's key. Gaps are normal (`PROJ-1`, `PROJ-3` after `PROJ-2` was
+deleted). A key never changes after creation, and editing a task never touches the
+counter. Each project counts on its own; a project deleted and created again under
+the same project key starts again at 1. The in-app addresses use the task's
+numeric id, which is also never reused.
+
+The number is issued in the same database transaction as the insert, so tasks
+created at the same moment get different numbers and a create that fails leaves no
+gap.
+
 ### Issue relations
 
 Four relation types: `blocks`, `is_blocked_by`, `relates_to`, `duplicates`.

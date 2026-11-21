@@ -2,10 +2,12 @@ package seed_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/sharique/mansooba/internal/domain"
+	"github.com/sharique/mansooba/internal/repository"
 	"github.com/sharique/mansooba/internal/seed"
 	"github.com/sharique/mansooba/internal/testdb"
 	"github.com/stretchr/testify/assert"
@@ -193,4 +195,33 @@ func TestSeed_ThreeSprintsWithTickets(t *testing.T) {
 	require.True(t, sprints[1].EndDate.Before(*sprints[2].StartDate))
 	now := time.Now().UTC()
 	assert.True(t, sprints[1].StartDate.Before(now) && sprints[1].EndDate.After(now))
+}
+
+// The demo tasks are numbered like any other: DEMO-1 to DEMO-20 in order, the
+// project's counter says 20, and the next task created is DEMO-21.
+func TestSeed_NumbersTheDemoTasksThroughTheProjectCounter(t *testing.T) {
+	db := newTestDB(t)
+	admin := createAdmin(t, db)
+	ctx := context.Background()
+
+	result, err := seed.Seed(ctx, db, admin.ID)
+	require.NoError(t, err)
+
+	var issues []domain.Issue
+	require.NoError(t, db.Where("project_id = ?", result.ProjectID).Order("id").Find(&issues).Error)
+	require.Len(t, issues, 20)
+	for i, issue := range issues {
+		assert.Equal(t, fmt.Sprintf("DEMO-%d", i+1), issue.Key)
+	}
+
+	var project domain.Project
+	require.NoError(t, db.First(&project, result.ProjectID).Error)
+	assert.Equal(t, uint(20), project.TaskCounter, "the counter must follow the seeded tasks")
+
+	next := &domain.Issue{
+		ProjectID: result.ProjectID, Title: "after the demo data", Type: domain.IssueTypeTask,
+		Status: domain.IssueStatusTodo, Priority: domain.IssuePriorityLow, ReporterID: admin.ID,
+	}
+	require.NoError(t, repository.NewIssueRepository(db).Create(ctx, next))
+	assert.Equal(t, "DEMO-21", next.Key)
 }
