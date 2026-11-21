@@ -181,7 +181,9 @@ create a second user, a first project and the example data. See
 [the first-run wizard guide](../features/first-run-wizard.md).
 
 The example data is a `DEMO` project with three sprints (one completed, one in progress, one
-planned), 20 tickets with story points, two labels and two comments. If you skipped it, import it
+planned), 20 tickets with story points and placeholder (lorem ipsum) descriptions, two labels and
+81 comments (a few tickets carry threads of more than ten) and nine links between
+related tickets (blocks, relates to, duplicates). If you skipped it, import it
 later, once an administrator exists:
 
 ```sh

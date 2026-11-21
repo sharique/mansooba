@@ -20,6 +20,8 @@ type SeedResult struct {
 	IssuesCreated   int
 	LabelsCreated   int
 	CommentsCreated int
+	// RelationsCreated counts the rows written; a "blocks" link is two rows.
+	RelationsCreated int
 }
 
 // Seed populates the DB with demo data inside a single GORM transaction.
@@ -53,6 +55,7 @@ func Seed(ctx context.Context, db *gorm.DB, adminID uint) (*SeedResult, error) {
 		txSprint := repository.NewSprintRepository(tx)
 		txIssue := repository.NewIssueRepository(tx)
 		txComment := repository.NewCommentRepository(tx)
+		txRelation := repository.NewIssueRelationRepository(tx)
 
 		// Determine key: use DEMO unless already taken (inside tx, race-safe).
 		key := "DEMO"
@@ -156,11 +159,12 @@ func Seed(ctx context.Context, db *gorm.DB, adminID uint) (*SeedResult, error) {
 		}
 
 		var issues []*domain.Issue
-		for _, f := range fixtures {
+		for i, f := range fixtures {
 			points := f.points
 			issue := &domain.Issue{
 				ProjectID:   proj.ID,
 				Title:       f.title,
+				Description: loremDescription(i, f.typ),
 				Type:        f.typ,
 				Status:      f.status,
 				Priority:    f.priority,
@@ -194,24 +198,61 @@ func Seed(ctx context.Context, db *gorm.DB, adminID uint) (*SeedResult, error) {
 			return err
 		}
 
-		// Create comments.
-		comments := []struct {
-			issueIdx int
-			body     string
-		}{
-			{8, "Reproduced on Firefox and Safari. Likely the redirect guard in auth.global.ts."},
-			{9, "Considering Vue-draggable-plus for the board component."},
+		// Create comments. Two tickets keep a hand-written opening comment; every
+		// ticket gets a short conversation of placeholder text, and a few have long
+		// threads (more than ten comments) so the comment list can be seen at length.
+		openers := map[int]string{
+			8: "Reproduced on Firefox and Safari. Likely the redirect guard in auth.global.ts.",
+			9: "Considering Vue-draggable-plus for the board component.",
 		}
-		for _, c := range comments {
-			if err := txComment.Create(ctx, &domain.Comment{
-				IssueID:  issues[c.issueIdx].ID,
-				AuthorID: adminID,
-				Body:     c.body,
-			}); err != nil {
-				return err
+		longThreads := map[int]int{3: 12, 8: 11, 9: 14, 12: 10}
+		shortThreads := []int{1, 2, 3, 2}
+		for idx, issue := range issues {
+			count, long := longThreads[idx]
+			if !long {
+				count = shortThreads[idx%len(shortThreads)]
+			}
+			for n := 0; n < count; n++ {
+				body := loremComment(idx, n)
+				if opener, ok := openers[idx]; ok && n == 0 {
+					body = opener
+				}
+				if err := txComment.Create(ctx, &domain.Comment{IssueID: issue.ID, AuthorID: adminID, Body: body}); err != nil {
+					return err
+				}
+				result.CommentsCreated++
 			}
 		}
-		result.CommentsCreated = 2
+
+		// Link related tickets (indexes are positions in fixtures above). A "blocks"
+		// link is stored as two rows, like the relation service does it.
+		type link struct {
+			from, to int
+			kind     string
+		}
+		links := []link{
+			{9, 16, domain.RelationTypeBlocks},      // Kanban board drag-and-drop -> Keyboard shortcuts for the board
+			{7, 11, domain.RelationTypeBlocks},      // Add issue comments -> Email notifications for assignments
+			{2, 3, domain.RelationTypeBlocks},       // Design database schema -> User registration and login
+			{12, 19, domain.RelationTypeBlocks},     // Search is slow on large projects -> Saved filters
+			{8, 3, domain.RelationTypeRelatesTo},    // Login redirect loop <-> User registration and login
+			{6, 15, domain.RelationTypeRelatesTo},   // Colour tokens <-> Dark mode contrast fixes
+			{13, 14, domain.RelationTypeRelatesTo},  // Burndown reports <-> CSV export for sprint reports
+			{10, 17, domain.RelationTypeRelatesTo},  // API integration tests <-> Document the REST API
+			{18, 12, domain.RelationTypeDuplicates}, // Performance regression on issue list duplicates Search is slow
+		}
+		for _, l := range links {
+			rows := []*domain.IssueRelation{{IssueID: issues[l.from].ID, RelatedIssueID: issues[l.to].ID, RelationType: l.kind, CreatedByID: adminID}}
+			if l.kind == domain.RelationTypeBlocks {
+				rows = append(rows, &domain.IssueRelation{IssueID: issues[l.to].ID, RelatedIssueID: issues[l.from].ID, RelationType: domain.RelationTypeIsBlockedBy, CreatedByID: adminID})
+			}
+			for _, row := range rows {
+				if err := txRelation.Create(ctx, row); err != nil {
+					return err
+				}
+				result.RelationsCreated++
+			}
+		}
 
 		return nil
 	})

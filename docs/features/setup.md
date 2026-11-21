@@ -40,7 +40,7 @@ store:
    member-add are two independent service calls, so a failure partway through can leave
    the project created without the member added.
 4. **Sample data** — optional; imports a demo project (`DEMO` key), 3 sprints (completed, active, planned), 20
-   issues, 2 labels, and 2 comments — this step *is* wrapped in a single DB transaction
+   issues with placeholder descriptions, 2 labels, 81 comments (a few tickets with more than 10) and 9 links between related tickets — this step *is* wrapped in a single DB transaction
 5. **Summary** — confirms what was created
 
 ### Step 5 retry behaviour
@@ -78,7 +78,7 @@ go run ./cmd/seed
 Seed data created:
   Project:  Mansooba Demo [DEMO]
   Sprints:  3 (1 completed, 1 active, 1 planned)
-  Issues: 20  Labels: 2  Comments: 2
+  Issues: 20  Labels: 2  Comments: 81  Links: 13
 ```
 
 **Already present (idempotent):**

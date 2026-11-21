@@ -3,6 +3,7 @@ package seed_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -42,7 +43,7 @@ func TestSeed_Success(t *testing.T) {
 	assert.Equal(t, "Mansooba Demo", result.ProjectName)
 	assert.Equal(t, 20, result.IssuesCreated)
 	assert.Equal(t, 2, result.LabelsCreated)
-	assert.Equal(t, 2, result.CommentsCreated)
+	assert.Positive(t, result.CommentsCreated)
 	assert.NotZero(t, result.ProjectID)
 	assert.NotZero(t, result.SprintID)
 
@@ -224,4 +225,95 @@ func TestSeed_NumbersTheDemoTasksThroughTheProjectCounter(t *testing.T) {
 	}
 	require.NoError(t, repository.NewIssueRepository(db).Create(ctx, next))
 	assert.Equal(t, "DEMO-21", next.Key)
+}
+
+// The demo project should look lived in: every ticket has a description and a
+// conversation, and a few tickets have long threads.
+func TestSeed_TicketsHaveLoremIpsumDescriptionsAndComments(t *testing.T) {
+	db := newTestDB(t)
+	admin := createAdmin(t, db)
+
+	result, err := seed.Seed(context.Background(), db, admin.ID)
+	require.NoError(t, err)
+
+	var issues []domain.Issue
+	require.NoError(t, db.Where("project_id = ?", result.ProjectID).Order("id").Find(&issues).Error)
+	require.Len(t, issues, 20)
+
+	var total int64
+	longThreads := 0
+	for _, issue := range issues {
+		assert.True(t, strings.HasPrefix(issue.Description, "Lorem ipsum dolor sit amet"), "%s has no lorem ipsum description", issue.Key)
+		assert.Greater(t, len(issue.Description), 120, "%s description is too short", issue.Key)
+
+		var comments []domain.Comment
+		require.NoError(t, db.Where("issue_id = ?", issue.ID).Order("id").Find(&comments).Error)
+		assert.NotEmpty(t, comments, "%s has no comments", issue.Key)
+		for _, c := range comments {
+			assert.Equal(t, admin.ID, c.AuthorID)
+			assert.NotEmpty(t, strings.TrimSpace(c.Body))
+		}
+		if len(comments) > 10 {
+			longThreads++
+		}
+		total += int64(len(comments))
+	}
+	assert.GreaterOrEqual(t, longThreads, 3, "a few tickets should have more than 10 comments")
+	assert.EqualValues(t, total, result.CommentsCreated, "the result must count the comments that were written")
+}
+
+// The same text every time, so the demo looks the same on every install and the
+// tests are stable.
+func TestSeed_DemoTextIsDeterministic(t *testing.T) {
+	first, second := newTestDB(t), newTestDB(t)
+	a, b := createAdmin(t, first), createAdmin(t, second)
+	ra, err := seed.Seed(context.Background(), first, a.ID)
+	require.NoError(t, err)
+	rb, err := seed.Seed(context.Background(), second, b.ID)
+	require.NoError(t, err)
+
+	var da, db2 []string
+	require.NoError(t, first.Model(&domain.Issue{}).Where("project_id = ?", ra.ProjectID).Order("id").Pluck("description", &da).Error)
+	require.NoError(t, second.Model(&domain.Issue{}).Where("project_id = ?", rb.ProjectID).Order("id").Pluck("description", &db2).Error)
+	assert.Equal(t, da, db2)
+	assert.Equal(t, ra.CommentsCreated, rb.CommentsCreated)
+}
+
+// Related tickets: a few links of every kind, stored the way the relation
+// service stores them (a "blocks" link has a matching "is blocked by" row).
+func TestSeed_LinksRelatedTickets(t *testing.T) {
+	db := newTestDB(t)
+	admin := createAdmin(t, db)
+
+	result, err := seed.Seed(context.Background(), db, admin.ID)
+	require.NoError(t, err)
+
+	var rels []domain.IssueRelation
+	require.NoError(t, db.Order("id").Find(&rels).Error)
+	byType := map[string]int{}
+	pairs := map[[3]uint]bool{}
+	for _, r := range rels {
+		byType[r.RelationType]++
+		pairs[[3]uint{r.IssueID, r.RelatedIssueID, 0}] = true
+		assert.NotEqual(t, r.IssueID, r.RelatedIssueID, "a ticket cannot be related to itself")
+		assert.Equal(t, admin.ID, r.CreatedByID)
+	}
+	assert.GreaterOrEqual(t, byType[domain.RelationTypeBlocks], 3)
+	assert.Equal(t, byType[domain.RelationTypeBlocks], byType[domain.RelationTypeIsBlockedBy], "every blocks link has its reciprocal")
+	assert.GreaterOrEqual(t, byType[domain.RelationTypeRelatesTo], 3)
+	assert.GreaterOrEqual(t, byType[domain.RelationTypeDuplicates], 1)
+	for _, r := range rels {
+		if r.RelationType == domain.RelationTypeBlocks {
+			assert.True(t, pairs[[3]uint{r.RelatedIssueID, r.IssueID, 0}], "blocks %d->%d has no reciprocal row", r.IssueID, r.RelatedIssueID)
+		}
+	}
+	assert.Equal(t, len(rels), result.RelationsCreated, "the result must count the rows written")
+
+	// every link stays inside the demo project
+	var outside int64
+	require.NoError(t, db.Model(&domain.IssueRelation{}).
+		Where("issue_id NOT IN (?) OR related_issue_id NOT IN (?)",
+			db.Model(&domain.Issue{}).Select("id").Where("project_id = ?", result.ProjectID),
+			db.Model(&domain.Issue{}).Select("id").Where("project_id = ?", result.ProjectID)).Count(&outside).Error)
+	assert.Zero(t, outside)
 }
