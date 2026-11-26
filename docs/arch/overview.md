@@ -5,7 +5,7 @@
 | Layer | Technology |
 |-------|-----------|
 | Backend language | Go 1.27 |
-| Backend framework | Echo v4 |
+| Backend framework | Echo v5 |
 | ORM | GORM |
 | Databases | PostgreSQL (preferred), MySQL / MariaDB |
 | Object storage | AWS S3 in prod, LocalStack in local dev (aws-sdk-go-v2) |
